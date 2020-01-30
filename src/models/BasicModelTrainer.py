@@ -2,15 +2,17 @@ import torch
 import numpy as np
 import time
 
-class VanillaModelTrainer:
+class BasicModelTrainer:
     def __init__(self, train_params):
         self.params = train_params
-    
+        
     def train_model(self, model, data_input, tracker):
         start_time = time.time()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'] 
         # TODO add options for training type-either convergence or fixed epochs
         # for now its until convergence
+        # TODO figure out what the tracker should do here- maybe just have the model output
+        # relevant metrics in a dict and the tracker just saves them
         prev_loss = torch.tensor(0)
         cur_loss = torch.tensor(np.inf)
         epoch = 0
@@ -18,13 +20,13 @@ class VanillaModelTrainer:
         while torch.abs(cur_loss - prev_loss) > train_params['conv_thresh']:
             prev_loss = cur_loss
             cur_loss = self.step_params_over_all_batches(model, data_input, optimizer)
-            if epoch % train_params['n_epoch_eval'] == 0:
-                tracker.update(epoch)
-                tracker.print_cur_metrics()
+        #    if epoch % train_params['n_epoch_eval'] == 0:
+        #        tracker.update(epoch)
+        #        tracker.print_cur_metrics()
             epoch += 1
         #update tracker one last time
-        if not epoch - 1 == tracker.epochs[-1]:
-            tracker.update(epoch)
+        #if not epoch - 1 == tracker.epochs[-1]:
+        #    tracker.update(epoch)
 
     def  step_params_over_all_batches(self, model, data_input, optimizer):
         # note this funciton will eventually need to include concatentation with the missing data indicators

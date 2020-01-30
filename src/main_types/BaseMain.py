@@ -1,10 +1,11 @@
-class Main:
+class BaseMain:
     def __init__(self, params):
         self.params = params
 
     def main(self):
         data_input = self.load_data()
         self.preprocess_data(data_input)
+        model = self.load_model()
         results_tracker = self.train_model(data_input)
         self.save_results(results_tracker)
 
@@ -15,8 +16,11 @@ class Main:
 
     def preprocess_data(self, data_input): 
         raise NotImplementedError('The Main class must be subclassed and have each function defined in the subclass')
+
+    def load_model(self):
+        raise NotImplementedError('The Main class must be subclassed and have each function defined in the subclass')
     
-    def train_model(self, data_input):
+    def train_model(self, model, data_input):
         raise NotImplementedError('The Main class must be subclassed and have each function defined in the subclass')
 
     def save_results(self, results_tracker):
