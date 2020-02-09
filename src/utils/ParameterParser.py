@@ -15,8 +15,8 @@ DEFAULT_PARAMS =\
             'covariate_dim': 'specify in config since data-dependent',
             'hidden_dim': 5,
             'n_layers_rnn': 3,
-            'dropout': .3,
-            'survival_distribution_type': 'GGD',
+            'keep_prob': .3,
+            'survival_distribution_type': 'Gamma',
 
         },
 
@@ -24,9 +24,15 @@ DEFAULT_PARAMS =\
             'learning_rate': .0001,
             'batch_size': 20,
             'conv_thresh': .0001,
-         
-
+            'n_epoch_print': 1
         },
+        
+        'diagnostic_params': {
+            'distribution_type': 'ggd',
+            'regularization_params': {
+                'next_step_cov_reg_str': .0001,
+            },
+        }
 
     }
 

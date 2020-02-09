@@ -1,0 +1,24 @@
+main_type: 'basic_main'
+savedir: '../output/synth/'
+data_input_params:
+    dataset_name: 'synth'
+    data_loading_params:
+        paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl']
+
+model_params:
+    covariate_dim: 1
+    dropout: 1.
+    hidden_dim: 3
+    n_layers_rnn: 1
+    survival_distribution_type: 'Exp'
+
+train_params:
+    learning_rate: .00001
+    batch_size: 1
+    conv_thresh: .00000001
+    n_epoch_print: 1
+
+diagnostic_params:
+    distribution_type: 'exp'
+    regularization_params:
+        next_step_cov_reg_str: 1000.

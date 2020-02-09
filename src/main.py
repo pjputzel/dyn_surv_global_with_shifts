@@ -1,10 +1,10 @@
 import yaml
-import main_types.BasicMain
-import utils.ParameterParser
+from  main_types.BasicMain import BasicMain
+from  utils.ParameterParser import ParameterParser
 
-def main():
+def main(path_to_config):
     params = ParameterParser(path_to_config).parse_params()
-
+    print(params)
     main_type = params['main_type']
     if main_type == 'basic_main':
         main = BasicMain(params)

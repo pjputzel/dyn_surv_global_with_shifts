@@ -1,0 +1,3 @@
+1. Implement Loss objects for different distributions, and each model trainer object will just create the create the correct loss object 
+2. Implement Tracker object
+3. DEBUG LOSS

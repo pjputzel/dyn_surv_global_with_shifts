@@ -6,7 +6,7 @@ class BaseMain:
         data_input = self.load_data()
         self.preprocess_data(data_input)
         model = self.load_model()
-        results_tracker = self.train_model(data_input)
+        results_tracker = self.train_model(model, data_input)
         self.save_results(results_tracker)
 
     def load_data(self):
