@@ -6,8 +6,8 @@ import time
 class BasicModelTrainer:
     def __init__(self, train_params):
         self.params = train_params
-        
-    def train_model(self, model, data_input, diagnostics):
+        self.max_iter = 10000
+    def train_model(self, model, data_input, diagnostics, loss_type='total_loss'):
         start_time = time.time()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])
         # TODO add options for training type-either convergence or fixed epochs
@@ -18,14 +18,19 @@ class BasicModelTrainer:
         cur_loss = torch.tensor(np.inf)
         cur_log_loss = 0
         epoch = 0
-        while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and not (cur_log_loss < 0):
+        while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < self.max_iter:
             data_input.prepare_sequences_for_rnn(self.params['batch_size'])
             prev_loss = cur_loss
-            # TODO: add shuffling here over the padded batches, may have to repad each round to get shuffling between batches
-            # also make sure to correctly shuffle the parts of data_input
             diagnostics_per_batch = self.step_params_over_all_batches(model, data_input, optimizer, diagnostics)
             diagnostics.update_full_data_diagnostics(diagnostics_per_batch, epoch)
-            cur_loss = diagnostics.full_data_diagnostics['total_loss']
+            if loss_type == 'total_loss':
+                cur_loss = diagnostics.full_data_diagnostics['total_loss']
+            elif loss_type == 'reg_only':
+                cur_loss = diagnostics.full_data_diagnostics['regularization']
+            elif loss_type == 'log_loss_only':
+                cur_loss = diagnostics.full_data_diagnostics['loss']
+            else:
+                raise ValueError('Loss type %s for training model not recognized' %loss_type)
             cur_log_loss = diagnostics.full_data_diagnostics['loss']
             if epoch % self.params['n_epoch_print'] == 0:
                 diagnostics.print_cur_diagnostics()
@@ -34,6 +39,7 @@ class BasicModelTrainer:
         if not epoch - 1 == diagnostics.epochs[-1]:
             diagnostics.update_full_data_diagnostics(diagnostics_per_batch. epoch)
             diagnostics.print_cur_diagnostics()
+        print('Total training time for loss type %s was %d seconds' %(loss_type, time.time() - start_time))
         return diagnostics
 
     def  step_params_over_all_batches(self, model, data_input, optimizer, diagnostics, next_step_reg_str=.1):
@@ -200,7 +206,7 @@ class BasicModelTrainer:
 
     def compute_batch_gamma_distribution_log_survival_probabilities(self, batch_event_times, pred_distribution_params, epsilon=1e-5):
         alpha = pred_distribution_params[:, 0]
-        beta = pred_distribution_params[:, 0] 
+        beta = pred_distribution_params[:, 1] 
         gamma_cdf = torch.clamp(self.estimate_regularized_lower_incomplete_gamma_with_series(alpha, batch_event_times * beta), max=1. - epsilon)
         #print(gamma_cdf)
         #print(torch.log(1. - gamma_cdf))

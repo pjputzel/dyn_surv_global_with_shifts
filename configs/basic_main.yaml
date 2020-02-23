@@ -8,17 +8,18 @@ data_input_params:
 model_params:
     covariate_dim: 1
     dropout: 1.
-    hidden_dim: 3
-    n_layers_rnn: 1
-    survival_distribution_type: 'Exp'
+    hidden_dim: 10
+    n_layers_rnn: 
 
 train_params:
-    learning_rate: .00001
-    batch_size: 1
+    learning_rate: .001
+    batch_size: 100
     conv_thresh: .00000001
-    n_epoch_print: 1
+    n_epoch_print: 200
 
 diagnostic_params:
     distribution_type: 'exp'
     regularization_params:
-        next_step_cov_reg_str: 1000.
+        next_step_cov_reg_str: 0.010
+        parameter_diversity_reg_str: 0.
+        

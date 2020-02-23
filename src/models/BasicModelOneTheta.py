@@ -1,18 +1,16 @@
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-from models.BasicModelOneTheta import BasicModelOneTheta
 
-SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [0, 1, 1]), 'gamma': (2, [1, 1]), 'exp': (1, [1]), 'lnormal':(2, [1, 1])}
+SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exp': (1, [1]), 'lnormal':(2, [1, 1])}
 
 N_LAYERS_PER_RNN = 1
 
-class GlobalPlusEpsModel(nn.Module):
+class BasicModelOneTheta(nn.Module):
     def __init__(self, model_params, distribution_type):
         super().__init__()
         self.params = model_params
         self.distribution_type = distribution_type
-        self.basic_model = BasicModelOneTheta(model_params, distribution_type)
         # plus one is for the timestamp -> needs to be updated to 2 * covariate_dim + 1 to account for missing indicators
         
         if not self.params['n_layers_rnn'] == None:
@@ -20,21 +18,37 @@ class GlobalPlusEpsModel(nn.Module):
 
         # TODO add dropout back in!!
         self.RNN = nn.GRU(\
-            self.params['covariate_dim'] + 1, SURVIVAL_DISTRIBUTION_CONFIGS[self.distribution_type][0]
+            self.params['covariate_dim'] + 1, self.params['hidden_dim'],
             #dropout=self.params['dropout']
         )
 
+        self.params_fc_layer = nn.Linear(\
+            self.params['hidden_dim'],
+            SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
+        ) 
 
+        nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
+        nn.init.normal_(self.params_fc_layer.bias, std=.00001)
+
+        self.cov_fc_layer = nn.Linear(\
+            self.params['hidden_dim'] + 1,
+            self.params['covariate_dim']
+            #self.params['covariate_dim'] + 1 to predict time too
+        )
         
     def forward(self, packed_sequence_batch):
         batch_size = packed_sequence_batch.batch_sizes[0]
 
-        h_0 = Variable(torch.randn(\
+        h_0_l1 = Variable(torch.randn(\
             N_LAYERS_PER_RNN, batch_size, 
-            SURVIVAL_DISTRIBUTION_CONFIGS[self.distribution_type][0]
+            self.params['hidden_dim']
         ))
 
         
+        h_0_l2 = Variable(torch.randn(\
+            N_LAYERS_PER_RNN, batch_size, 
+            SURVIVAL_DISTRIBUTION_CONFIGS[self.distribution_type][0]
+        ))
 
         # for LSTM, eventually should make this work in general
         #c_0 = Variable(torch.randn(\
@@ -43,7 +57,7 @@ class GlobalPlusEpsModel(nn.Module):
         #))
 
         # eventually may add attention by using the hidden_states/'output' of the GRU
-        output, last_hidden_state = self.RNN(packed_sequence_batch, h_0)
+        output, last_hidden_state = self.RNN(packed_sequence_batch, h_0_l1)
 
         unpacked_hidden_states, lengths = torch.nn.utils.rnn.pad_packed_sequence(output)
         unpacked_hidden_states = unpacked_hidden_states.permute(1, 0, 2)
@@ -51,20 +65,30 @@ class GlobalPlusEpsModel(nn.Module):
 
         #print(unpacked_hidden_states.shape)
 
+        batch_covs_unpacked, _ = torch.nn.utils.rnn.pad_packed_sequence(packed_sequence_batch)
+        batch_covs_unpacked = batch_covs_unpacked.permute(1, 0, 2)
 
-        #next_step_cov_preds = self.make_next_step_cov_preds(unpacked_hidden_states, batch_covs_unpacked, lengths) 
+        next_step_cov_preds = self.make_next_step_cov_preds(unpacked_hidden_states, batch_covs_unpacked, lengths) 
         # TODO update the next two lines to predict the params at each step of the hidden output
         # do we have to only feed in the correct hidden state lens here???
         #predicted_distribution_parameters = self.params_fc_layer(last_hidden_state.view(last_hidden_state.shape[1], -1))
-        predicted_distribution_parameters, lengths = torch.nn.utils.rnn.pad_packed_sequence(output)
-        predicted_distribution_parameters = predicted_distribution_parameters.permute(1, 0, 2)
+        predicted_distribution_parameters =  self.params_fc_layer(last_hidden_state)
+        predicted_distribution_parameters = predicted_distribution_parameters.permute(1, 0, 2) 
+        ## probably uneccesary
+        #predicted_distribution_parameters = self.format_param_preds(predicted_distribution_parameters)
 
         predicted_distribution_parameters = self.restrict_parameter_ranges(predicted_distribution_parameters)
         #print(predicted_distribution_parameters.shape)
         #print(next_step_cov_preds.shape)
-        global_predicted_distribution_parameters = torch.mean(predicted_distribution_parameters, axis=0)
-        next_step_cov_preds, individualized_dist_params, _ = self.basic_model(packed_sequence_batch)
-        return next_step_cov_preds, global_predicted_distribution_parameters + individualized_dist_params, lengths
+
+        #print(predicted_distribution_parameters)
+        
+        return next_step_cov_preds, predicted_distribution_parameters.squeeze(), lengths
+
+    def format_param_preds(self, predicted_distribution_parameters, lengths):
+        pass 
+        
+
 
     def restrict_parameter_ranges(self, predicted_distribution_parameters):
         are_params_pos_only = SURVIVAL_DISTRIBUTION_CONFIGS[self.distribution_type][1]
@@ -88,9 +112,11 @@ class GlobalPlusEpsModel(nn.Module):
             grad.cuda()
         return torch.autograd.Variable(grad)
 
-    def make_next_step_cov_preds(self, unpacked_hidden_states, batch_covs_unpacked, lengths): 
+    def make_next_step_cov_preds(self, unpacked_hidden_states, batch_covs_unpacked, lengths):
+        
         unpacked_hidden_states_with_times = torch.cat([unpacked_hidden_states, batch_covs_unpacked[:, :, 0].unsqueeze(2)], axis=2)
-        next_step_cov_preds = torch.zeros(unpacked_hidden_states.shape[1] - 1, batch_covs_unpacked.shape[0], self.params['covariate_dim'] + 1)
+        # plus one to try and predict next time step, would also have to update the regularization loss function
+        next_step_cov_preds = torch.zeros(unpacked_hidden_states.shape[1] - 1, batch_covs_unpacked.shape[0], self.params['covariate_dim']) 
         
         for batch, (hidden_states_per_step, length) in enumerate(zip(unpacked_hidden_states_with_times, lengths)):
             for i in range(length - 1):
@@ -100,3 +126,4 @@ class GlobalPlusEpsModel(nn.Module):
         next_step_cov_preds = next_step_cov_preds.permute(1, 0, 2)
 
         return next_step_cov_preds
+

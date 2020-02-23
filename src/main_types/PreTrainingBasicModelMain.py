@@ -10,7 +10,7 @@ from utils.ParameterParser import ParameterParser
 from data_loading.DataInput import DataInput
 import torch
 
-class BasicMain(BaseMain):
+class PreTrainingBasicModelMain(BaseMain):
     
     def __init__(self, params):
         super().__init__(params)
@@ -19,7 +19,6 @@ class BasicMain(BaseMain):
     def load_data(self):
         data_input = DataInput(self.params['data_input_params'])
         data_input.load_data()
-        self.data_input = data_input
         return data_input
     
     def preprocess_data(self, data_input):
@@ -32,7 +31,11 @@ class BasicMain(BaseMain):
     def train_model(self, model, data_input):
         model_trainer = BasicModelTrainer(self.params['train_params'])
         diagnostics = Diagnostics(self.params['diagnostic_params'])
-        diagnostics = model_trainer.train_model(model, data_input, diagnostics)
+        print('PRETRAINING')
+        pre_train_diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='reg_only')
+        model_trainer.params['learning_rate'] = .05 #* model_trainer.params['learning_rate']
+        print('TRAINING LOG-LOSS')
+        diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='log_loss_only')
         diagnostics.unshuffle_results(data_input.unshuffled_idxs)
         return diagnostics
     

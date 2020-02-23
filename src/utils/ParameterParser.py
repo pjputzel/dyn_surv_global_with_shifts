@@ -31,6 +31,7 @@ DEFAULT_PARAMS =\
             'distribution_type': 'ggd',
             'regularization_params': {
                 'next_step_cov_reg_str': .0001,
+                'parameter_diversity_reg_str': 0.,
             },
         }
 
