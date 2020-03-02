@@ -33,9 +33,9 @@ class PreTrainingBasicModelMain(BaseMain):
         diagnostics = Diagnostics(self.params['diagnostic_params'])
         print('PRETRAINING')
         pre_train_diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='reg_only')
-        model_trainer.params['learning_rate'] = .05 #* model_trainer.params['learning_rate']
+        model_trainer.params['learning_rate'] = .01 #* model_trainer.params['learning_rate']
         print('TRAINING LOG-LOSS')
-        diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='log_loss_only')
+        diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='total_loss')
         diagnostics.unshuffle_results(data_input.unshuffled_idxs)
         return diagnostics
     

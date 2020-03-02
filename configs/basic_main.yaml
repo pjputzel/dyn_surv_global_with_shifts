@@ -12,14 +12,14 @@ model_params:
     n_layers_rnn: 
 
 train_params:
-    learning_rate: .001
-    batch_size: 100
+    learning_rate: .05
+    batch_size: 3000
     conv_thresh: .00000001
-    n_epoch_print: 200
+    n_epoch_print: 10
 
 diagnostic_params:
     distribution_type: 'exp'
     regularization_params:
-        next_step_cov_reg_str: 0.010
+        next_step_cov_reg_str: 1.
         parameter_diversity_reg_str: 0.
         

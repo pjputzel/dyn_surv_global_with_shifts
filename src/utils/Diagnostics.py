@@ -63,6 +63,7 @@ class Diagnostics:
         for key, value in self.full_data_diagnostics.items():
             if key in ['loss', 'regularization', 'total_loss', 'epochs']:
                 continue
-            self.full_data_diagnostics[key] = [value[-1][unshuffle_idx] for unshuffle_idx in unshuffle_idxs]
+            all_values = torch.cat(value)
+            self.full_data_diagnostics[key] = [all_values[unshuffle_idx] for unshuffle_idx in unshuffle_idxs]
             #self.cur_diagnostics[key] = [self.cur_diagnostics[key][unshuffle_idx] for unshuffle_idx in unshuffle_idxs] 
         

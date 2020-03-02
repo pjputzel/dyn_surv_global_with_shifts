@@ -6,7 +6,7 @@ import time
 class BasicModelTrainer:
     def __init__(self, train_params):
         self.params = train_params
-        self.max_iter = 10000
+        self.max_iter = 500
     def train_model(self, model, data_input, diagnostics, loss_type='total_loss'):
         start_time = time.time()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])

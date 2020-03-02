@@ -185,8 +185,8 @@ class RegularizationCalculator:
         #next_step_cov_preds_for_loop = next_step_cov_preds.reshape([next_step_cov_preds.shape[1], next_step_cov_preds.shape[0], -1])
         diffs_squared_averages_per_individual = torch.zeros(batch_covs.shape[0])
         for i, (batch_cov, next_step_cov_pred, length) in enumerate(zip(batch_covs, next_step_cov_preds, lengths)):
-            #print(next_step_cov_pred[0:length -1])
-            #print(batch_cov[1:length])
+            #print('preds', next_step_cov_pred[0:length -1])
+            #print('covs', batch_cov[1:length])
             if length == 1:
                 continue
             #diffs_squared_averages_per_individual[i] = torch.mean((batch_cov[1:length] - next_step_cov_pred[0:length - 1])**2)
@@ -218,14 +218,16 @@ class RegularizationCalculator:
         return return_val
 
     def compute_parameter_diversity_loss(self, cur_diagnostics):
-        #cur_parameters = cur_diagnostics['predicted_distribution_params']
+        cur_parameters = cur_diagnostics['predicted_distribution_params']
         #lengths = cur_diagnostics['sequence_lengths']
-        #most_recent_param_preds = torch.zeros(cur_parameters.shape[0], cur_parameters.shape[2])
+        #most_recent_param_preds = torch.zeros(cur_parameters.shape[0], cur_parameters.shape[1])
         #for i, length in enumerate(lengths):
         #    most_recent_param_preds[i, :] = cur_parameters[i, length - 1]
-
-        #var = most_recent_param_preds.std()
-        #return 1/var
-        return 0
+        
+        #std = most_recent_param_preds.std()
+        std = torch.sum(cur_parameters.std(axis=0))
+        #print(std)
+        return std
+        #return 0
             
         

@@ -21,8 +21,10 @@ class ResultsPlotterSynth:
         x_range = np.linspace(0, 5, 100)
         fig, axes = plt.subplots(len(counts_per_group), 1, figsize=(figscale * 1, figscale * 3))
         cur_idx = 0
+        self.predicted_distribution_parameters = [self.predicted_distribution_parameters[i].detach().numpy() for i in range(len(self.predicted_distribution_parameters))]
         for group_idx, count in enumerate(counts_per_group):
-            mean_pred_param = np.mean(self.predicted_distribution_parameters[cur_idx : count + cur_idx].detach().numpy())
+            mean_pred_param = np.mean(self.predicted_distribution_parameters[cur_idx : count + cur_idx])
+            print(self.predicted_distribution_parameters[cur_idx : count + cur_idx])
             true_param = true_parameters[group_idx]
             print(mean_pred_param, true_param)
             pred_exp_pdf = mean_pred_param * np.exp(-mean_pred_param*x_range)

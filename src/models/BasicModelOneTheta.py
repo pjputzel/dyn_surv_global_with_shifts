@@ -27,11 +27,15 @@ class BasicModelOneTheta(nn.Module):
             SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
         ) 
 
-        nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
-        nn.init.normal_(self.params_fc_layer.bias, std=.00001)
+        #nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
+        #nn.init.normal_(self.params_fc_layer.bias, std=.00001)
 
-        self.cov_fc_layer = nn.Linear(\
+        self.cov_fc_layer1 = nn.Linear(
             self.params['hidden_dim'] + 1,
+            self.params['covariate_dim'] * 10 ##TODO fix magic number!!
+        )
+        self.cov_fc_layer2 = nn.Linear(\
+            self.params['covariate_dim'] * 10, #TODO fix magic number!!
             self.params['covariate_dim']
             #self.params['covariate_dim'] + 1 to predict time too
         )
@@ -113,8 +117,9 @@ class BasicModelOneTheta(nn.Module):
         return torch.autograd.Variable(grad)
 
     def make_next_step_cov_preds(self, unpacked_hidden_states, batch_covs_unpacked, lengths):
-        
-        unpacked_hidden_states_with_times = torch.cat([unpacked_hidden_states, batch_covs_unpacked[:, :, 0].unsqueeze(2)], axis=2)
+        time_deltas = torch.cat([batch_covs_unpacked[:, 1:, 0], torch.zeros(batch_covs_unpacked.shape[0], 1)], axis=1) - batch_covs_unpacked[:, :, 0]
+        #print(time_deltas[0, :], batch_covs_unpacked[0, :, 0])
+        unpacked_hidden_states_with_times = torch.cat([unpacked_hidden_states, time_deltas.unsqueeze(2)], axis=2)
         # plus one to try and predict next time step, would also have to update the regularization loss function
         next_step_cov_preds = torch.zeros(unpacked_hidden_states.shape[1] - 1, batch_covs_unpacked.shape[0], self.params['covariate_dim']) 
         
@@ -122,7 +127,8 @@ class BasicModelOneTheta(nn.Module):
             for i in range(length - 1):
                 if self.params['hidden_dim'] == 1:
                     fc_arg = hidden_states_per_step[i].reshape(1, 1)
-                next_step_cov_preds[i, batch, :] = self.cov_fc_layer(hidden_states_per_step[i])
+                
+                next_step_cov_preds[i, batch, :] = self.cov_fc_layer2(torch.sigmoid(self.cov_fc_layer1(hidden_states_per_step[i])))
         next_step_cov_preds = next_step_cov_preds.permute(1, 0, 2)
 
         return next_step_cov_preds
