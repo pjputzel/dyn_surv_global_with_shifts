@@ -3,6 +3,7 @@ import torch
 from utils.loss_calculators import ExponentialLossCalculator
 from utils.loss_calculators import GGDLossCalculator
 from utils.loss_calculators import RegularizationCalculator
+from utils.loss_calculators import GammaLossCalculator
 '''
 Computes and holds model diagnostics during training
 '''
@@ -17,6 +18,8 @@ class Diagnostics:
     def init_loss_calculators(self):
         if self.params['distribution_type'] == 'exp':
             self.loss_calculator = ExponentialLossCalculator()
+        elif self.params['distribution_type'] == 'gamma':
+            self.loss_calculator = GammaLossCalculator()
         elif self.params['distribution_type'] == 'ggd':
             self.loss_calculator = GGDLossCalculator()
         else:

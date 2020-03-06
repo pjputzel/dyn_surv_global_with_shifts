@@ -1,4 +1,4 @@
-main_type: 'basic_main'
+main_type: 'pretraining_basic_model_main'
 savedir: '../output/synth/'
 data_input_params:
     dataset_name: 'synth'
@@ -8,7 +8,7 @@ data_input_params:
 model_params:
     covariate_dim: 1
     dropout: 1.
-    hidden_dim: 10
+    hidden_dim: 2
     n_layers_rnn: 
 
 train_params:
@@ -18,7 +18,7 @@ train_params:
     n_epoch_print: 10
 
 diagnostic_params:
-    distribution_type: 'exp'
+    distribution_type: 'gamma'
     regularization_params:
         next_step_cov_reg_str: 1.
         parameter_diversity_reg_str: 0.

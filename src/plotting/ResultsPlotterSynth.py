@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats
+from scipy.stats import gamma
 
 class ResultsPlotterSynth:
     
@@ -11,7 +13,9 @@ class ResultsPlotterSynth:
     
     def plot_learned_distribution_vs_true(self, true_parameters, counts_per_group):
         if self.model_type == 'exp':
-            self.plot_exp_learned_vs_true_dist(true_parameters, counts_per_group) 
+            self.plot_exp_learned_vs_true_dist(true_parameters, counts_per_group)
+        elif self.model_type == 'gamma':
+            self.plot_gamma_learned_vs_true_dist(true_parameters, counts_per_group)
         elif self.model_type == 'ggd':
             self.plot_ggd_learned_vs_true_dist(true_parameters, counts_per_group)
         else:
@@ -31,6 +35,23 @@ class ResultsPlotterSynth:
             true_exp_pdf = true_param * np.exp(-true_param * x_range)
             axes[group_idx].plot(x_range, pred_exp_pdf, label='Predicted')
             axes[group_idx].plot(x_range, true_exp_pdf, label='True')
+            axes[group_idx].legend()
+            axes[group_idx].set_title('Mean Pred Param PDF for Group %d' %group_idx)
+            cur_idx = count + cur_idx
+
+    def plot_gamma_learned_vs_true_dist(self, true_parameters, counts_per_group, figscale=5):
+        x_range = np.linspace(0, 5, 100)
+        fig, axes = plt.subplots(len(counts_per_group), 1, figsize=(figscale * 1, figscale * 3))
+        cur_idx = 0
+        self.predicted_distribution_parameters = [self.predicted_distribution_parameters[i].detach().numpy() for i in range(len(self.predicted_distribution_parameters))]
+        for group_idx, count in enumerate(counts_per_group):
+            mean_pred_param = np.mean(self.predicted_distribution_parameters[cur_idx : count + cur_idx], axis=0)
+            true_param = true_parameters[group_idx]
+            print(mean_pred_param, true_param)
+            pred_gamma_pdf = gamma.pdf(x_range, mean_pred_param[0], scale=1/mean_pred_param[1])
+            true_gamma_pdf = gamma.pdf(x_range, true_param[0], scale=1/true_param[1])
+            axes[group_idx].plot(x_range, pred_gamma_pdf, label='Predicted')
+            axes[group_idx].plot(x_range, true_gamma_pdf, label='True')
             axes[group_idx].legend()
             axes[group_idx].set_title('Mean Pred Param PDF for Group %d' %group_idx)
             cur_idx = count + cur_idx

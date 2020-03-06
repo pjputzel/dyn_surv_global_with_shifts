@@ -3,10 +3,14 @@ import math
 import numpy as np
 import time
 
+def print_grad(grad):
+    print('gradient in trainer:', grad)
+
+
 class BasicModelTrainer:
     def __init__(self, train_params):
         self.params = train_params
-        self.max_iter = 500
+        self.max_iter = 2000
     def train_model(self, model, data_input, diagnostics, loss_type='total_loss'):
         start_time = time.time()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])
@@ -21,16 +25,8 @@ class BasicModelTrainer:
         while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < self.max_iter:
             data_input.prepare_sequences_for_rnn(self.params['batch_size'])
             prev_loss = cur_loss
-            diagnostics_per_batch = self.step_params_over_all_batches(model, data_input, optimizer, diagnostics)
+            diagnostics_per_batch, cur_loss = self.step_params_over_all_batches(model, data_input, optimizer, diagnostics, loss_type=loss_type)
             diagnostics.update_full_data_diagnostics(diagnostics_per_batch, epoch)
-            if loss_type == 'total_loss':
-                cur_loss = diagnostics.full_data_diagnostics['total_loss']
-            elif loss_type == 'reg_only':
-                cur_loss = diagnostics.full_data_diagnostics['regularization']
-            elif loss_type == 'log_loss_only':
-                cur_loss = diagnostics.full_data_diagnostics['loss']
-            else:
-                raise ValueError('Loss type %s for training model not recognized' %loss_type)
             cur_log_loss = diagnostics.full_data_diagnostics['loss']
             if epoch % self.params['n_epoch_print'] == 0:
                 diagnostics.print_cur_diagnostics()
@@ -42,7 +38,7 @@ class BasicModelTrainer:
         print('Total training time for loss type %s was %d seconds' %(loss_type, time.time() - start_time))
         return diagnostics
 
-    def  step_params_over_all_batches(self, model, data_input, optimizer, diagnostics, next_step_reg_str=.1):
+    def  step_params_over_all_batches(self, model, data_input, optimizer, diagnostics, next_step_reg_str=.1, loss_type='total_loss'):
         # note this function will eventually need to include concatentation with the missing data indicators
         #print(len(data_input.batches_of_padded_sequences), self.params['batch_size'])
         cur_diagnostics_per_batch = []
@@ -55,15 +51,25 @@ class BasicModelTrainer:
             batch_censoring_indicators = torch.tensor(data_input.censoring_indicators[batch_idx * self.params['batch_size']: (batch_idx + 1) * self.params['batch_size']])
             cur_diagnostics = diagnostics.compute_batch_diagnostics(model, cur_batch_covs, batch_event_times, batch_censoring_indicators)#model(cur_batch)
            
+            if loss_type == 'total_loss':
+                cur_loss = cur_diagnostics['total_loss']
+            elif loss_type == 'reg_only':
+                cur_loss = cur_diagnostics['regularization']
+            elif loss_type == 'log_loss_only':
+                cur_loss = cur_diagnostics['loss']
+            else:
+                raise ValueError('Loss type %s for training model not recognized' %loss_type)
             #if use_MLE:
             #    pred_distribution_params = pred_distribution_params + self.get_MLE(data_input, model.distribution_type)
             # move to the diagnostics object
             #loss = self.compute_batch_exp_distribution_loss(data_input, pred_distribution_params, batch_idx)
             #loss = loss + next_step_reg_str * self.compute_next_step_cov_loss(cur_batch, next_step_cov_preds)
-            cur_diagnostics['total_loss'].backward()
+            #cur_diagnostics['total_loss'].backward()
+            cur_loss.backward()
+            
             optimizer.step()
             cur_diagnostics_per_batch.append(cur_diagnostics)
-        return cur_diagnostics_per_batch
+        return cur_diagnostics_per_batch, cur_loss
 
     def compute_next_step_cov_loss(self, cur_batch, next_step_cov_preds):
         batch_covs, _ = torch.nn.utils.rnn.pad_packed_sequence(cur_batch) 

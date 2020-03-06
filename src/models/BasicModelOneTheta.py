@@ -27,8 +27,8 @@ class BasicModelOneTheta(nn.Module):
             SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
         ) 
 
-        #nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
-        #nn.init.normal_(self.params_fc_layer.bias, std=.00001)
+        nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
+        nn.init.normal_(self.params_fc_layer.bias, std=.00001)
 
         self.cov_fc_layer1 = nn.Linear(
             self.params['hidden_dim'] + 1,
@@ -82,11 +82,15 @@ class BasicModelOneTheta(nn.Module):
         #predicted_distribution_parameters = self.format_param_preds(predicted_distribution_parameters)
 
         predicted_distribution_parameters = self.restrict_parameter_ranges(predicted_distribution_parameters)
+        #predicted_distribution_parameters.register_hook(self.replace_nans_with_0)
+        #self.predicted_distribution_parameters = predicted_distribution_parameters
+        #self.batch_covs_time = batch_covs_unpacked[:, :, 0]
+        #print(batch_covs_unpacked.shape)
         #print(predicted_distribution_parameters.shape)
         #print(next_step_cov_preds.shape)
 
         #print(predicted_distribution_parameters)
-        
+        #print(unpacked_hidden_states[0:10, 0:3])
         return next_step_cov_preds, predicted_distribution_parameters.squeeze(), lengths
 
     def format_param_preds(self, predicted_distribution_parameters, lengths):
@@ -107,9 +111,12 @@ class BasicModelOneTheta(nn.Module):
      
     def replace_nans_with_0(self, grad):
         if not torch.sum(torch.isnan(grad)) == 0:
-            #print('replaced some gradients that exploded with 0!!')
+            print('replaced some gradients that exploded with 0!!')
             #print('nan terms in grad:', torch.sum(torch.isnan(grad)), 'not nan terms in grad', torch.sum(~ torch.isnan(grad)))
-            pass
+            print(grad)
+            print(self.predicted_distribution_parameters)
+            print(self.batch_covs_time)
+            #pass
         grad[torch.isnan(grad)] = torch.tensor([0.])
         grad[torch.isinf(grad)] = torch.tensor([0.])
         if torch.cuda.is_available():
@@ -117,9 +124,9 @@ class BasicModelOneTheta(nn.Module):
         return torch.autograd.Variable(grad)
 
     def make_next_step_cov_preds(self, unpacked_hidden_states, batch_covs_unpacked, lengths):
-        time_deltas = torch.cat([batch_covs_unpacked[:, 1:, 0], torch.zeros(batch_covs_unpacked.shape[0], 1)], axis=1) - batch_covs_unpacked[:, :, 0]
+        time_deltas = torch.cat([batch_covs_unpacked[:, 1:, 0], torch.zeros(batch_covs_unpacked.shape[0], 1)], dim=1) - batch_covs_unpacked[:, :, 0]
         #print(time_deltas[0, :], batch_covs_unpacked[0, :, 0])
-        unpacked_hidden_states_with_times = torch.cat([unpacked_hidden_states, time_deltas.unsqueeze(2)], axis=2)
+        unpacked_hidden_states_with_times = torch.cat([unpacked_hidden_states, time_deltas.unsqueeze(2)], dim=2)
         # plus one to try and predict next time step, would also have to update the regularization loss function
         next_step_cov_preds = torch.zeros(unpacked_hidden_states.shape[1] - 1, batch_covs_unpacked.shape[0], self.params['covariate_dim']) 
         
@@ -132,4 +139,14 @@ class BasicModelOneTheta(nn.Module):
         next_step_cov_preds = next_step_cov_preds.permute(1, 0, 2)
 
         return next_step_cov_preds
+
+    def freeze_rnn_parameters(self):
+        for param in self.RNN.parameters():
+            param.requires_grad = False
+    
+    def freeze_cov_pred_parameters(self):
+        for param in self.cov_fc_layer1.parameters():
+            param.requires_grad = False
+        for param in self.cov_fc_layer2.parameters():
+            param.requires_grad = False
 
