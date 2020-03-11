@@ -1,5 +1,5 @@
 main_type: 'pretraining_basic_model_main'
-savedir: '../output/synth/'
+savedir: '../output/synth/ggd'
 data_input_params:
     dataset_name: 'synth'
     data_loading_params:
@@ -18,7 +18,7 @@ train_params:
     n_epoch_print: 10
 
 diagnostic_params:
-    distribution_type: 'gamma'
+    distribution_type: 'ggd'
     regularization_params:
         next_step_cov_reg_str: 1.
         parameter_diversity_reg_str: 0.

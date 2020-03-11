@@ -42,6 +42,8 @@ class PreTrainingBasicModelMain(BaseMain):
         return diagnostics
     
     def save_results(self, results_tracker):
+        if not os.path.exists(self.params['savedir']):
+            os.makedirs(self.params['savedir'])
         with open(os.path.join(self.params['savedir'], 'tracker.pkl'), 'wb') as f:
             pickle.dump(results_tracker, f)
         with open(os.path.join(self.params['savedir'], 'model.pkl'), 'wb') as f:

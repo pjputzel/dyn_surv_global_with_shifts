@@ -220,7 +220,6 @@ class GGDLossCalculator:
         lambda_param = pred_distribution_params[:, 0]
         beta_param = pred_distribution_params[:, 1]
         sigma_param = pred_distribution_params[:, 2]
-
         part1 = torch.log(torch.abs(lambda_param)) - torch.log(sigma_param * batch_event_times) - torch.lgamma(lambda_param**(-2))
 
    #     print(pred_distribution_params.shape,  batch_event_times.shape)
@@ -245,7 +244,7 @@ class GGDLossCalculator:
             lambda_params = pred_distribution_params[:, 0]
             beta_params = pred_distribution_params[:, 1]
             sigma_params = pred_distribution_params[:, 2]
-            
+        #sigma_params.register_hook(print_grad)    
         # now estimate the lower incomplete gamma function
         survival_logprobs = torch.zeros(batch_event_times.shape[0])
         #print(batch_event_times.shape, lambda_params.shape)
@@ -256,11 +255,12 @@ class GGDLossCalculator:
         #print(x_boundaries[x_boundaries < 0])
         #print(gamma_concentrations[gamma_concentrations < 0]) 
         lower_reg_incomplete_gammas = estimate_lower_reg_incomplete_gamma_with_series(gamma_concentrations, x_boundaries)
+        lower_reg_incomplete_gammas.register_hook(print_grad)
         #print(lower_incomplete_gammas.shape)
         #print(lower_incomplete_gammas[:, 0])
         #print('is less than zero in survival function?', (1 - lower_incomplete_gammas)[1 - lower_incomplete_gammas < 0])
         #print('is zero in survival function?', (1 - lower_incomplete_gammas)[1 - lower_incomplete_gammas == 0])
-        return torch.log(1 - lower_incomplete_gammas) * torch.as_tensor(~(batch_event_times == 0), dtype=torch.double)
+        return torch.log(1 - lower_reg_incomplete_gammas) * torch.as_tensor(~(batch_event_times == 0), dtype=torch.double)
  #       return (-pred_distribution_params[:, 0] * batch_event_times) * ~(batch_event_times == 0)
 
 
