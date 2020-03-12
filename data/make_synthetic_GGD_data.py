@@ -1,5 +1,7 @@
 from scipy.stats import gengamma
 from scipy.stats import expon
+#from scipy.stats import gammma
+from numpy.random import gamma
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,7 +36,9 @@ def get_true_survival_times(num_individuals_per_group, num_groups, subgroup_locs
             if dist_type == 'gengamma':
                 true_survival_times_per_group[group][individual] = gengamma.rvs(scale, shape, loc=subgroup_locs[group])
             elif dist_type == 'exp':
-                true_survival_times_per_group[group][individual] = expon.rvs(scale=subgroup_locs[group])
+                true_survival_times_per_group[group][individual] = expon.rvs(scale=1/subgroup_locs[group])
+            elif dist_type == 'gamma':
+                true_survival_times_per_group[group][individual] = gamma(shape, 1/subgroup_locs[group])
             else:
                 raise ValueError('Distribution type not recognized')
                 
@@ -62,7 +66,7 @@ def get_covariate_trajectories(censored_survival_times, subgroup_trajectory_func
             trajectories[group].append(trajectory)
     return trajectories
 
-def sample_single_trajectory(poisson_rate, trajectory_path_func, censored_survival_time, noise_mean=0., noise_scale=.00001, min_len=5, max_len=100, max_attempts=10):
+def sample_single_trajectory(poisson_rate, trajectory_path_func, censored_survival_time, noise_mean=0., noise_scale=.00001, min_len=5, max_len=30, max_attempts=10):
     events_len = 0
     print(censored_survival_time)
     num_attempts = 0
