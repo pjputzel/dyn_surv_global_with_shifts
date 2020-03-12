@@ -3,7 +3,7 @@ import numpy as np
 
 
 ### Helper Functions         
-def estimate_lower_reg_incomplete_gamma_with_series(gamma_concentration, x_boundary, n_terms=3):
+def estimate_lower_reg_incomplete_gamma_with_series(gamma_concentration, x_boundary, n_terms=20):
     #gamma_concentration.register_hook(print_grad)
     # from gammainc.pdf in bookmarks
     #gamma_concentration.register_hook(print_grad)
@@ -34,7 +34,7 @@ def estimate_lower_reg_incomplete_gamma_with_series(gamma_concentration, x_bound
         for j in range(i):
             denominator = denominator * (gamma_concentration + j + 1)
 #            print('denominators', denominator, i, j)
-#            denominator.register_hook(print_grad)
+            #denominator.register_hook(print_grad)
         #if i == 0:
         #    denominator.register_hook(print_grad)
             #pass
@@ -244,18 +244,35 @@ class GGDLossCalculator:
             lambda_params = pred_distribution_params[:, 0]
             beta_params = pred_distribution_params[:, 1]
             sigma_params = pred_distribution_params[:, 2]
+        #print(lambda_params)
+        #print(sigma_params)
+        #print(beta_params)
+        #print(batch_event_times)
         #sigma_params.register_hook(print_grad)    
+        #lambda_params.register_hook(print_grad)
+        #beta_params.register_hook(print_grad)
         # now estimate the lower incomplete gamma function
         survival_logprobs = torch.zeros(batch_event_times.shape[0])
         #print(batch_event_times.shape, lambda_params.shape)
-        x_boundaries = (lambda_params**-2 * ((torch.exp(-beta_params) * batch_event_times)**(lambda_params/sigma_params)))
+        if compute_over_sequence:
+            x_boundary_lengths = [x[~(x == 0)].shape[0] for x in batch_event_times]
+            #print(x_boundary_lengths)
+        #print('lengths', x_boundary_lengths)
+            x_boundaries = torch.zeros(batch_event_times.shape[0], np.max(x_boundary_lengths))
+            #print(prefactor.shape, x_boundary.shape, gamma_concentration.shape)
+            for i, length in enumerate(x_boundary_lengths):
+                #print(x_boundaries[i, :length].shape, batch_event_times[i, :length].shape, lambda_params.shape)
+                x_boundaries[i, :length] = (lambda_params[i]**-2 * ((torch.exp(-beta_params[i]) * batch_event_times[i, :length])**(lambda_params[i]/sigma_params[i])))
+        else:    
+            x_boundaries = (lambda_params**-2 * ((torch.exp(-beta_params) * batch_event_times)**(lambda_params/sigma_params)))
+        x_boundaries.register_hook(print_grad)
         #print(x_boundaries[torch.isinf(x_boundaries)])
 #        x_boundaries = torch.clamp(x_boundaries, epsilon, max_integral_range)
         gamma_concentrations = lambda_params ** (-2)
         #print(x_boundaries[x_boundaries < 0])
         #print(gamma_concentrations[gamma_concentrations < 0]) 
         lower_reg_incomplete_gammas = estimate_lower_reg_incomplete_gamma_with_series(gamma_concentrations, x_boundaries)
-        lower_reg_incomplete_gammas.register_hook(print_grad)
+        #lower_reg_incomplete_gammas.register_hook(print_grad)
         #print(lower_incomplete_gammas.shape)
         #print(lower_incomplete_gammas[:, 0])
         #print('is less than zero in survival function?', (1 - lower_incomplete_gammas)[1 - lower_incomplete_gammas < 0])
@@ -314,7 +331,8 @@ class RegularizationCalculator:
                 return_val =  torch.mean(normalized_diffs[~(normalized_diffs == mean/std)])
 
         if torch.isnan(return_val):
-            print('std', std, 'mean', mean)
+            pass
+            #print('std', std, 'mean', mean)
         #return_val = 1/(batch_covs.shape[1] * batch_covs.shape[0] * batch_covs.shape[2]) * torch.sum(diffs_squared_averages_per_individual)
         return_val = mean
         return return_val

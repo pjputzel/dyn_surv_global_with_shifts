@@ -27,8 +27,8 @@ class BasicModelOneTheta(nn.Module):
             SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
         ) 
 
-        nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
-        nn.init.normal_(self.params_fc_layer.bias, std=.00001)
+#        nn.init.xavier_normal(self.params_fc_layer.weight, gain=.001)
+#        nn.init.normal_(self.params_fc_layer.bias, std=.00001)
 
         self.cov_fc_layer1 = nn.Linear(
             self.params['hidden_dim'] + 1,
