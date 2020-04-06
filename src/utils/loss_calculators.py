@@ -51,8 +51,16 @@ def estimate_lower_reg_incomplete_gamma_with_series(gamma_concentration, x_bound
 # hooks for debugging and gradient clamping
 def print_grad(grad):
     print('gradient', grad)
+
 def replace_nans_with_zero(grad):
-    grad[torch.isnan(grad)] = 0
+    if not(torch.sum(grad[torch.isnan(grad)]) == 0):
+        print('nans detected!!')
+        grad[torch.isnan(grad)] = 0
+    return grad
+
+def clamp_grad(grad):
+    
+    grad[grad > 1e10] = 1e10
     return grad
 
 class BaseLossCalculator:
@@ -213,6 +221,7 @@ class GGDLossCalculator:
         #print(normalization_term[torch.isnan(normalization_term)])
         #print(normalization_term)
         full_loss = -1. * torch.mean(loss_per_individual + normalization_term)
+        pred_distribution_params.register_hook(replace_nans_with_zero)
         return full_loss
 
     def compute_batch_GGD_distribution_logpdf(self, pred_distribution_params, batch_event_times):
@@ -265,7 +274,8 @@ class GGDLossCalculator:
                 x_boundaries[i, :length] = (lambda_params[i]**-2 * ((torch.exp(-beta_params[i]) * batch_event_times[i, :length])**(lambda_params[i]/sigma_params[i])))
         else:    
             x_boundaries = (lambda_params**-2 * ((torch.exp(-beta_params) * batch_event_times)**(lambda_params/sigma_params)))
-        x_boundaries.register_hook(print_grad)
+        #x_boundaries.register_hook(print_grad)
+        x_boundaries.register_hook(clamp_grad)    
         #print(x_boundaries[torch.isinf(x_boundaries)])
 #        x_boundaries = torch.clamp(x_boundaries, epsilon, max_integral_range)
         gamma_concentrations = lambda_params ** (-2)

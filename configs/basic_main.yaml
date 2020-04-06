@@ -15,10 +15,14 @@ train_params:
     learning_rate: .05
     batch_size: 3000
     conv_thresh: .00000001
-    n_epoch_print: 10
+    n_epoch_print: 100
+    pretraining:
+        pretraining_max_iter: 1000
+        regular_training_max_iter: 3000
+        regular_training_lr: .005
 
 diagnostic_params:
-    distribution_type: 'gamma'
+    distribution_type: 'ggd'
     regularization_params:
         next_step_cov_reg_str: 1.
         parameter_diversity_reg_str: 0.

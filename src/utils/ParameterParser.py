@@ -24,7 +24,12 @@ DEFAULT_PARAMS =\
             'learning_rate': .0001,
             'batch_size': 20,
             'conv_thresh': .0001,
-            'n_epoch_print': 1
+            'n_epoch_print': 1,
+            'pretraining': {\
+                'pretraining_max_iter': None,
+                'regular_training_max_iter': None, 
+                'regular_training_lr': None
+            }
         },
         
         'diagnostic_params': {

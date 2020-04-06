@@ -10,8 +10,9 @@ def print_grad(grad):
 class BasicModelTrainer:
     def __init__(self, train_params):
         self.params = train_params
-        self.max_iter = 1000
-    def train_model(self, model, data_input, diagnostics, loss_type='total_loss'):
+
+    def train_model(self, model, data_input, diagnostics, loss_type='total_loss', max_iter=1e10):
+        
         start_time = time.time()
         optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])
         # TODO add options for training type-either convergence or fixed epochs
@@ -22,7 +23,7 @@ class BasicModelTrainer:
         cur_loss = torch.tensor(np.inf)
         cur_log_loss = 0
         epoch = 0
-        while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < self.max_iter:
+        while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < max_iter:
             data_input.prepare_sequences_for_rnn(self.params['batch_size'])
             prev_loss = cur_loss
             diagnostics_per_batch, cur_loss = self.step_params_over_all_batches(model, data_input, optimizer, diagnostics, loss_type=loss_type)

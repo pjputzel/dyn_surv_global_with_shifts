@@ -123,7 +123,7 @@ def get_sine_trajectory_func(period):
 
 if __name__ == '__main__':
     num_groups = 3
-    num_individuals_per_group = 100 * np.ones(num_groups)
+    num_individuals_per_group = 200 * np.ones(num_groups)
     subgroup_locs = [10, 20, 30] # corresponding to rates 10, 5, and 1 for exponential
     subgroup_trajectory_funcs_linear = [get_linear_trajectory_func(1, 1), get_linear_trajectory_func(1, 3), get_linear_trajectory_func(1, 5)]
     subgroup_trajectory_funcs_sine = [get_sine_trajectory_func(4 * np.pi) , get_sine_trajectory_func(2 * np.pi), get_sine_trajectory_func(8 * np.pi)]
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     censoring_prob = 0
     #subgroup_trajectory_funcs_linear = [get_linear_trajectory_func(1, 0)]
     
-    trajectories, censored_survival_times, censoring_indicators = make_synthetic_data(num_individuals_per_group, subgroup_locs, subgroup_trajectory_funcs_linear, poisson_scale, censoring_prob, dist_type='gamma')
+    trajectories, censored_survival_times, censoring_indicators = make_synthetic_data(num_individuals_per_group, subgroup_locs, subgroup_trajectory_funcs_linear, poisson_scale, censoring_prob, dist_type='gengamma')
 
     traj_len_counts = np.zeros(np.max([len(traj) for traj in trajectories]))
     traj_lens = []

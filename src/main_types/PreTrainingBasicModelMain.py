@@ -32,12 +32,14 @@ class PreTrainingBasicModelMain(BaseMain):
         model_trainer = BasicModelTrainer(self.params['train_params'])
         diagnostics = Diagnostics(self.params['diagnostic_params'])
         print('PRETRAINING')
-        pre_train_diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='reg_only')
-        model_trainer.params['learning_rate'] = .01 #* model_trainer.params['learning_rate']
+        pretrain_max_iter = self.params['train_params']['pretraining']['pretraining_max_iter']
+        pre_train_diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='reg_only', max_iter=pretrain_max_iter)
+        model_trainer.params['learning_rate'] = self.params['train_params']['pretraining']['regular_training_lr'] #* model_trainer.params['learning_rate']
         print('TRAINING LOG-LOSS ONLY, FREEZING HIDDEN STATES')
         model.freeze_rnn_parameters()
         model.freeze_cov_pred_parameters()
-        diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='log_loss_only')
+        regular_train_max_iter = self.params['train_params']['pretraining']['regular_training_max_iter']
+        diagnostics = model_trainer.train_model(model, data_input, diagnostics, loss_type='log_loss_only', max_iter=regular_train_max_iter)
         diagnostics.unshuffle_results(data_input.unshuffled_idxs)
         return diagnostics
     

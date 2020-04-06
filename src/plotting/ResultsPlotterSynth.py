@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from utils.loss_calculators import GGDLossCalculator
+from scipy.stats import gengamma
 import numpy as np
 import scipy.stats
 from scipy.stats import gamma
@@ -24,22 +26,30 @@ class ResultsPlotterSynth:
         else:
             raise ValueError('Distribution type %s not found' %(self.model_type))
 
-    def make_learned_vs_true_boxplot(self, true_parameters, labels=None):
-        true_per_parameter_data = [true_parameters[i] for i in range(len(true_parameters))]
+    def make_learned_vs_true_boxplot(self, true_parameters, counts_per_group, labels=None):
         #print(self.predicted_distribution_parameters)
         #print(true_parameters)
+        plt.figure(figsize=(50, 10))
         pred_per_parameter_data = [[param[i] for param in self.predicted_distribution_parameters] for i in range(len(true_parameters[0]))]
         # so we have each true param boxplot next to the predicted one
         in_alternating_order = []
         doubled_labels = []
-        for i in range(len(self.predicted_distribution_parameters[0])):
-            in_alternating_order.append(true_per_parameter_data[i])
-            in_alternating_order.append(pred_per_parameter_data[i])
-            if labels:
-                doubled_labels.append('True ' + labels[i])
-                doubled_labels.append('Predicted ' + labels[i])
+        cur_start_idx = 0
+        for i, count in enumerate(counts_per_group):
+            for param_idx in range(len(true_parameters[0])):
+                true_param = [true_parameters[i][param_idx]]
+                pred_params = [params[param_idx] for params in self.predicted_distribution_parameters[cur_start_idx: cur_start_idx + count]]
+                
+                in_alternating_order.append(true_param)
+                in_alternating_order.append(pred_params)
+                #in_alternating_order.append(true_per_parameter_data[i])
+                #in_alternating_order.append(pred_per_parameter_data[i])
+                if labels:
+                    doubled_labels.append('Group%d True ' %i + labels[param_idx])
+                    doubled_labels.append('Group%d Predicted ' %i + labels[param_idx])
+            cur_start_idx += count
             
-        
+        print(len(doubled_labels), len(in_alternating_order)) 
         plt.boxplot(in_alternating_order, showfliers=False, labels=doubled_labels if labels else None)
     
     def plot_exp_learned_vs_true_dist(self, true_parameters, counts_per_group, figscale=5):
@@ -72,13 +82,21 @@ class ResultsPlotterSynth:
 
 
     def plot_gamma_learned_vs_true_dist(self, true_parameters, counts_per_group, figscale=5):
-        x_range = np.linspace(0, 5, 100)
+        # TODO set this range automatically around the true parameter
+        x_range = np.linspace(0, 15, 100)
         fig, axes = plt.subplots(len(counts_per_group), 1, figsize=(figscale * 1, figscale * 3))
         cur_idx = 0
         self.predicted_distribution_parameters = [self.predicted_distribution_parameters[i].detach().numpy() for i in range(len(self.predicted_distribution_parameters))]
         for group_idx, count in enumerate(counts_per_group):
             mean_pred_param = np.mean(self.predicted_distribution_parameters[cur_idx : count + cur_idx], axis=0)
+            print(mean_pred_param)
             true_param = true_parameters[group_idx]
+            cur_preds = np.array(self.predicted_distribution_parameters[cur_idx: count + cur_idx])
+            print(cur_preds[:, 0]/cur_preds[:, 1])
+            print('Meant of ratio', np.mean(cur_preds[:, 0]/cur_preds[:, 1]))
+            
+            print('Variance of ratio', np.var(cur_preds[:, 0]/cur_preds[:, 1]))
+            print(self.predicted_distribution_parameters[cur_idx: count + cur_idx])
             print(mean_pred_param, true_param)
             pred_gamma_pdf = gamma.pdf(x_range, mean_pred_param[0], scale=1/mean_pred_param[1])
             true_gamma_pdf = gamma.pdf(x_range, true_param[0], scale=1/true_param[1])
@@ -89,5 +107,23 @@ class ResultsPlotterSynth:
             cur_idx = count + cur_idx
 
 
-    def plot_ggd_learned_vs_true_dist(self, true_parameters):
-        pass
+    def plot_ggd_learned_vs_true_dist(self, true_parameters, counts_per_group, figscale=5):
+        x_range = np.linspace(0, 15, 100)
+        fig, axes = plt.subplots(len(counts_per_group), 1, figsize=(figscale * 1, figscale * 3))
+        cur_idx = 0
+        self.predicted_distribution_parameters = [self.predicted_distribution_parameters[i].detach().numpy() for i in range(len(self.predicted_distribution_parameters))]
+        for group_idx, count in enumerate(counts_per_group):
+            mean_pred_param = np.mean(self.predicted_distribution_parameters[cur_idx : count + cur_idx], axis=0)
+            true_param = true_parameters[group_idx]
+            cur_preds = np.array(self.predicted_distribution_parameters[cur_idx: count + cur_idx])
+            
+            #print(self.predicted_distribution_parameters[cur_idx: count + cur_idx])
+            print(mean_pred_param, true_param)
+            pred_gamma_pdf = gengamma.pdf(x_range, mean_pred_param[2], mean_pred_param[0], loc=mean_pred_param[1])
+            true_gamma_pdf = gengamma.pdf(x_range, true_param[0], true_param[1],  loc=true_param[2])
+            axes[group_idx].plot(x_range, pred_gamma_pdf, label='Predicted')
+            axes[group_idx].plot(x_range, true_gamma_pdf, label='True')
+            axes[group_idx].legend()
+            axes[group_idx].set_title('Mean Pred Param PDF for Group %d' %group_idx)
+            cur_idx = count + cur_idx
+        
