@@ -20,5 +20,6 @@ def main(path_to_config):
     print('Total time taken %d' %(time.time() - start_time))
 
 if __name__ == '__main__':
-    path_to_config = '../configs/basic_main.yaml'
+ #   path_to_config = '../configs/basic_main.yaml'
+    path_to_config = '../configs/theta_per_step_main.yaml'
     main(path_to_config)

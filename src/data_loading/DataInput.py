@@ -12,6 +12,8 @@ class DataInput:
         self.data_input_params = data_input_params
     
     def load_data(self):
+        # Note for non-synth data make sure to process the event times into time deltas either in
+        # the data_loader.load_data() function or else in earlier preprocessing of the dataset
         if self.data_input_params['dataset_name'] == 'synth':
             dataloader = SyntheticDataLoader(self.data_input_params['data_loading_params'])
             # expected format for covariate trajectories: list of [ [timestamp, [covariate_dim1, covariate_dim2, .... ]] ]

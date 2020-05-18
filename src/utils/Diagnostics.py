@@ -10,10 +10,11 @@ Computes and holds model diagnostics during training
 
 class Diagnostics:
 
-    def __init__(self, diagnostic_params):
+    def __init__(self, diagnostic_params, one_theta=True):
         self.params = diagnostic_params
         self.init_loss_calculators()
         self.epochs = []
+        self.one_theta = one_theta
 
     def init_loss_calculators(self):
         if self.params['distribution_type'] == 'exp':
@@ -36,7 +37,7 @@ class Diagnostics:
         cur_diagnostics = {}
         cur_diagnostics['sequence_lengths'] = lengths
         cur_diagnostics['next_step_cov_preds'], cur_diagnostics['predicted_distribution_params'], cur_diagnostics['lengths'] = model(cur_batch)
-        cur_diagnostics['loss'] = self.loss_calculator.compute_loss(cur_batch_event_times, unpacked_cur_batch_cov[:, :, 0], lengths, cur_diagnostics['predicted_distribution_params'], cur_batch_censoring_indicators)
+        cur_diagnostics['loss'] = self.loss_calculator.compute_loss(cur_batch_event_times, unpacked_cur_batch_cov[:, :, 0], lengths, cur_diagnostics['predicted_distribution_params'], cur_batch_censoring_indicators, one_theta=self.one_theta)
         cur_diagnostics['regularization'] = self.regularization_calculator.compute_regularization(cur_batch, cur_diagnostics)
         # TODO: debug nans in regularization!!
         cur_diagnostics['total_loss'] = cur_diagnostics['loss'] + cur_diagnostics['regularization'] 

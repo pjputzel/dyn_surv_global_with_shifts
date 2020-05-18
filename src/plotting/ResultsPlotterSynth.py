@@ -61,6 +61,7 @@ class ResultsPlotterSynth:
         for group_idx, count in enumerate(counts_per_group):
             mean_pred_param = np.mean(self.predicted_distribution_parameters[cur_idx : count + cur_idx])
             std_pred_params = np.std(self.predicted_distribution_parameters[cur_idx: count + cur_idx])
+            print(std_pred_params)
             upper_confidence_interval = mean_pred_param + z * std_pred_params/(count**(.5))
             lower_confidence_interval = mean_pred_param - z * std_pred_params/(count**(.5))
             print(self.predicted_distribution_parameters[cur_idx : count + cur_idx])
@@ -72,8 +73,8 @@ class ResultsPlotterSynth:
             upper_exp_pdf = upper_confidence_interval * np.exp(-upper_confidence_interval * x_range)
             axes[group_idx].plot(x_range, pred_exp_pdf, label='Predicted Mean')
             axes[group_idx].plot(x_range, true_exp_pdf, label='True')
-            axes[group_idx].plot(x_range, lower_exp_pdf, label='95% confidence interval, lower')
-            axes[group_idx].plot(x_range, upper_exp_pdf, label='95% confidence interval, upper')
+            #axes[group_idx].plot(x_range, lower_exp_pdf, label='95% confidence interval, lower')
+            #axes[group_idx].plot(x_range, upper_exp_pdf, label='95% confidence interval, upper')
             axes[group_idx].legend()
             axes[group_idx].set_title('Mean Pred Param PDF for Group %d' %group_idx)
 

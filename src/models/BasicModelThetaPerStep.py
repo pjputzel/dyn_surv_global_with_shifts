@@ -75,7 +75,7 @@ class BasicModelThetaPerStep(nn.Module):
         assert(torch.sum(lengths2 == lengths) == lengths.shape[0])
 
         predicted_distribution_parameters = self.restrict_parameter_ranges(predicted_distribution_parameters)
-        #print(predicted_distribution_parameters.shape)
+        predicted_distribution_parameters = predicted_distribution_parameters.squeeze(2)
         #print(next_step_cov_preds.shape)
 
         return next_step_cov_preds, predicted_distribution_parameters, lengths2
@@ -114,3 +114,11 @@ class BasicModelThetaPerStep(nn.Module):
         next_step_cov_preds = next_step_cov_preds.permute(1, 0, 2)
 
         return next_step_cov_preds
+    
+    def freeze_rnn1_parameters(self):
+        for param in self.RNN1.parameters():
+            param.requires_grad = False
+
+    def freeze_cov_pred_parameters(self):
+        for param in self.cov_fc_layer.parameters():
+            param.requires_grad = False

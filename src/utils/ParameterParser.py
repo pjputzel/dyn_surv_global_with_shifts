@@ -12,6 +12,7 @@ DEFAULT_PARAMS =\
         },
 
         'model_params': {
+            'model_type': 'basic',
             'covariate_dim': 'specify in config since data-dependent',
             'hidden_dim': 5,
             'n_layers_rnn': 3,

@@ -70,50 +70,46 @@ class BaseLossCalculator:
 
 class ExponentialLossCalculator(BaseLossCalculator): 
 
-    def compute_loss(self, batch_event_times, batch_cov_times, batch_traj_lengths, pred_distribution_params, batch_censoring_indicators):
-
+    def compute_loss(self, batch_event_times, batch_cov_times, batch_traj_lengths, pred_distribution_params, batch_censoring_indicators, one_theta=True):
         batch_traj_lengths = torch.tensor(batch_traj_lengths, dtype=torch.float64)
+        logpdf = self.compute_batch_exp_distribution_logpdf(pred_distribution_params, batch_event_times, one_theta=one_theta)
+        survival_logprobs = self.compute_batch_exp_distribution_log_survival_probabilities(pred_distribution_params, batch_event_times, one_theta=one_theta)
+        normalization_terms = - self.compute_batch_exp_distribution_log_survival_probabilities(pred_distribution_params, batch_cov_times, is_cov_times=True, one_theta=one_theta)
 
-        logpdf = self.compute_batch_exp_distribution_logpdf(pred_distribution_params, batch_event_times)
-
-        survival_logprobs = self.compute_batch_exp_distribution_log_survival_probabilities(pred_distribution_params, batch_event_times)
-        
-        #print(logpdf.shape, survival_logprobs.shape, batch_censoring_indicators.shape)
-
-        #batch_censoring_indicators = batch_censoring_indicators.unsqueeze(1)
-        #batch_cov_final_times = torch.zeros(batch_cov_times.shape[0])
-        #for i, length in enumerate(batch_traj_lengths):
-        #    batch_cov_final_times[i] = batch_cov_times[i, length - 1]
-            #print(batch_cov_times[i, length - 1])
-        #print(batch_cov_times[:, batch_traj_lengths - 1].shape)
-        #print(batch_traj_lengths.shape)
-
-        #print(logpdf.shape)
-        # subtract batch_traj weights so large sequences don't eat up all the loss
-        loss_per_individual = batch_traj_lengths * (logpdf * (1 - batch_censoring_indicators) +  survival_logprobs * (batch_censoring_indicators))
-
-
-        # Normalization to account for forwards prediction from time t
-        #print(self.compute_batch_exp_distribution_log_survival_probabilities(pred_distribution_params, batch_cov_times))
-        # correct this term for where the sequences end by looking at where batch_cov_times is zero/whatever
-        normalization_term = - torch.sum(self.compute_batch_exp_distribution_log_survival_probabilities(pred_distribution_params, batch_cov_times, is_cov_times=True), dim=1)
-        #print(loss_per_individual.shape, normalization_term.shape)
-        return -1. * torch.mean(loss_per_individual + normalization_term)
-
-    def compute_batch_exp_distribution_logpdf(self, pred_distribution_params, batch_event_times):
-        pred_distribution_params = pred_distribution_params.unsqueeze(1)
-        #print(pred_distribution_params.shape, batch_event_times.shape)
-        return ((torch.log(pred_distribution_params[:]) - pred_distribution_params[:] * batch_event_times.unsqueeze(1))).squeeze(1)
-    
-    def compute_batch_exp_distribution_log_survival_probabilities(self, pred_distribution_params, batch_event_times, is_cov_times=False):
-        if not is_cov_times:
-            batch_event_times = batch_event_times.unsqueeze(1)
-        pred_distribution_params = pred_distribution_params.unsqueeze(1)
-        #print(batch_event_times.shape)
+        if one_theta:
+            loss_per_individual = batch_traj_lengths * (logpdf * (1 - batch_censoring_indicators) +  survival_logprobs * (batch_censoring_indicators))
+            # Normalization to account for forwards prediction from time t
+            normalization_term = - torch.sum(normalization_terms, dim=1)
+            return -1. * torch.mean(loss_per_individual + normalization_term)
+        else:
+            batch_censoring_indicators = batch_censoring_indicators.unsqueeze(1)
+            batch_traj_lengths = batch_traj_lengths.unsqueeze(1)
+            loss_per_individual = batch_traj_lengths * (logpdf * (1 - batch_censoring_indicators) +  survival_logprobs * (batch_censoring_indicators))
+            ## TODO: double check that 1 is the correct axis
+            return -1 * torch.mean(torch.mean(normalization_terms * loss_per_individual, axis=1))
             
-   #     print(pred_distribution_params.shape,  batch_event_times.shape)
-        return ((-pred_distribution_params[:] * batch_event_times) * torch.as_tensor(~(batch_event_times == 0), dtype=torch.double)).squeeze(1)
+        
 
+    def compute_batch_exp_distribution_logpdf(self, pred_distribution_params, batch_event_times, one_theta=True):
+        if one_theta:
+            pred_distribution_params = pred_distribution_params.unsqueeze(1)
+            return ((torch.log(pred_distribution_params[:]) - pred_distribution_params[:] * batch_event_times.unsqueeze(1))).squeeze(1)
+        else:
+            
+            return ((torch.log(pred_distribution_params[:]) - pred_distribution_params[:] * batch_event_times.unsqueeze(1)))
+    
+    
+    def compute_batch_exp_distribution_log_survival_probabilities(self, pred_distribution_params, batch_event_times, is_cov_times=False, one_theta=True):
+        if one_theta: 
+            if not is_cov_times:
+                batch_event_times = batch_event_times.unsqueeze(1)
+            pred_distribution_params = pred_distribution_params.unsqueeze(1)
+            return ((-pred_distribution_params[:] * batch_event_times) * torch.as_tensor(~(batch_event_times == 0), dtype=torch.double)).squeeze(1)
+        else:
+            if not is_cov_times:
+                batch_event_times = batch_event_times.unsqueeze(1)
+            return ((-pred_distribution_params[:] * batch_event_times) * torch.as_tensor(~(batch_event_times == 0), dtype=torch.double))
+            
     #def compute_batch_exp_distribution_logpdf(self, batch_event_time_deltas, pred_distribution_params, batch_event_times):
 
     #    #print(pred_distribution_params.shape, batch_event_time_deltas.shape, batch_event_times.shape)
