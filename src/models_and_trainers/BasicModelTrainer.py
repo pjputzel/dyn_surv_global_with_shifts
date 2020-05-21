@@ -1,0 +1,92 @@
+import torch
+import math
+import numpy as np
+import time
+
+class BasicModelTrainer:
+    def __init__(self, train_params):
+        self.params = train_params
+        self.diagnostics = Diagnostics()#TODO: put init here)
+        self.loss_calc = LossCalculator(train_params['loss_params'])#TODO: put init here        
+
+
+    def train_model(self, model, data_input):
+        
+        start_time = time.time()
+        prev_loss = torch.tensor(0)
+        cur_loss = torch.tensor(np.inf)
+        epoch = 0
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])
+        while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < self.params['max_iter']:
+            data_input.make_randomized_batches(self.params['batch_size'])
+
+            pred_params, hidden_states, total_loss, reg, logprob =\
+                self.step_params_over_all_batches(model, data_input)
+
+            self.diagnostics.update(pred_params, hidden_states, total_loss, reg, epoch)
+            if epoch % self.params['n_epoch_print'] == 0:
+                self.diagnostics.print_loss_terms()
+            
+            prev_loss = cur_loss
+            cur_loss = total_loss
+            epoch += 1
+
+        self.diagnostics.print_loss_terms()
+        print('Total training time for loss type %s was %d seconds'\
+            %(loss_type, time.time() - start_time)
+        )
+        return self.diagnostics
+
+    def  step_params_over_all_batches(self, model, data_input):
+        pred_params_per_batch, hidden_states_per_batch, step_ahead_cov_preds_per_batch = [], [], []
+        total_loss_per_batch, reg_per_batch, logprob_per_batch = [], [], []
+        for batch in data_input.batches:
+            optimizer.zero_grad()
+
+            pred_params, hidden_states, step_ahead_cov_preds = model(batch.packed_cov_trajs)
+            total_loss, reg, logprob =\
+                self.loss_calc.compute_loss(
+                    pred_params, hidden_states, 
+                    step_ahead_cov_preds, batch
+                )
+
+            total_loss.backward()            
+            optimizer.step()
+
+            pred_params_per_batch.append(pred_params)
+            hidden_states_per_batch.append(hidden_states)
+            step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
+            total_loss_per_batch.append(total_loss)
+            reg_per_batch.append(reg)
+            logprob_per_batch.append(logprob)
+        # combine and unshuffle to get *_all stuff
+        
+        return pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg
+
+# simple helper class that formats and stores the results from a single step
+# maybe should be in same file as diagnostics class
+class ResultsSingleStep:
+    
+    def __init__(self):
+        self.pred_params_per_batch = []
+        self.hidden_states_per_batch = []
+        self.step_ahead_cov_preds_per_batch = []
+        self.total_loss_per_batch = []
+        self.reg_per_batch = []
+        self.logprob_per_batch = []
+        self.unshuffled_idxs_per_batch = []
+
+    def update(self, pred_params, hidden_states, step_ahead_cov_preds,
+        total_loss, reg, logprob, unshuffled_idxs):
+
+        self.pred_params_per_batch.append(pred_params)
+        self.hidden_states_per_batch.append(hidden_states)
+        self.step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
+        self.total_loss_per_batch.append(total_loss)
+        self.reg_per_batch.append(reg)
+        self.logprob_per_batch.append(logprob)
+        self.unshuffled_idxs_per_batch.append(unshuffled_idxs)
+
+    def combine_and_format_results(self):
+        self.pred_params_all = torch.cat(self.pred_params_per_batch)
+        # TODO: update this based on what the model output actually is
