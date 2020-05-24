@@ -6,6 +6,7 @@ DEFAULT_PARAMS =\
 
         'data_input_params': {
             'dataset_name': 'specify in config',
+            'cov_time_representation': 'delta',
             'data_loading_params': {
                 'paths': 'specify in config'
             },
@@ -15,7 +16,7 @@ DEFAULT_PARAMS =\
             'model_type': 'basic',
             'covariate_dim': 'specify in config since data-dependent',
             'hidden_dim': 5,
-            'n_layers_rnn': 3,
+            #'n_layers_rnn': 3,
             'keep_prob': .3,
             'survival_distribution_type': 'Gamma',
 
@@ -30,16 +31,18 @@ DEFAULT_PARAMS =\
                 'pretraining_max_iter': None,
                 'regular_training_max_iter': None, 
                 'regular_training_lr': None
+            },
+
+            'diagnostic_params': {
+            },
+            
+            'loss_params': {
+                'distribution_type': 'exponential',
+                'avg_per_seq': False
             }
+            
         },
         
-        'diagnostic_params': {
-            'distribution_type': 'ggd',
-            'regularization_params': {
-                'next_step_cov_reg_str': .0001,
-                'parameter_diversity_reg_str': 0.,
-            },
-        }
 
     }
 
@@ -47,6 +50,9 @@ class ParameterParser:
     def __init__(self, path_to_params):
         self.path_to_params = path_to_params
     
+    # only handles a 3 level dictionary
+    # could make recursive to handle general case
+    # but I think more than 3 levels in the params is confusing
     def parse_params(self):
         self.params = DEFAULT_PARAMS
         with open(self.path_to_params, 'rb') as f:
@@ -54,18 +60,13 @@ class ParameterParser:
         print('new params', new_params)
         for str_key in new_params:
             if type(new_params[str_key]) == dict:
-                if str_key == 'transform_params':
-                    self.update_transform_params(new_params[str_key])
-                else:
-                    self.params[str_key].update(new_params[str_key])
+                for str_key2 in new_params[str_key]:
+                    if type(new_params[str_key][str_key2]) == 'dict':
+                        self.params[str_key][str_key2].update(new_params[str_key][str_key2])
+                    else:
+                        self.params[str_key][str_key2] = new_params[str_key][str_key2]
             else:
                 self.params[str_key] = new_params[str_key]
         return self.params
 
-    def update_transform_params(self, new_params):
-        for key in new_params:
-            if type(new_params[key]) == dict:
-                self.params['transform_params'][key].update(new_params[key])
-            else:
-                self.params['transform_params'][key] = new_params[key]
                 

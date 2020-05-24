@@ -1,4 +1,4 @@
-from data_loading.SyntheticDataLoader import SyntheticDataLoader
+from data_handling.SyntheticDataLoader import SyntheticDataLoader
 import numpy as np
 import torch
 
@@ -20,7 +20,7 @@ class DataInput:
         else:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 
-        self.format_data() 
+        self.format_data()
 
     def format_data(self):
         self.format_cov_trajs_and_event_times_time_rep()
@@ -29,36 +29,49 @@ class DataInput:
         # self.format_cov_trajs_missingness()
 
         self.pad_cov_trajs_with_zeros()
-        self.convert_to_tensors()
+        self.convert_data_to_tensors()
 
     def format_cov_trajs_and_event_times_time_rep(self):
         # real data doesn't include true times, only the differences are
         # accurate to help de-identify patients
         # so shift everything to be relative to first covariate measurement time
-        cov_times = [
+        cov_times_abs = [
             [cov_event[0] for cov_event in traj]
             for traj in self.covariate_trajectories
         ]
         self.covariate_trajectories = [ 
-            [ [event[0] - cov_times[i][0]] + event[1] for event in traj] 
+            [[cov_event[0] - cov_times_abs[i][0]] + cov_event[1] for cov_event in traj]
             for i, traj in enumerate(self.covariate_trajectories)
         ]
         
+        
         self.event_times = [
-            event_time - cov_times[i][0]
+            event_time - cov_times_abs[i][0]
             for i, event_time in enumerate(self.event_times)
         ]
+        
+        self.cov_times = [
+            [time - traj_cov_times[0] for time in traj_cov_times] 
+            for traj_cov_times in cov_times_abs
+        ]
+        
 
         cov_time_rep = self.params['cov_time_representation']
         if cov_time_rep == 'delta':
+            # event[0] is still the time of the covariate measurement
             self.covariate_trajectories = [ 
                 [ 
-                    [event[0] - cov_times[i][j - 1]] + event[1] if j > 0 else traj
+                    [event[0] - self.cov_times[i][j - 1]] + event[1:]  if j > 0 else event
                     for j, event in enumerate(traj)
                 ] 
                 for i, traj in enumerate(self.covariate_trajectories)
             ]
+            for i, traj in enumerate(self.covariate_trajectories):
+                for j, cov_event in enumerate(traj):
+                    if not j ==0:
+                        self.covariate_trajectories[i][j][0] = self.cov_times[i][j] - self.cov_times[i][j - 1]
 
+                        
 
         elif cov_time_rep == 'absolute':
             # don't need to do anything in this case
@@ -72,19 +85,32 @@ class DataInput:
         max_len_trajectory = np.max([len(traj) for traj in self.covariate_trajectories])
         padded_trajectories = []
         trajectory_lengths = []
+        padded_cov_times = []
         for traj in self.covariate_trajectories:
             if len(traj) < max_len_trajectory:
-                padded_trajectory = traj + 
+                padded_trajectory = traj + \
                     [
                         [0 for i in range(len(traj[0]))] 
                         for i in range(max_len_trajectory - len(traj))
                     ]
             else:
                 padded_trajectory = traj
+            
+            # note padding is zero here as well
+            # so when checking for padding make sure
+            # to consider that the first entry is zero as well
+            padded_cov_times.append(
+                [
+                    cov_event[0] for cov_event in padded_trajectory
+                ]
+            )
+
+
             padded_trajectories.append(padded_trajectory)
             trajectory_lengths.append(len(traj))
         self.covariate_trajectories = padded_trajectories
         self.trajectory_lengths = trajectory_lengths
+        self.cov_times = padded_cov_times
     
     def convert_data_to_tensors(self):
         # could make float64/32 an option in params
@@ -93,18 +119,20 @@ class DataInput:
         self.event_times = torch.tensor(self.event_times, dtype=torch.float64)
         self.censoring_indicators = torch.tensor(self.censoring_indicators)
         self.missing_indicators = torch.tensor(self.missing_indicators)
+        self.cov_times = torch.tensor(self.cov_times)
 
     def make_randomized_batches(self, batch_size):
         self.shuffle_all_data()
 
         batches = []
-        if self.covariate_trajectories.shape[0] % batch_size == 0:
-            num_batches = self.covariate_trajectories.shape[0]//batch_size
+        num_individuals = self.covariate_trajectories.shape[0]
+        if num_individuals % batch_size == 0:
+            num_batches = num_individuals//batch_size
         else:
-            num_batches = self.covariate_trajectories.shape[0]//batch_size + 1
+            num_batches = num_individuals//batch_size + 1
 
         for batch_idx in range(num_batches):
-            batch = Batch(*self.get_batch_data(batch_idx))
+            batch = Batch(*self.get_batch_data(batch_idx, batch_size))
             batches.append(batch) 
         self.batches = batches
     
@@ -115,11 +143,17 @@ class DataInput:
         # we want to be able to see original order for analysis
         self.unshuffle_all_data()
         idxs = torch.randperm(len(self.covariate_trajectories))
-        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
-        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
-        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
-        self.event_times = [self.event_times[idx] for idx in idxs]
-        self.trajectory_lengths = [self.trajectory_lengths[idx] for idx in idxs]
+        self.covariate_trajectories = self.covariate_trajectories[idxs]
+        self.missing_indicators = self.missing_indicators[idxs]
+        self.censoring_indicators = self.censoring_indicators[idxs]
+        self.event_times = self.event_times[idxs]
+        self.trajectory_lengths = self.trajectory_lengths[idxs]
+        self.cov_times = self.cov_times[idxs]
+#        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
+#        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
+#        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
+#        self.event_times = [self.event_times[idx] for idx in idxs]
+#        self.trajectory_lengths = [self.trajectory_lengths[idx] for idx in idxs]
 
         self.shuffled_idxs = idxs
         for i, idx in enumerate(idxs):
@@ -128,14 +162,20 @@ class DataInput:
 
     def unshuffle_all_data(self):
         idxs = self.unshuffled_idxs
-        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
-        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
-        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
-        self.event_times = [self.event_times[idx] for idx in idxs]
-        self.trajectory_lengths = self.trajectory_lengths[idx for idx in idxs]
+        self.covariate_trajectories = self.covariate_trajectories[idxs]
+        self.missing_indicators = self.missing_indicators[idxs]
+        self.censoring_indicators = self.censoring_indicators[idxs]
+        self.event_times = self.event_times[idxs]
+        self.trajectory_lengths = self.trajectory_lengths[idxs]
+        self.cov_times = self.cov_times[idxs]
+#        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
+#        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
+#        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
+#        self.event_times = [self.event_times[idx] for idx in idxs]
+#        self.trajectory_lengths = [self.trajectory_lengths[idx] for idx in idxs]
     
-    def get_batch_data(self, batch_idx):
-        batch_indices = batch_idx * batch_size: (batch_idx + 1) * batch_size
+    def get_batch_data(self, batch_idx, batch_size):
+        batch_indices = slice(batch_idx * batch_size, (batch_idx + 1) * batch_size)
 
         batch_cov_trajs = self.covariate_trajectories[batch_indices]
         batch_traj_lengths = self.trajectory_lengths[batch_indices]
@@ -143,27 +183,34 @@ class DataInput:
         batch_packed_cov_trajs = torch.nn.utils.rnn.pack_padded_sequence(
             batch_cov_trajs, batch_traj_lengths, enforce_sorted=False
         )
-        batch_event_times = self.batch_event_times[batch_indices]
+        batch_event_times = self.event_times[batch_indices]
         batch_censoring_indicators = self.censoring_indicators[batch_indices]
         batch_unshuffle_idxs = self.unshuffled_idxs[batch_indices]
-        return 
-            batch_packed_cov_trajs, batch_event_times, batch_censoring_indicators, 
-            batch_traj_lengths, batch_unshuffle_idxs
+        batch_cov_times = self.cov_times[batch_indices]
+        return \
+            batch_packed_cov_trajs, batch_cov_times, batch_event_times,\
+            batch_censoring_indicators, batch_traj_lengths, batch_unshuffle_idxs
             
 
 # Simple helper class to make passing around batches of the data easier
 # also handles unpacking cov trajs
+# note: packed_cov_trajs uses whatever time rep is selected for cov_times
+# while cov_times is the times relative to first covariate event
+# for example: packed cov trajs may have time deltas between cov measurements,
+# while cov times will be different and just have times relative to first
+# event
 class Batch:
 
     def __init__(self,
-        batch_packed_cov_trajs, batch_event_times, batch_censoring_indicators,
-        batch_traj_lengths, batch_unshuffle_idxs
+        batch_packed_cov_trajs, batch_cov_times, batch_event_times, 
+        batch_censoring_indicators, batch_traj_lengths, batch_unshuffle_idxs
     ):
 
-        self.packed_cov_trajs = batch_cov_trajs
+        self.packed_cov_trajs = batch_packed_cov_trajs
+        self.cov_times = batch_cov_times
         self.event_times = batch_event_times
         self.censoring_indicators = batch_censoring_indicators
-        self.trajectory_lengths = batch_traj_lengths
+        self.trajectory_lengths = torch.tensor(batch_traj_lengths, dtype=torch.float64)
         self.unshuffled_idxs = batch_unshuffle_idxs
 
     def get_unpacked_padded_cov_trajs(self):

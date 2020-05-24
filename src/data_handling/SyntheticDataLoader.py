@@ -1,4 +1,4 @@
-from data_loading.DataLoaderBase import DataLoaderBase
+from data_handling.DataLoaderBase import DataLoaderBase
 import pickle
 
 class SyntheticDataLoader(DataLoaderBase):

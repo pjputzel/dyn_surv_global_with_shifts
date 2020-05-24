@@ -2,11 +2,13 @@ import torch
 import math
 import numpy as np
 import time
+from utils.Diagnostics import Diagnostics
+from loss.LossCalculator import LossCalculator
 
 class BasicModelTrainer:
     def __init__(self, train_params):
         self.params = train_params
-        self.diagnostics = Diagnostics()#TODO: put init here)
+        self.diagnostics = Diagnostics(train_params['diagnostic_params'])#TODO: put init here)
         self.loss_calc = LossCalculator(train_params['loss_params'])#TODO: put init here        
 
 
@@ -23,7 +25,10 @@ class BasicModelTrainer:
             pred_params, hidden_states, total_loss, reg, logprob =\
                 self.step_params_over_all_batches(model, data_input)
 
-            self.diagnostics.update(pred_params, hidden_states, total_loss, reg, epoch)
+            self.diagnostics.update(
+                pred_params, hidden_states, total_loss, reg, logprob, epoch
+            )
+
             if epoch % self.params['n_epoch_print'] == 0:
                 self.diagnostics.print_loss_terms()
             
@@ -41,17 +46,19 @@ class BasicModelTrainer:
         pred_params_per_batch, hidden_states_per_batch, step_ahead_cov_preds_per_batch = [], [], []
         total_loss_per_batch, reg_per_batch, logprob_per_batch = [], [], []
         for batch in data_input.batches:
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
             pred_params, hidden_states, step_ahead_cov_preds = model(batch.packed_cov_trajs)
+                
             total_loss, reg, logprob =\
-                self.loss_calc.compute_loss(
+                self.loss_calc.compute_batch_loss(
+                    model.get_global_param(),
                     pred_params, hidden_states, 
                     step_ahead_cov_preds, batch
                 )
 
             total_loss.backward()            
-            optimizer.step()
+            self.optimizer.step()
 
             pred_params_per_batch.append(pred_params)
             hidden_states_per_batch.append(hidden_states)
@@ -60,33 +67,49 @@ class BasicModelTrainer:
             reg_per_batch.append(reg)
             logprob_per_batch.append(logprob)
         # combine and unshuffle to get *_all stuff
-        
+        pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg = \
+            self.combine_batch_results(
+                data_input.unshuffled_idxs,
+                pred_params_per_batch, hidden_states_per_batch, total_loss_per_batch,
+                total_loss_per_batch, reg_per_batch, logprob_per_batch
+            )        
         return pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg
+
+
+    def combine_batch_results(self, 
+        unshuffled_idxs,
+        pred_params_per_batch, hidden_states_per_batch, total_loss_per_batch,
+        reg_per_batch, logprob_per_batch
+    ):
+        #pred_params_all = 
+        pass
+        
+
 
 # simple helper class that formats and stores the results from a single step
 # maybe should be in same file as diagnostics class
-class ResultsSingleStep:
-    
-    def __init__(self):
-        self.pred_params_per_batch = []
-        self.hidden_states_per_batch = []
-        self.step_ahead_cov_preds_per_batch = []
-        self.total_loss_per_batch = []
-        self.reg_per_batch = []
-        self.logprob_per_batch = []
-        self.unshuffled_idxs_per_batch = []
-
-    def update(self, pred_params, hidden_states, step_ahead_cov_preds,
-        total_loss, reg, logprob, unshuffled_idxs):
-
-        self.pred_params_per_batch.append(pred_params)
-        self.hidden_states_per_batch.append(hidden_states)
-        self.step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
-        self.total_loss_per_batch.append(total_loss)
-        self.reg_per_batch.append(reg)
-        self.logprob_per_batch.append(logprob)
-        self.unshuffled_idxs_per_batch.append(unshuffled_idxs)
-
-    def combine_and_format_results(self):
-        self.pred_params_all = torch.cat(self.pred_params_per_batch)
-        # TODO: update this based on what the model output actually is
+#class ResultsSingleStep:
+#    
+#    def __init__(self):
+#        self.pred_params_per_batch = []
+#        self.hidden_states_per_batch = []
+#        self.step_ahead_cov_preds_per_batch = []
+#        self.total_loss_per_batch = []
+#        self.reg_per_batch = []
+#        self.logprob_per_batch = []
+#        self.unshuffled_idxs_per_batch = []
+#
+#    def update(self, pred_params, hidden_states, step_ahead_cov_preds,
+#        total_loss, reg, logprob, unshuffled_idxs):
+#
+#        self.pred_params_per_batch.append(pred_params)
+#        self.hidden_states_per_batch.append(hidden_states)
+#        self.step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
+#        self.total_loss_per_batch.append(total_loss)
+#        self.reg_per_batch.append(reg)
+#        self.logprob_per_batch.append(logprob)
+#        self.unshuffled_idxs_per_batch.append(unshuffled_idxs)
+#
+#    def combine_and_format_results(self):
+#        self.pred_params_all = torch.cat(self.pred_params_per_batch)
+#        # TODO: update this based on what the model output actually is

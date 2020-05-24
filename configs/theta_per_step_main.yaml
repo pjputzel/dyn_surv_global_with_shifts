@@ -1,5 +1,5 @@
 main_type: 'basic_main'
-savedir: '../output/synth/gamma'
+savedir: '../output/synth/exp'
 data_input_params:
     dataset_name: 'synth'
     data_loading_params:
@@ -10,21 +10,23 @@ model_params:
     covariate_dim: 1
     dropout: 1.
     hidden_dim: 10
-    n_layers_rnn: 
 
 train_params:
     learning_rate: .05
     batch_size: 3000
     conv_thresh: .00000001
     n_epoch_print: 100
+    max_iter: 1000
     pretraining:
         pretraining_max_iter: 1000
         regular_training_max_iter: 1000
         regular_training_lr: .005
 
-diagnostic_params:
-    distribution_type: 'exp'
-    regularization_params:
-        next_step_cov_reg_str: 1.
-        parameter_diversity_reg_str: 0.
-        
+    diagnostic_params:
+        regularization_params:
+            next_step_cov_reg_str: 0
+            parameter_diversity_reg_str: 0.
+
+    loss_params:
+        distribution_type: 'exponential'
+        avg_per_seq: True

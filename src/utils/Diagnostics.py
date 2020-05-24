@@ -1,31 +1,19 @@
 import numpy as np
 import torch
-from utils.loss_calculators import ExponentialLossCalculator
-from utils.loss_calculators import GGDLossCalculator
-from utils.loss_calculators import RegularizationCalculator
-from utils.loss_calculators import GammaLossCalculator
+from loss.loss_calculators import ExponentialLossCalculator
+#from utils.loss_calculators import GGDLossCalculator
+#from utils.loss_calculators import RegularizationCalculator
+#from utils.loss_calculators import GammaLossCalculator
 '''
 Computes and holds model diagnostics during training
 '''
 
 class Diagnostics:
 
-    def __init__(self, diagnostic_params, one_theta=True):
+    def __init__(self, diagnostic_params):
         self.params = diagnostic_params
-        self.init_loss_calculators()
         self.epochs = []
-        self.one_theta = one_theta
 
-    def init_loss_calculators(self):
-        if self.params['distribution_type'] == 'exp':
-            self.loss_calculator = ExponentialLossCalculator()
-        elif self.params['distribution_type'] == 'gamma':
-            self.loss_calculator = GammaLossCalculator()
-        elif self.params['distribution_type'] == 'ggd':
-            self.loss_calculator = GGDLossCalculator()
-        else:
-            raise ValueError('Loss type not found')
-        self.regularization_calculator = RegularizationCalculator(self.params['regularization_params'])
 
     def compute_batch_diagnostics(self, model, cur_batch, cur_batch_event_times, cur_batch_censoring_indicators):
         

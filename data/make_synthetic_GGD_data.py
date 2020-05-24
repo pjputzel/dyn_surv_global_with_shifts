@@ -123,7 +123,7 @@ def get_sine_trajectory_func(period):
 
 if __name__ == '__main__':
     num_groups = 3
-    num_individuals_per_group = 50 * np.ones(num_groups)
+    num_individuals_per_group = 2 * np.ones(num_groups)
     subgroup_locs = [100., 10., .1] 
     subgroup_trajectory_funcs_linear = [get_linear_trajectory_func(1, 1), get_linear_trajectory_func(1, 3), get_linear_trajectory_func(1, 5)]
     subgroup_trajectory_funcs_sine = [get_sine_trajectory_func(4 * np.pi) , get_sine_trajectory_func(2 * np.pi), get_sine_trajectory_func(8 * np.pi)]

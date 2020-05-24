@@ -3,4 +3,4 @@
 *.swp
 *.pyc
 *.png
-/data/*.png
+../data/*.png

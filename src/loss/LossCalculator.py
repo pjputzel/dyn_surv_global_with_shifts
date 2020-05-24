@@ -1,4 +1,5 @@
-
+from loss.ExponentialLogProbCalculator import ExponentialLogProbCalculator
+from loss.RegularizationCalculator import RegularizationCalculator
 
 class LossCalculator:
     
@@ -7,23 +8,31 @@ class LossCalculator:
         self.init_logprob_and_regularization()
 
     def init_logprob_and_regularization(self):
-        logprob_params = self.params['logprob_params']
-        dist_type = self.params['dist_type']
+        dist_type = self.params['distribution_type']
         if dist_type == 'exponential':
-            self.logprob_calculator = ExponentialLogProbCalculator(logprob_params)
+            self.logprob_calculator = ExponentialLogProbCalculator(self.params)
         elif dist_type == 'weibull':
-            self.logprob_calculator = WeibullLogProbCalculator(logprob_params)
+            self.logprob_calculator = WeibullLogProbCalculator(self.params)
         else:
             raise ValueError('Distribution type %s not recognized' %dist_type)
 
-        reg_params = self.params['reg_params']
         # if need more than one type of regularization calculator then 
         # add another switch here
-        self.reg_calculator = RegularizationCalculator(reg_params)
+        self.reg_calculator = RegularizationCalculator(self.params)
 
-    def compute_batch_loss(self, pred_params, hidden_states, batch):
-        logprob = self.logprob_calculator(model, data_input) 
-        reg = self.reg_calculator(model, data_input, ret_each_term=False)
+    def compute_batch_loss(self,
+        global_theta,
+        pred_params, hidden_states, 
+        step_ahead_cov_preds, batch
+    ):
+
+        logprob = self.logprob_calculator(pred_params, batch)
+        print(logprob)
+        reg = self.reg_calculator(
+            global_theta,
+            pred_params, hidden_states, 
+            step_ahead_cov_preds, batch, ret_each_term=False
+        )
         total_loss = logprob + reg
         return total_loss, logprob, reg
 

@@ -1,14 +1,13 @@
 from main_types.BaseMain import BaseMain
 from utils.Diagnostics import Diagnostics
 import os
-from models.BasicModelOneTheta import BasicModelOneTheta
 from models.BasicModelThetaPerStep import BasicModelThetaPerStep
 from models.GlobalPlusEpsModel import GlobalPlusEpsModel
 from models.BasicModelTrainer import BasicModelTrainer
 import pickle
 #from utils.MetricsTracker import MetricsTracker
 from utils.ParameterParser import ParameterParser
-from data_loading.DataInput import DataInput
+from data_handling.DataInput import DataInput
 import torch
 
 class PreTrainingBasicModelMain(BaseMain):
