@@ -38,7 +38,10 @@ DEFAULT_PARAMS =\
             
             'loss_params': {
                 'distribution_type': 'exponential',
-                'avg_per_seq': False
+                'avg_per_seq': False,
+                'step_ahead_cov_reg': 0.,
+                'theta_drift_reg': 0.,
+                'global_diff_reg': 0.,
             }
             
         },
@@ -55,13 +58,14 @@ class ParameterParser:
     # but I think more than 3 levels in the params is confusing
     def parse_params(self):
         self.params = DEFAULT_PARAMS
+        print(DEFAULT_PARAMS, '\n')
         with open(self.path_to_params, 'rb') as f:
             new_params = yaml.safe_load(f)
-        print('new params', new_params)
+        print('new params', new_params, '\n')
         for str_key in new_params:
             if type(new_params[str_key]) == dict:
                 for str_key2 in new_params[str_key]:
-                    if type(new_params[str_key][str_key2]) == 'dict':
+                    if type(new_params[str_key][str_key2]) == dict:
                         self.params[str_key][str_key2].update(new_params[str_key][str_key2])
                     else:
                         self.params[str_key][str_key2] = new_params[str_key][str_key2]

@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from utils.loss_calculators import GGDLossCalculator
 from scipy.stats import gengamma
 import numpy as np
 import scipy.stats
@@ -8,8 +7,8 @@ from scipy.stats import gamma
 class ResultsPlotterSynth:
     
     # assumes the learned parameters are in order by group with counts per group being the number of each group in order. 
-    def __init__(self, model_results, model_type, plot_params):
-        self.predicted_distribution_parameters = model_results['predicted_distribution_parameters']
+    def __init__(self, pred_params, model_type, plot_params):
+        self.predicted_distribution_parameters = pred_params 
         self.params = plot_params
         self.model_type = model_type
     

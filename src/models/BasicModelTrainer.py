@@ -13,7 +13,7 @@ class BasicModelTrainer:
 
 
     def train_model(self, model, data_input):
-        
+        self.diagnostics.padding_indicators = data_input.padding_indicators
         start_time = time.time()
         prev_loss = torch.tensor(0)
         cur_loss = torch.tensor(np.inf)
@@ -37,8 +37,8 @@ class BasicModelTrainer:
             epoch += 1
 
         self.diagnostics.print_loss_terms()
-        print('Total training time for loss type %s was %d seconds'\
-            %(loss_type, time.time() - start_time)
+        print('Total training time was %d seconds'\
+            %(time.time() - start_time)
         )
         return self.diagnostics
 
@@ -48,7 +48,7 @@ class BasicModelTrainer:
         for batch in data_input.batches:
             self.optimizer.zero_grad()
 
-            pred_params, hidden_states, step_ahead_cov_preds = model(batch.packed_cov_trajs)
+            pred_params, hidden_states, step_ahead_cov_preds = model(batch)
                 
             total_loss, reg, logprob =\
                 self.loss_calc.compute_batch_loss(
@@ -56,13 +56,12 @@ class BasicModelTrainer:
                     pred_params, hidden_states, 
                     step_ahead_cov_preds, batch
                 )
-
             total_loss.backward()            
             self.optimizer.step()
 
             pred_params_per_batch.append(pred_params)
             hidden_states_per_batch.append(hidden_states)
-            step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
+            #step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
             total_loss_per_batch.append(total_loss)
             reg_per_batch.append(reg)
             logprob_per_batch.append(logprob)
@@ -71,7 +70,7 @@ class BasicModelTrainer:
             self.combine_batch_results(
                 data_input.unshuffled_idxs,
                 pred_params_per_batch, hidden_states_per_batch, total_loss_per_batch,
-                total_loss_per_batch, reg_per_batch, logprob_per_batch
+                reg_per_batch, logprob_per_batch
             )        
         return pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg
 
@@ -81,9 +80,22 @@ class BasicModelTrainer:
         pred_params_per_batch, hidden_states_per_batch, total_loss_per_batch,
         reg_per_batch, logprob_per_batch
     ):
-        #pred_params_all = 
-        pass
+        if len(pred_params_per_batch) == 1:
+            # only one batch, no concatenation/averaging needed
+            return pred_params_per_batch[0], hidden_states_per_batch[0],\
+                total_loss_per_batch[0], reg_per_batch[0], logprob_per_batch[0]
+    
+        pred_params_all = torch.cat(pred_params_per_batch)
+        pred_params_all = pred_params_all[unshuffled_idxs]
         
+        hidden_states_all = torch.cat(hidden_states_per_batch)
+        hidden_states_all = hidden_states_all[unshuffled_idxs]
+
+        total_loss_avg = torch.mean(torch.tensor(total_loss_per_batch))
+        reg_avg = torch.mean(torch.tensor(reg_per_batch))
+        logprob_avg = torch.mean(torch.tensor(logprob_per_batch))
+        
+        return pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg
 
 
 # simple helper class that formats and stores the results from a single step

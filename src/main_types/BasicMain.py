@@ -36,7 +36,7 @@ class BasicMain(BaseMain):
     def train_model(self, model, data_input):
         model_trainer = BasicModelTrainer(self.params['train_params'])
         diagnostics = model_trainer.train_model(model, data_input)
-        diagnostics.unshuffle_results(data_input.unshuffled_idxs)
+        #diagnostics.unshuffle_results(data_input.unshuffled_idxs)
         return diagnostics
     
     def save_results(self, results_tracker):

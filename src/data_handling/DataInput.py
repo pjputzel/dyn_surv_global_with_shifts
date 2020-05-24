@@ -86,13 +86,18 @@ class DataInput:
         padded_trajectories = []
         trajectory_lengths = []
         padded_cov_times = []
+        padding_indicators = []
         for traj in self.covariate_trajectories:
+            padding_indicators_traj = [0 for i in range(len(traj))]
             if len(traj) < max_len_trajectory:
                 padded_trajectory = traj + \
                     [
                         [0 for i in range(len(traj[0]))] 
                         for i in range(max_len_trajectory - len(traj))
                     ]
+                padding_indicators_traj.extend(
+                    [1 for i in range(max_len_trajectory - len(traj))]
+                )
             else:
                 padded_trajectory = traj
             
@@ -104,13 +109,16 @@ class DataInput:
                     cov_event[0] for cov_event in padded_trajectory
                 ]
             )
+            padding_indicators.append(padding_indicators_traj)
 
-
+            
             padded_trajectories.append(padded_trajectory)
             trajectory_lengths.append(len(traj))
         self.covariate_trajectories = padded_trajectories
         self.trajectory_lengths = trajectory_lengths
         self.cov_times = padded_cov_times
+        self.max_len_trajectory = max_len_trajectory
+        self.padding_indicators = padding_indicators
     
     def convert_data_to_tensors(self):
         # could make float64/32 an option in params
@@ -120,6 +128,7 @@ class DataInput:
         self.censoring_indicators = torch.tensor(self.censoring_indicators)
         self.missing_indicators = torch.tensor(self.missing_indicators)
         self.cov_times = torch.tensor(self.cov_times)
+        self.padding_indicators = torch.tensor(self.padding_indicators)
 
     def make_randomized_batches(self, batch_size):
         self.shuffle_all_data()
@@ -130,9 +139,9 @@ class DataInput:
             num_batches = num_individuals//batch_size
         else:
             num_batches = num_individuals//batch_size + 1
-
+        
         for batch_idx in range(num_batches):
-            batch = Batch(*self.get_batch_data(batch_idx, batch_size))
+            batch = Batch(*self.get_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
             batches.append(batch) 
         self.batches = batches
     
@@ -149,6 +158,7 @@ class DataInput:
         self.event_times = self.event_times[idxs]
         self.trajectory_lengths = self.trajectory_lengths[idxs]
         self.cov_times = self.cov_times[idxs]
+        self.padding_indicators = self.padding_indicators[idxs]
 #        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
 #        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
 #        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
@@ -168,6 +178,7 @@ class DataInput:
         self.event_times = self.event_times[idxs]
         self.trajectory_lengths = self.trajectory_lengths[idxs]
         self.cov_times = self.cov_times[idxs]
+        self.padding_indicators = self.padding_indicators[idxs]
 #        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
 #        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
 #        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
@@ -203,7 +214,8 @@ class Batch:
 
     def __init__(self,
         batch_packed_cov_trajs, batch_cov_times, batch_event_times, 
-        batch_censoring_indicators, batch_traj_lengths, batch_unshuffle_idxs
+        batch_censoring_indicators, batch_traj_lengths, batch_unshuffle_idxs,
+        max_seq_len_all_batches
     ):
 
         self.packed_cov_trajs = batch_packed_cov_trajs
@@ -212,9 +224,12 @@ class Batch:
         self.censoring_indicators = batch_censoring_indicators
         self.trajectory_lengths = torch.tensor(batch_traj_lengths, dtype=torch.float64)
         self.unshuffled_idxs = batch_unshuffle_idxs
+        self.max_seq_len_all_batches = max_seq_len_all_batches
 
     def get_unpacked_padded_cov_trajs(self):
-        #TODO: implement this using rnn utils from pytorch
-        pass
+        batch_covs, lengths = torch.nn.utils.rnn.pad_packed_sequence(
+            self.packed_cov_trajs, total_length=self.max_seq_len_all_batches
+        )
 
-    
+        batch_covs = batch_covs.transpose(0,1)
+        return batch_covs

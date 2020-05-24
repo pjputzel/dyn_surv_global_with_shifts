@@ -33,7 +33,9 @@ class BasicModelThetaPerStep(nn.Module):
             #self.params['covariate_dim'] + 1 to predict time too
         )
         
-    def forward(self, packed_sequence_batch):
+    def forward(self, batch):
+        packed_sequence_batch = batch.packed_cov_trajs
+        max_len = batch.max_seq_len_all_batches
         batch_size = packed_sequence_batch.batch_sizes[0]
 
         h_0 = Variable(torch.randn(\
@@ -43,13 +45,16 @@ class BasicModelThetaPerStep(nn.Module):
 
         # eventually may add attention by using the hidden_states/'output' of the GRU
         hidden_states, _ = self.RNN(packed_sequence_batch, h_0)
-        unpacked_hidden_states, lengths = self.unpack_and_permute(hidden_states)
+        unpacked_hidden_states, lengths = self.unpack_and_permute(
+            hidden_states, max_len
+        )
 
         fc_output = self.params_fc_layer(unpacked_hidden_states)
 
         pred_params = torch.exp(-fc_output)
 
-        batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch)
+        batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
+
         next_step_cov_preds = self.make_next_step_cov_preds(
             unpacked_hidden_states, 
             batch_covs_unpacked, 
@@ -94,8 +99,10 @@ class BasicModelThetaPerStep(nn.Module):
         for param in self.cov_fc_layer.parameters():
             param.requires_grad = False
 
-    def unpack_and_permute(self, packed_tensor):
-        unpacked, lens = torch.nn.utils.rnn.pad_packed_sequence(packed_tensor)
+    def unpack_and_permute(self, packed_tensor, max_len):
+        unpacked, lens = torch.nn.utils.rnn.pad_packed_sequence(
+            packed_tensor, total_length=max_len
+        )
         unpacked = unpacked.permute(1, 0, 2)
         return unpacked, lens
     

@@ -9,24 +9,24 @@ model_params:
     model_type: 'theta_per_step'
     covariate_dim: 1
     dropout: 1.
-    hidden_dim: 10
+    hidden_dim: 2
 
 train_params:
     learning_rate: .05
-    batch_size: 3000
+    batch_size: 50
     conv_thresh: .00000001
-    n_epoch_print: 100
-    max_iter: 1000
+    n_epoch_print: 50
+    max_iter: 50
     pretraining:
         pretraining_max_iter: 1000
         regular_training_max_iter: 1000
         regular_training_lr: .005
 
     diagnostic_params:
-        regularization_params:
-            next_step_cov_reg_str: 0
-            parameter_diversity_reg_str: 0.
 
     loss_params:
         distribution_type: 'exponential'
         avg_per_seq: True
+        step_ahead_cov_reg: .0
+        theta_drift_reg: .0
+        global_diff_reg: .0

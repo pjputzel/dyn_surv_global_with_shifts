@@ -27,14 +27,15 @@ class LossCalculator:
     ):
 
         logprob = self.logprob_calculator(pred_params, batch)
-        print(logprob)
         reg = self.reg_calculator(
             global_theta,
             pred_params, hidden_states, 
             step_ahead_cov_preds, batch, ret_each_term=False
         )
-        total_loss = logprob + reg
-        return total_loss, logprob, reg
+        if reg < 0:
+            print(reg)
+        total_loss = -logprob + reg
+        return total_loss, reg, logprob
 
     
         

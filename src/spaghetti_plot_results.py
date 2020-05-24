@@ -11,11 +11,13 @@ def plot_results(path_to_results):
 
     with open(path_to_results, 'rb') as f:
         diagnostics = pickle.load(f)
-    model_results = {}
-    model_results['predicted_distribution_parameters'] = diagnostics.full_data_diagnostics['predicted_distribution_params']
+
+    pred_params_all_steps = diagnostics.pred_params_per_step
     if model_type == 'theta_per_step':
         last_param_preds = []
-        for params_per_step in model_results['predicted_distribution_parameters']:
+        for params_per_step in pred_params_all_steps:
+            print(params_per_step.shape)
+            print(params_per_step[1])
             padded_idx = params_per_step == 1.
             last_idx = 0
             for i, idx in enumerate(padded_idx):
@@ -27,11 +29,10 @@ def plot_results(path_to_results):
             last_pred = params_per_step[last_idx]
             print(last_pred)
             last_param_preds.append(last_pred)
-        model_results['predicted_distribution_parameters'] = last_param_preds
+        pred_params = last_param_preds
 
     plot_params = {}
-    results_plotter = ResultsPlotterSynth(model_results, dist_type, plot_params)
-    print(len(diagnostics.full_data_diagnostics['predicted_distribution_params']))
+    results_plotter = ResultsPlotterSynth(pred_params, dist_type, plot_params)
     results_plotter.plot_learned_distribution_vs_true(true_params, counts_per_group)
     plt.savefig('new_learned_vs_true_pdf.png')
     plt.clf()
@@ -39,5 +40,5 @@ def plot_results(path_to_results):
     plt.savefig('learned_vs_true_boxplot.png')
 
 if __name__ == '__main__':
-    plot_results('../output/synth/gamma/tracker.pkl')
+    plot_results('../output/synth/exp/tracker.pkl')
     
