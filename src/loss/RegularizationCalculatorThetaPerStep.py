@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class RegularizationCalculator(nn.Module):
+class RegularizationCalculatorThetaPerStep(nn.Module):
     
     def __init__(self, loss_params):
         super().__init__()
@@ -41,6 +41,7 @@ class RegularizationCalculator(nn.Module):
 
         return step_ahead_cov_reg + theta_drift_reg + global_diff_reg
 
+    # TODO:mask out missing values here as in Dynamic DeepHit
     def compute_step_ahead_cov_reg(self, step_ahead_cov_preds, batch):
 
         batch_cov_trajs = batch.get_unpacked_padded_cov_trajs()       
@@ -66,6 +67,7 @@ class RegularizationCalculator(nn.Module):
 
 
     def compute_theta_drift_reg(self, pred_params, batch):
+        # TODO: add 1/(delta_t) as a prefactor
         diffs = (pred_params[:, :pred_params.shape[1] - 1] - pred_params[:, 1:])**2
         return torch.mean(torch.mean(diffs))
 

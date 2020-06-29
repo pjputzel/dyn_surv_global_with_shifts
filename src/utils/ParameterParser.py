@@ -7,6 +7,7 @@ DEFAULT_PARAMS =\
         'data_input_params': {
             'dataset_name': 'specify in config',
             'cov_time_representation': 'delta',
+            'te_percent': .2,
             'data_loading_params': {
                 'paths': 'specify in config'
             },
@@ -14,11 +15,14 @@ DEFAULT_PARAMS =\
 
         'model_params': {
             'model_type': 'basic',
-            'covariate_dim': 'specify in config since data-dependent',
+            'dynamic_cov_dim': 'specify in config since data-dependent',
+            'static_cov_dim': 'specify in config since data-dependent',
             'hidden_dim': 5,
             #'n_layers_rnn': 3,
             'keep_prob': .3,
             'survival_distribution_type': 'Gamma',
+            'embed_hidden_dim': 10,
+            'embed_output_dim': 2
 
         },
 
@@ -42,11 +46,20 @@ DEFAULT_PARAMS =\
                 'step_ahead_cov_reg': 0.,
                 'theta_drift_reg': 0.,
                 'global_diff_reg': 0.,
+                'delta_reg': 0.,
             }
             
         },
-        
 
+        'eval_params': {
+            'eval_metrics': ['c_index'],
+            'c_index': {
+                'start_times': [0, 365, 2*365, 3*365],
+                'window_length': 3*365,
+                'time_step': 30,
+            }
+        },
+        
     }
 
 class ParameterParser:

@@ -24,9 +24,11 @@ def make_synthetic_data(num_individuals_per_group,
     true_survival_times = get_true_survival_times(num_individuals_per_group, num_groups, subgroup_locs, scale, shape, dist_type=dist_type)
     censored_survival_times, censoring_indicators = randomly_censor_survival_times(true_survival_times, censoring_prob)
 
-    trajectories = get_covariate_trajectories(censored_survival_times, subgroup_trajectory_funcs, poisson_rate)
+    trajectories, static_covs = get_covariate_trajectories_and_static_covs(censored_survival_times, subgroup_trajectory_funcs, poisson_rate)
 
-    return flatten_trajectories_and_times(trajectories, censored_survival_times, censoring_indicators)
+
+    trajs, censored_survival_times, censoring_indicators = flatten_trajectories_and_times(trajectories, censored_survival_times, censoring_indicators)
+    return trajs, censored_survival_times, censoring_indicators, static_covs
 
 
 def get_true_survival_times(num_individuals_per_group, num_groups, subgroup_locs, scale, shape, dist_type='gengamma'):
@@ -57,16 +59,18 @@ def randomly_censor_survival_times(true_survival_times, censoring_prob, min_cens
                 censored_survival_times[group][individual] = true_survival_times[group][individual]
     return censored_survival_times, censoring_indicators
 
-def get_covariate_trajectories(censored_survival_times, subgroup_trajectory_funcs, poisson_rate):
+def get_covariate_trajectories_and_static_covs(censored_survival_times, subgroup_trajectory_funcs, poisson_rate, static_variance=2):
     trajectories = []
+    static_covs = [] # here the static covs are just drawn from normal with large variance centered on group idx
     for group in range(len(censored_survival_times)):
         trajectories.append([])
         for individual in range(censored_survival_times[group].shape[0]):
             trajectory = sample_single_trajectory(poisson_rate, subgroup_trajectory_funcs[group], censored_survival_times[group][individual])
             trajectories[group].append(trajectory)
-    return trajectories
+            static_covs.append(list(np.random.normal(loc=group, scale=static_variance**(1/2), size=2)))
+    return trajectories, static_covs
 
-def sample_single_trajectory(poisson_rate, trajectory_path_func, censored_survival_time, noise_mean=0., noise_scale=.00001, min_len=5, max_len=30, max_attempts=10):
+def sample_single_trajectory(poisson_rate, trajectory_path_func, censored_survival_time, noise_mean=0., noise_scale=.00001, min_len=3, max_len=10, max_attempts=10):
     events_len = 0
     print(censored_survival_time)
     num_attempts = 0
@@ -124,7 +128,7 @@ def get_sine_trajectory_func(period):
 if __name__ == '__main__':
     num_groups = 3
     num_individuals_per_group = 50 * np.ones(num_groups)
-    subgroup_locs = [100., 10., .1] 
+    subgroup_locs = [10., 1., .1] 
     subgroup_trajectory_funcs_linear = [get_linear_trajectory_func(1, 1), get_linear_trajectory_func(1, 3), get_linear_trajectory_func(1, 5)]
     subgroup_trajectory_funcs_sine = [get_sine_trajectory_func(4 * np.pi) , get_sine_trajectory_func(2 * np.pi), get_sine_trajectory_func(8 * np.pi)]
 
@@ -137,7 +141,7 @@ if __name__ == '__main__':
     dist_type = 'exp'
     #subgroup_trajectory_funcs_linear = [get_linear_trajectory_func(1, 0)]
     
-    trajectories, censored_survival_times, censoring_indicators = make_synthetic_data(num_individuals_per_group, subgroup_locs, subgroup_trajectory_funcs_linear, poisson_scale, censoring_prob, dist_type='exp')
+    trajectories, censored_survival_times, censoring_indicators, static_covs = make_synthetic_data(num_individuals_per_group, subgroup_locs, subgroup_trajectory_funcs_linear, poisson_scale, censoring_prob, dist_type='exp')
 
     traj_len_counts = np.zeros(np.max([len(traj) for traj in trajectories]))
     traj_lens = []
@@ -161,6 +165,11 @@ if __name__ == '__main__':
     with open('./synth/censoring_indicators.pkl', 'wb') as f:
         pickle.dump(censoring_indicators, f)
 
+    with open('./synth/static_covs.pkl', 'wb') as f:
+        pickle.dump(static_covs, f)
+
+    print('static covs')
+    print(static_covs)
 
     print(trajectories[0], censored_survival_times[0], censoring_indicators[0])
     print(trajectories[-1], censored_survival_times[-1], censoring_indicators[-1])

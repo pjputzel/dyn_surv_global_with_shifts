@@ -18,10 +18,12 @@ class SyntheticDataLoader(DataLoaderBase):
         # nothing is missing for synth data currently
         # note in general that the missing_indicators will be a nested list with
         # each element having length equal to the covariate dim. Or maybe just a numpy array?
-        missing_indicators = [[0] for traj in formatted_trajectories]
-            
+        missing_indicators = [[[0. for i in range(len(traj[1]))] for j in range(len(traj))] for traj in formatted_trajectories]
+       
+        # no static covs either 
+        static_covs = [[0.] for traj in formatted_trajectories]
 
-        return self.load_single_path(event_times_path), self.load_single_path(censoring_indicators_path), missing_indicators, formatted_trajectories
+        return self.load_single_path(event_times_path), self.load_single_path(censoring_indicators_path), missing_indicators, formatted_trajectories, static_covs
 
     def load_single_path(self, path):
         with open(path, 'rb') as f:

@@ -25,9 +25,7 @@ class PreTrainingBasicModelMain(BaseMain):
         print('no data preprocessing in the basic main') 
 
     def load_model(self):
-        if self.params['model_params']['model_type'] == 'one_theta':
-            self.model = BasicModelOneTheta(self.params['model_params'], self.params['diagnostic_params']['distribution_type'])
-        elif self.params['model_params']['model_type'] == 'theta_per_step':
+        if self.params['model_params']['model_type'] == 'theta_per_step':
             self.model = BasicModelThetaPerStep(self.params['model_params'], self.params['diagnostic_params']['distribution_type'])
         else:
             raise ValueError('Model type %s not found' %self.params['model_params']['model_type']) 

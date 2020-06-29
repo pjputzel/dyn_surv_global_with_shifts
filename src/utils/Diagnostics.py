@@ -7,6 +7,7 @@ import sys
 #from utils.loss_calculators import GammaLossCalculator
 '''
 Computes and holds model diagnostics during training
+and eval
 '''
 
 class Diagnostics:
@@ -20,6 +21,7 @@ class Diagnostics:
         self.reg_per_step = []
         self.nll_per_step = []
 
+        self.eval_metrics = {}
 
     def update(self,
         pred_params, hidden_states, total_loss,
@@ -33,6 +35,16 @@ class Diagnostics:
         self.reg_per_step.append(reg)
         self.nll_per_step.append(-logprob)
         self.epochs.append(epoch)
+
+    
+    def set_eval_results(self, metrics_dict):
+        self.eval_metrics = metrics_dict
+
+    # if we decide to include this function then
+    # we have to do recursive update for nested dictionaries
+    def update_eval_results(self, updated_metrics_dict):
+        pass
+
 
     def print_loss_terms(self):
         str_key = (

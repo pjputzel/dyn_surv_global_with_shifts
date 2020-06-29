@@ -7,7 +7,7 @@ data_input_params:
 
 model_params:
     model_type: 'theta_per_step'
-    covariate_dim: 1
+    dynamic_cov_dim: 1
     dropout: 1.
     hidden_dim: 2
 
@@ -16,7 +16,7 @@ train_params:
     batch_size: 50
     conv_thresh: .00000001
     n_epoch_print: 50
-    max_iter: 50
+    max_iter: 500
     pretraining:
         pretraining_max_iter: 1000
         regular_training_max_iter: 1000
@@ -28,5 +28,5 @@ train_params:
         distribution_type: 'exponential'
         avg_per_seq: True
         step_ahead_cov_reg: .0
-        theta_drift_reg: .0
-        global_diff_reg: .0
+        theta_drift_reg: .1
+        global_diff_reg: .1

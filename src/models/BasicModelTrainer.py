@@ -6,10 +6,10 @@ from utils.Diagnostics import Diagnostics
 from loss.LossCalculator import LossCalculator
 
 class BasicModelTrainer:
-    def __init__(self, train_params):
+    def __init__(self, train_params, model_type):
         self.params = train_params
-        self.diagnostics = Diagnostics(train_params['diagnostic_params'])#TODO: put init here)
-        self.loss_calc = LossCalculator(train_params['loss_params'])#TODO: put init here        
+        self.diagnostics = Diagnostics(train_params['diagnostic_params'])
+        self.loss_calc = LossCalculator(train_params['loss_params'], model_type)
 
 
     def train_model(self, model, data_input):
@@ -20,7 +20,7 @@ class BasicModelTrainer:
         epoch = 0
         self.optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])
         while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < self.params['max_iter']:
-            data_input.make_randomized_batches(self.params['batch_size'])
+            data_input.make_randomized_tr_batches(self.params['batch_size'])
 
             pred_params, hidden_states, total_loss, reg, logprob =\
                 self.step_params_over_all_batches(model, data_input)
@@ -40,12 +40,14 @@ class BasicModelTrainer:
         print('Total training time was %d seconds'\
             %(time.time() - start_time)
         )
+        #print(torch.cat([torch.exp(-self.diagnostics.pred_params_per_step[-1]), torch.max(data_input.cov_times, dim=1)[0].unsqueeze(1)], dim=1))
+        #print(model.get_global_param())
         return self.diagnostics
 
-    def  step_params_over_all_batches(self, model, data_input):
+    def step_params_over_all_batches(self, model, data_input):
         pred_params_per_batch, hidden_states_per_batch, step_ahead_cov_preds_per_batch = [], [], []
         total_loss_per_batch, reg_per_batch, logprob_per_batch = [], [], []
-        for batch in data_input.batches:
+        for batch in data_input.tr_batches:
             self.optimizer.zero_grad()
 
             pred_params, hidden_states, step_ahead_cov_preds = model(batch)
@@ -68,7 +70,7 @@ class BasicModelTrainer:
         # combine and unshuffle to get *_all stuff
         pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg = \
             self.combine_batch_results(
-                data_input.unshuffled_idxs,
+                data_input.unshuffled_tr_idxs,
                 pred_params_per_batch, hidden_states_per_batch, total_loss_per_batch,
                 reg_per_batch, logprob_per_batch
             )        

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class ExponentialLogProbCalculator(nn.Module):
+class ExponentialLogProbCalculatorThetaPerStep(nn.Module):
     
     def __init__(self, logprob_params):
         super().__init__()
@@ -11,8 +11,9 @@ class ExponentialLogProbCalculator(nn.Module):
     # unsqueeze the third dimension before calling here!
     # this should really occur in model forwards call so update
     # that if you run into issues here.
-    def forward(self, pred_params, batch):
+    def forward(self, pred_params, batch, global_theta=None):
         # exp only has a single parameter
+        # note global theta is not used for this logprob
         pred_params = pred_params.squeeze(2)
         shifted_times = self.compute_shifted_times(batch)
         logpdf = self.compute_logpdf(pred_params, shifted_times)

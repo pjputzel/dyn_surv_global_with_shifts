@@ -1,11 +1,12 @@
+
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
 
-SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1])}
+SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1])}
 
 
-class BasicModelThetaPerStep(nn.Module):
+class DeltaIJModel(nn.Module):
     def __init__(self, model_params, distribution_type):
         super().__init__()
         self.params = model_params
@@ -55,11 +56,17 @@ class BasicModelThetaPerStep(nn.Module):
 
         batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
 
-        next_step_cov_preds = self.make_next_step_cov_preds(
-            unpacked_hidden_states, 
-            batch_covs_unpacked, 
-            lengths
-        ) 
+#        next_step_cov_preds = self.make_next_step_cov_preds(
+#            unpacked_hidden_states, 
+#            batch_covs_unpacked, 
+#            lengths
+#        ) 
+
+        next_step_cov_preds = torch.zeros(
+            unpacked_hidden_states.shape[1] - 1,
+            batch_covs_unpacked.shape[0],
+            self.params['dynamic_cov_dim'] + 1
+        )
 
         return pred_params, unpacked_hidden_states, next_step_cov_preds
 
