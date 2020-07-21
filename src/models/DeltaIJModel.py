@@ -3,7 +3,8 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 
-SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1])}
+SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'chen2000':(2, [1, 1]), 'emwe':(4, [1,1,1,1])}
+
 
 
 class DeltaIJModel(nn.Module):
@@ -14,13 +15,13 @@ class DeltaIJModel(nn.Module):
         # plus one is for the timestamp -> needs to be updated to 2 * covariate_dim + 1 to account for missing indicators
         # TODO add dropout back in!!
         self.RNN = nn.GRU(\
-            self.params['dynamic_cov_dim'] + 1, self.params['hidden_dim'],
+            2 * self.params['dynamic_cov_dim'] + 1, self.params['hidden_dim'],
             #dropout=self.params['dropout']
         )
 
         self.params_fc_layer = nn.Linear(
             self.params['hidden_dim'],
-            SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
+            1
         )
 
         # TODO: this should really take in the last hidden state
@@ -33,6 +34,8 @@ class DeltaIJModel(nn.Module):
             self.params['dynamic_cov_dim']
             #self.params['dynamic_cov_dim'] + 1 to predict time too
         )
+        self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
+        self.deltas_fixed_to_zero = False
         
     def forward(self, batch):
         packed_sequence_batch = batch.packed_cov_trajs
@@ -52,8 +55,12 @@ class DeltaIJModel(nn.Module):
 
         fc_output = self.params_fc_layer(unpacked_hidden_states)
 
-        pred_params = torch.exp(-fc_output)
-
+        #print(fc_output.shape, batch.cov_times.shape)
+        if not self.deltas_fixed_to_zero:
+            pred_deltas = torch.exp(-fc_output) - batch.cov_times.unsqueeze(-1)
+        else:
+            pred_deltas = torch.zeros(all_data.shape[0], 1)
+#        print(pred_deltas.shape)
         batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
 
 #        next_step_cov_preds = self.make_next_step_cov_preds(
@@ -68,7 +75,7 @@ class DeltaIJModel(nn.Module):
             self.params['dynamic_cov_dim'] + 1
         )
 
-        return pred_params, unpacked_hidden_states, next_step_cov_preds
+        return pred_deltas, unpacked_hidden_states, next_step_cov_preds
 
 
     # TODO: this should really take in the last hidden state
@@ -114,4 +121,9 @@ class DeltaIJModel(nn.Module):
         return unpacked, lens
     
     def get_global_param(self):
-        return torch.exp(-self.params_fc_layer.bias)
+        #if self.distribution_type == 'weibull':
+        #    scale = torch.exp(-self.global_param_logspace[0])
+        #    # clamp k at two in order to avoid infinite gradients near zero
+        #    shape = torch.exp(-self.global_param_logspace[1]) + 2.
+        #    return torch.cat([scale.unsqueeze(0), shape.unsqueeze(0)])
+        return torch.exp(-self.global_param_logspace)

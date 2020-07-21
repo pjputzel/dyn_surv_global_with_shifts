@@ -1,0 +1,3 @@
+paths_to_configs: ['../configs/dummy_global.yaml', '../configs/linear_theta_per_step.yaml', '../configs/linear_delta_per_step.yaml']
+main_type: 'multi_run'
+savedir: '../output/dm_cvd/combined_baseline_plots/'

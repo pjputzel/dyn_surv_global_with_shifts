@@ -1,4 +1,5 @@
 from data_handling.SyntheticDataLoader import SyntheticDataLoader
+from pandas import qcut
 from sklearn.model_selection import train_test_split
 from data_handling.DmCvdDataLoader import DmCvdDataLoader
 import numpy as np
@@ -36,12 +37,16 @@ class DataInput:
         cov_trajs = self.covariate_trajectories
         print(cov_trajs.shape)
         #cov_trajs[torch.isnan(cov_trajs)] = 0
-        numerator = cov_trajs[:, :, 1:120] - torch.min(torch.min(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
-        denominator = torch.max(torch.max(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0] - torch.min(torch.min(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
+        min_covs = torch.min(torch.min(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
+        max_covs = torch.max(torch.max(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
+#        print('min covs:' , min_covs)
+#        print('max covs:', max_covs)
+        numerator = cov_trajs[:, :, 1:120] - min_covs
+        denominator =  max_covs - min_covs 
         #print(numerator/denominator)
         normalized_labtests = numerator/denominator
         normalized_labtests[torch.isnan(normalized_labtests)] = 0
-        print('Normalized labtests:', torch.sum(normalized_labtests, axis=1)[0])
+#        print('Normalized labtests:', torch.sum(normalized_labtests, axis=1)[0])
         self.covariate_trajectories[:, :, 1:120] = normalized_labtests
 
     def format_data(self):
@@ -53,6 +58,7 @@ class DataInput:
 
         self.pad_cov_trajs_with_zeros()
         self.convert_data_to_tensors()
+        self.concatenate_covs_with_missingness()
 
     def format_cov_trajs_and_event_times_time_rep(self):
         # real data doesn't include true times, only the differences are
@@ -89,10 +95,10 @@ class DataInput:
                 ] 
                 for i, traj in enumerate(self.covariate_trajectories)
             ]
-            for i, traj in enumerate(self.covariate_trajectories):
-                for j, cov_event in enumerate(traj):
-                    if not j ==0:
-                        self.covariate_trajectories[i][j][0] = self.cov_times[i][j] - self.cov_times[i][j - 1]
+            #for i, traj in enumerate(self.covariate_trajectories):
+            #    for j, cov_event in enumerate(traj):
+            #        if not j ==0:
+            #            self.covariate_trajectories[i][j][0] = self.cov_times[i][j] - self.cov_times[i][j - 1]
 
                         
 
@@ -150,7 +156,8 @@ class DataInput:
         self.max_len_trajectory = max_len_trajectory
         self.padding_indicators = padding_indicators
         self.missing_indicators = padded_missing_indicators
-    
+   
+ 
     def convert_data_to_tensors(self):
         # could make float64/32 an option in params
         self.covariate_trajectories = torch.tensor(self.covariate_trajectories, dtype=torch.float64)
@@ -161,6 +168,9 @@ class DataInput:
         self.cov_times = torch.tensor(self.cov_times)
         self.padding_indicators = torch.tensor(self.padding_indicators)
         self.static_covs = torch.tensor(self.static_covs)
+
+    def concatenate_covs_with_missingness(self):
+        self.covariate_trajectories = torch.cat([self.covariate_trajectories, self.missing_indicators], axis=-1)
 
     def split_data(self):
         # just make *_tr and *_te based on a split
@@ -336,3 +346,59 @@ class Batch:
 
         batch_covs = batch_covs.transpose(0,1)
         return batch_covs
+
+    '''
+        Splits the batch into num_bins sub-batches where each sub-batch has data
+        with matched number of covariate events 
+        (well matched to have num of cov events within each bin)
+        before the start time
+        Note that this is only setup to initialize the bins with only the fields
+        needed to make evaluation work-so needs to be updated if used elsewhere
+    '''
+    def split_into_binned_groups_by_num_events(self, num_bins, start_time):
+        if start_time == 0:
+            return [self], ['no_bins']
+        # get num_events per person before start time
+        bool_events_before_start = self.cov_times <= start_time
+        padding_indicators = \
+            (batch.cov_times == 0) &\
+            torch.cat([\
+                torch.zeros(batch.cov_times.shape[0], 1), \
+                torch.ones(
+                    batch.cov_times.shape[0], batch.cov_times.shape[1] -1
+                )
+            ], dim=1).bool()
+        bool_events_before_start = torch.where(
+            padding_indicators,
+            torch.zeros(bool_events_before_start.shape), bool_events_before_start    
+        )
+
+        num_events = torch.sum(bool_events_before_start, dim=1)
+        bins_per_person = qcut(\
+            num_events.cpu().detach().numpy(), num_bins
+        ).get_values()
+        bin_ends_per_person = [b.right for b in bins_per_person]
+        bin_ends = np.unique(bin_ends_per_person)
+        batches_grouped_by_bin = []
+        for b in range(num_bins):
+            bool_idxs_in_bin = bin_ends_per_person == bin_ends[b]
+            bin_batch = Batch(
+                None, self.cov_times[bool_idxs_in_bin], self.event_times[bool_idxs_in_bin], 
+                self.censoring_indicators[bool_idxs_in_bin], None, None,
+                None, None, None
+            )
+            batches_grouped_by_bin.append(bin_batch)
+
+        return batches_grouped_by_bin, bin_ends
+            
+            
+        
+
+        
+        
+        
+        
+        
+
+        
+

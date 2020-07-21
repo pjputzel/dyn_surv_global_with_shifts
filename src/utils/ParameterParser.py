@@ -2,6 +2,7 @@ import yaml
 
 DEFAULT_PARAMS =\
     {
+        'random_seed': 0,
         'metrics_to_track': ['dummy_test_function'],
 
         'data_input_params': {
@@ -53,12 +54,17 @@ DEFAULT_PARAMS =\
 
         'eval_params': {
             'eval_metrics': ['c_index'],
-            'c_index': {
+            'dynamic_metrics': {
                 'start_times': [0, 365, 2*365, 3*365],
                 'window_length': 3*365,
                 'time_step': 30,
+                'num_bins': 1,
             }
         },
+
+        'plot_params': {
+
+        }
         
     }
 

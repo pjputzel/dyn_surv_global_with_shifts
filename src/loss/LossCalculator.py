@@ -2,11 +2,15 @@ from loss.ExponentialLogProbCalculatorThetaPerStep import ExponentialLogProbCalc
 from loss.GammaLogProbCalculatorConstantDelta import GammaLogProbCalculatorConstantDelta
 from loss.RayleighLogProbCalculatorConstantDelta import RayleighLogProbCalculatorConstantDelta
 from loss.RayleighLogProbCalculatorDeltaIJ import RayleighLogProbCalculatorDeltaIJ
+from loss.RayleighLogProbCalculatorThetaIJ import RayleighLogProbCalculatorThetaIJ
 from loss.RegularizationCalculatorThetaPerStep import RegularizationCalculatorThetaPerStep
 from loss.WeibullLogProbCalculatorThetaPerStep import WeibullLogProbCalculatorThetaPerStep
+from loss.WeibullLogProbCalculatorDeltaIJ import WeibullLogProbCalculatorDeltaIJ
+from loss.Chen2000LogProbCalculatorDeltaIJ import Chen2000LogProbCalculatorDeltaIJ
+from loss.EMWELogProbCalculatorDeltaIJ import EMWELogProbCalculatorDeltaIJ
 from loss.WeibullLogProbCalculatorConstantDelta import WeibullLogProbCalculatorConstantDelta
 from loss.RegularizationCalculatorConstantDelta import RegularizationCalculatorConstantDelta
-
+from loss.RegularizationCalculatorDeltaIJ import RegularizationCalculatorDeltaIJ
 
 class LossCalculator:
     
@@ -18,15 +22,22 @@ class LossCalculator:
     def init_logprob_and_regularization(self):
         dist_type = self.params['distribution_type']
         model_type = self.model_type
-        if model_type == 'delta_per_step':
-            if dist_type == 'exponential':
-                self.logprob_calculator = ExponentialLogProbCalculatorThetaPerStep(self.params)
-            elif dist_type == 'weibull':
-                self.logprob_calculator = WeibullLogProbCalculatorThetaPerStep(self.params)
+        if model_type == 'delta_per_step' or model_type == 'dummy_global_zero_deltas' or model_type == 'linear_delta_per_step':
+            if dist_type == 'weibull':
+                self.logprob_calculator = WeibullLogProbCalculatorDeltaIJ(self.params)
             elif dist_type == 'rayleigh':
                 self.logprob_calculator = RayleighLogProbCalculatorDeltaIJ(self.params)
+            elif dist_type == 'chen2000':
+                self.logprob_calculator = Chen2000LogProbCalculatorDeltaIJ(self.params)
+            elif dist_type == 'emwe':
+                self.logprob_calculator = EMWELogProbCalculatorDeltaIJ(self.params)
             else:
                 raise ValueError('Distribution type %s not recognized' %dist_type)
+            self.reg_calculator = RegularizationCalculatorDeltaIJ(self.params)
+
+        elif model_type == 'theta_per_step' or model_type == 'linear_theta_per_step':
+            if dist_type == 'rayleigh':
+                self.logprob_calculator = RayleighLogProbCalculatorThetaIJ(self.params)
             self.reg_calculator = RegularizationCalculatorThetaPerStep(self.params)
         elif model_type == 'linear_constant_delta' or model_type == 'embedding_linear_constant_delta':
             if dist_type == 'weibull':

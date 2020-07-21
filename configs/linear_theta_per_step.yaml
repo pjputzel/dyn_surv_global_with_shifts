@@ -1,40 +1,40 @@
 main_type: 'basic_main'
-savedir: '../output/dm_cvd/theta_per_step'
+savedir: '../output/dm_cvd/rayleigh_linear_theta_per_step'
+
 data_input_params:
     dataset_name: 'dm_cvd'
+    te_percent: .20
     data_loading_params:
-#        paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl']
+        #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
         paths: '../data/dm_cvd/data_dev.pkl'
 
 model_params:
     model_type: 'linear_theta_per_step'
     dynamic_cov_dim: 187
     static_cov_dim: 4
-    dropout: 4
-    hidden_dim: 5
 
 eval_params:
-    c_index:
+    eval_metrics: ['auc', 'c_index']
+    dynamic_metrics:
         start_times: [0., .25, .5, .75, 1., 1.25, 1.5, 1.75, 2.]
         window_length: 3.
         time_step: .25
+        
+    
 
 train_params:
-    learning_rate: .05
-    batch_size: 50
+    learning_rate: .001
+    batch_size: 10000
     conv_thresh: .00000001
-    n_epoch_print: 10
-    max_iter: 300
-    pretraining:
-        pretraining_max_iter: 1000
-        regular_training_max_iter: 1000
-        regular_training_lr: .005
+    n_epoch_print: 50
+    max_iter: 1000
 
     diagnostic_params:
 
     loss_params:
         distribution_type: 'rayleigh'
-        avg_per_seq: True
+        avg_per_seq: true
         step_ahead_cov_reg: .0
         theta_drift_reg: 0.00
         global_diff_reg: 0.00
+        delta_reg: 0.0 #.1 #.01
