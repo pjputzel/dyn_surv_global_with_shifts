@@ -187,8 +187,9 @@ class DataInput:
         # accordingly, also this will of course be its own main
         te_percent = self.params['te_percent']
         self.tr_idxs, self.te_idxs = train_test_split(
-            torch.arange(self.event_times.shape[0]), test_size=te_percent
+            np.arange(self.event_times.shape[0]), test_size=te_percent
         )
+        self.tr_idxs, self.te_idxs = torch.tensor(self.tr_idxs), torch.tensor(self.te_idxs)
 
         self.covariate_trajectories_tr = self.covariate_trajectories[self.tr_idxs]
         self.trajectory_lengths_tr = self.trajectory_lengths[self.tr_idxs]
