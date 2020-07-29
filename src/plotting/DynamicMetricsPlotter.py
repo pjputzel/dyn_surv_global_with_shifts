@@ -18,50 +18,64 @@ class DynamicMetricsPlotter:
             os.makedirs(os.path.join(savedir, 'plots'))
         self.savedir = os.path.join(savedir, 'plots')
 
-    def make_and_save_dynamic_eval_metrics_with_bins_plots(self, eval_metrics_res):
-        eval_metric_names = eval_metrics_res.keys()
-        for metric_name in eval_metric_names:
-            for split in eval_metrics_res[metric_name].keys():
-                save_name_prefix = metric_name +  '_' + split
-                # values array has the eval metrics result and has shape
-                # (n_start_times, n_groups, n_time_deltas)
-                num_groups = eval_metrics_res[metric_name][split]['values'].shape[1]
-                for group in range(num_groups):
-                    # get the modified version of the dictionary just for this group
-                    metrics_res_cur = eval_metrics_res[metric_name][split]
-                    single_group_eval_metric_res = {\
-                        'start_times': metrics_res_cur['start_times'],
-                        'time_deltas': metrics_res_cur['time_deltas'],
-                        'values': metrics_res_cur['values'][:, group, :],
-                        'eff_n': \
-                            [   eff_ns_s[group]
-                                for eff_ns_s in metrics_res_cur['eff_n']
-                            ]
-                    }
-                    end_bin = metrics_res_cur['bin_upper_boundaries'][group]
-                    start_bin = metrics_res_cur['bin_upper_boundaries'][group - 1]
-                    if group == 0:
-                        start_bin = 0
-                    bin_start_and_finish = '%d events to %d events' %(start_bin, end_bin)
-                    save_name = save_name + bin_start_and_finish + '.png'
-                    self.make_and_save_single_metric_plots(
-                        single_group_eval_metric_res,
-                        save_name
-                    )
-        
-
-
-
 
     def make_and_save_dynamic_eval_metrics_plots(self, eval_metrics_res):
         eval_metric_names = eval_metrics_res.keys()
         for metric_name in eval_metric_names:
-            for split in eval_metrics_res[metric_name].keys():
-                save_name = metric_name +  '_' + split + '.png'
+            metric_results = eval_metrics_res[metric_name]
+            if metric_name.split('_')[1] == 'grouped':
+                self.make_and_save_dynamic_eval_metrics_plots_grouped(
+                    metric_results, metric_name
+                )
+            else:
+                self.make_and_save_dynamic_eval_metrics_plots_no_groups(
+                    metric_results, metric_name
+                )
+    
+
+    def make_and_save_dynamic_eval_metrics_plots_grouped(self, 
+        metric_results, metric_name
+    ):
+        for split in metric_results.keys():
+            save_name_prefix = metric_name +  '_' + split
+            # values array has the eval metrics result and has shape
+            # (n_start_times, n_groups, n_time_deltas)
+            num_groups = metric_results[split]['values'].shape[1]
+            for group in range(num_groups):
+                # get a dictionary just for this group
+                metrics_res_cur = metric_results[split]
+                single_group_eval_metric_res = {\
+                    'start_times': metrics_res_cur['start_times'],
+                    'time_deltas': metrics_res_cur['time_deltas'],
+                    'values': metrics_res_cur['values'][:, group, :],
+                    'eff_n': \
+                        [   eff_ns_s[group]
+                            for eff_ns_s in metrics_res_cur['eff_n']
+                        ]
+                }
+                end_bin = metrics_res_cur['bin_upper_boundaries'][group]
+                if group == 0:
+                    start_bin = 0
+                else:
+                    start_bin = metrics_res_cur['bin_upper_boundaries'][group - 1]
+                print(start_bin, end_bin, metrics_res_cur['bin_upper_boundaries'])
+                bin_start_and_finish = '%d_events_to_%d_events' %(start_bin, end_bin)
+                save_name = save_name + bin_start_and_finish + '.png'
                 self.make_and_save_single_metric_plots(
-                    eval_metrics_res[metric_name][split],
+                    single_group_eval_metric_res,
                     save_name
                 )
+        
+
+    def make_and_save_dynamic_eval_metrics_plots_no_groups(self, 
+        metric_results, metric_name
+    ):
+        for split in metric_results.keys():
+            save_name = metric_name +  '_' + split + '.png'
+            self.make_and_save_single_metric_plots(
+                metric_results[split],
+                save_name
+            )
 
     def make_and_save_single_metric_plots(self, metric_res, save_name):
         metric_name = save_name.split('_')[0]
@@ -91,7 +105,6 @@ class DynamicMetricsPlotter:
     ):
         metric_name = save_name.split('_')[0]
         if metric_name == 'auc':
-            #axis.set_title('Cases and Controls Vs Elapsed Time')
             case_ns = [eff_n[s][i]['cases'] for i in range(len(eff_n[s]))]
             control_ns = [eff_n[s][i]['controls'] for i in range(len(eff_n[s]))]
             axis.plot(time_deltas, case_ns, label='Cases')

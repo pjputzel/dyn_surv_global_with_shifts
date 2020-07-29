@@ -18,12 +18,22 @@ def make_data_analysis_plots(path_to_params, savedir):
     start_times = [0, .25, .5, .75, 1., 1.25, 1.5, 1.75, 2.]
     plot_cov_times_vs_event_times_for_diff_start_times(data_input, start_times, savedir)
 
-    rayleigh_scale = 35.464
+    rayleigh_scale = 26.949
     plot_rayleigh_density_with_event_histogram(data_input, rayleigh_scale, savedir)
+
+    start = .5
+    time_delta = .5
+    frequency_vs_diagnosis_boxplot(data_input, start, time_delta, savedir)
 
     start = 1.
     time_delta = .5
     frequency_vs_diagnosis_boxplot(data_input, start, time_delta, savedir)
+
+    start = 2.
+    time_delta = .5
+    frequency_vs_diagnosis_boxplot(data_input, start, time_delta, savedir)
+
+    
 
 def plot_cov_times_vs_event_times_for_diff_start_times(data_input, start_times, savedir):
     for s in start_times:
@@ -53,10 +63,10 @@ def plot_rayleigh_density_with_event_histogram(data_input, rayleigh_scale, saved
     n_bins = 20
     plt.hist(
         data_input.event_times[~data_input.censoring_indicators.bool()], 
-        n_bins, label='censored', density=True
+        n_bins, label='uncensored', density=True
     )
     plt.hist(
-        data_input.event_times[data_input.censoring_indicators.bool()], n_bins, label='unecensored',
+        data_input.event_times[data_input.censoring_indicators.bool()], n_bins, label='censored',
         alpha=.5, density=True
     )
     print(torch.sum(~data_input.censoring_indicators.bool()))

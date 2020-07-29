@@ -28,6 +28,8 @@ class DataInput:
         self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
+        #print(self.cov_times[0:5, 0:30])
+        #raise RuntimeError('Preston stopped the code!!!')
 #        self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         #print(self.unshuffled_tr_idxs)
 
@@ -73,12 +75,10 @@ class DataInput:
             for i, traj in enumerate(self.covariate_trajectories)
         ]
         
-        
         self.event_times = [
             event_time - cov_times_abs[i][0]
             for i, event_time in enumerate(self.event_times)
         ]
-        
         self.cov_times = [
             [time - traj_cov_times[0] for time in traj_cov_times] 
             for traj_cov_times in cov_times_abs
@@ -133,22 +133,30 @@ class DataInput:
                 padding_indicators_traj.extend(
                     [1 for i in range(max_len_trajectory - len(traj))]
                 )
+#                print(len(self.cov_times[i]), len(traj))
+                padded_cov_time = self.cov_times[i] + \
+                    [
+                        0 for i in range(max_len_trajectory - len(traj))       
+                    ]
+#                print(len(padded_cov_times), len(padded_trajectory), 'after')
             else:
                 padded_trajectory = traj
-                padded_missing_indicator = self.missing_indicators[i] 
+                padded_missing_indicator = self.missing_indicators[i]
+                padded_cov_time = self.cov_times[i]
             # note padding is zero here as well
             # so when checking for padding make sure
             # to consider that the first entry is zero as well
-            padded_cov_times.append(
-                [
-                    cov_event[0] for cov_event in padded_trajectory
-                ]
-            )
+            #padded_cov_times.append(
+            #    [
+            #        cov_event[0] for cov_event in padded_trajectory
+            #    ]
+            #)
             padding_indicators.append(padding_indicators_traj)
 
             #print(len(padded_trajectory[0]), len(padded_missing_indicator[0]))
             padded_trajectories.append(padded_trajectory)
             padded_missing_indicators.append(padded_missing_indicator)
+            padded_cov_times.append(padded_cov_time)
             trajectory_lengths.append(len(traj))
         self.covariate_trajectories = padded_trajectories
         self.trajectory_lengths = trajectory_lengths
@@ -357,26 +365,34 @@ class Batch:
     '''
     def split_into_binned_groups_by_num_events(self, num_bins, start_time):
         if start_time == 0:
-            return [self], ['no_bins']
+            return [self], [1]
+        most_recent_times, _ = self.get_most_recent_idxs_before_start(start_time)
         # get num_events per person before start time
-        bool_events_before_start = self.cov_times <= start_time
-        padding_indicators = \
-            (batch.cov_times == 0) &\
-            torch.cat([\
-                torch.zeros(batch.cov_times.shape[0], 1), \
-                torch.ones(
-                    batch.cov_times.shape[0], batch.cov_times.shape[1] -1
-                )
-            ], dim=1).bool()
-        bool_events_before_start = torch.where(
-            padding_indicators,
-            torch.zeros(bool_events_before_start.shape), bool_events_before_start    
-        )
+#        bool_events_before_start = self.cov_times <= start_time
+#        padding_indicators = \
+#            (self.cov_times == 0) &\
+#            torch.cat([\
+#                torch.zeros(self.cov_times.shape[0], 1), \
+#                torch.ones(
+#                    self.cov_times.shape[0], self.cov_times.shape[1] -1
+#                )
+#            ], dim=1).bool()
+#        bool_events_before_start = torch.where(
+#            padding_indicators,
+#            torch.zeros(bool_events_before_start.shape), bool_events_before_start.double()
+#        )
 
-        num_events = torch.sum(bool_events_before_start, dim=1)
+        bool_events_before_start = ~(most_recent_times == 0)
+
+        # plus one since the first event is zero
+        num_events = torch.sum(bool_events_before_start, dim=1) + 1
+        #print(num_events[0:50])
+        #print(self.cov_times[0], start_time)
         bins_per_person = qcut(\
             num_events.cpu().detach().numpy(), num_bins
-        ).get_values()
+        )
+        #print(bins_per_person.value_counts())
+        bins_per_person = bins_per_person.to_list()
         bin_ends_per_person = [b.right for b in bins_per_person]
         bin_ends = np.unique(bin_ends_per_person)
         batches_grouped_by_bin = []
@@ -384,16 +400,46 @@ class Batch:
             bool_idxs_in_bin = bin_ends_per_person == bin_ends[b]
             bin_batch = Batch(
                 None, self.cov_times[bool_idxs_in_bin], self.event_times[bool_idxs_in_bin], 
-                self.censoring_indicators[bool_idxs_in_bin], None, None,
-                None, None, None
+                self.censoring_indicators[bool_idxs_in_bin], 
+                self.trajectory_lengths[bool_idxs_in_bin], None,
+                None, None, self.max_seq_len_all_batches
             )
             batches_grouped_by_bin.append(bin_batch)
 
         return batches_grouped_by_bin, bin_ends
             
-            
+    '''
+        Helper function used mainly in evaluation. Returns the idxs of the most
+        recent covariate times t_ij per individual
+    ''' 
+    def get_most_recent_idxs_before_start(self, start_time):
         
+        if start_time == 0:
+            idxs_most_recent_times = torch.zeros(
+                self.cov_times.shape[0],
+                dtype=torch.int64
+            )
+        else:
+            bool_idxs_less_than_start = self.cov_times <= start_time
+            truncated_at_start = torch.where(
+                bool_idxs_less_than_start,
+                self.cov_times, torch.zeros(self.cov_times.shape)
+            )
+            idxs_most_recent_times = torch.max(truncated_at_start, dim=1)[1]
+            # handle edge cases where torch.max picks the last zero
+            # instead of the first when t_ij = 0
+            idxs_most_recent_times = torch.where(
+                torch.sum(truncated_at_start, dim=1) == 0,
+                torch.zeros(idxs_most_recent_times.shape, dtype=torch.int64),
+                idxs_most_recent_times
+            )
 
+        
+        most_recent_times = self.cov_times[
+            torch.arange(idxs_most_recent_times.shape[0]),
+            idxs_most_recent_times
+        ]
+        return most_recent_times, idxs_most_recent_times
         
         
         

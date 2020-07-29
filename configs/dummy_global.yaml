@@ -12,7 +12,7 @@ model_params:
     model_type: 'dummy_global_zero_deltas'
 
 eval_params:
-    eval_metrics: ['auc_grouped_by_num_events']
+    eval_metrics: ['auc', 'c_index']
     dynamic_metrics:
         start_times: [0., .25, .5, .75, 1., 1.25, 1.5, 1.75, 2.]
         window_length: 3.

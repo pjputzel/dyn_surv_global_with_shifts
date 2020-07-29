@@ -84,7 +84,7 @@ class ModelEvaluator:
                 data.split_into_binned_groups_by_num_events(
                     num_bins, start_time
                 )
-            groups_iterator = enumerate(zip(matched_groups, upper_bin_boundary))
+            groups_iterator = enumerate(zip(matched_groups, upper_bin_boundaries))
             for g, (group, upper_bin_boundary) in groups_iterator:
                 eff_ns_s_g = []
 #                all_groups_res['events_bin=' + str(num_events)] = group_res
@@ -95,6 +95,7 @@ class ModelEvaluator:
                         model, group, start_time, time_delta
                     )
                     eff_ns_s_g.append(eff_n)
+                    print(dynamic_metrics[s, g, t], start_time, upper_bin_boundary, time_delta)
                 eff_ns_s.append(eff_ns_s_g)
             eff_ns.append(eff_ns_s)
 
@@ -161,7 +162,7 @@ class ModelEvaluator:
         # compute mann-whitney U test statistic
         # and then get the auc from it by normalizing
         U =  np.sum(case_ranks) - ((num_cases) * (num_cases + 1))/2.
-        print('R/U/cases/controls %.2f/%.2f/%d/%d' %(np.sum(case_ranks), U, num_cases, num_controls))
+        #print('R/U/cases/controls %.2f/%.2f/%d/%d' %(np.sum(case_ranks), U, num_cases, num_controls))
         return U/(num_cases * num_controls), {'cases':num_cases, 'controls':num_controls}
 
 
@@ -273,15 +274,10 @@ class ModelEvaluator:
         if model is None:
             # for model independent evaluation of using the event times
             # themself for prediction
-            bool_idxs_less_than_start = data.cov_times <= start_time
-            idxs_most_recent_times = torch.max(torch.where(
-                bool_idxs_less_than_start,
-                data.cov_times, torch.zeros(data.cov_times.shape)
-            ), dim=1)[1]
-            most_recent_times = data.cov_times[torch.arange(idxs_most_recent_times.shape[0]), idxs_most_recent_times]
+            most_recent_times, _ = \
+                data.get_most_recent_idxs_before_start(start_time)
             return most_recent_times
-        #TODO: add to logprob calculator a compute_conditional_CDF function
-        # which takes in the start time and finish time
+
         pred_params, _, _ = model(data)
         logprob_calculator = self.loss_calculator.logprob_calculator
         if metric_name == 'c_index':
