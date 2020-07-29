@@ -367,7 +367,7 @@ class Batch:
     def split_into_binned_groups_by_num_events(self, num_bins, start_time):
         if start_time == 0:
             return [self], [1]
-        most_recent_times, _ = self.get_most_recent_idxs_before_start(start_time)
+        _, idxs_most_recent_times = self.get_most_recent_idxs_before_start(start_time)
         # get num_events per person before start time
 #        bool_events_before_start = self.cov_times <= start_time
 #        padding_indicators = \
@@ -383,10 +383,12 @@ class Batch:
 #            torch.zeros(bool_events_before_start.shape), bool_events_before_start.double()
 #        )
 
-        bool_events_before_start = ~(most_recent_times == 0)
+        #bool_events_before_start = ~(idxs_most_recent_times == 0)
 
         # plus one since the first event is zero
-        num_events = torch.sum(bool_events_before_start, dim=1) + 1
+        #print(bool_events_before_start)
+        #print(idxs_most_recent_times)
+        num_events = idxs_most_recent_times + 1
         #print(num_events[0:50])
         #print(self.cov_times[0], start_time)
         bins_per_person = qcut(\
