@@ -71,18 +71,18 @@ class ModelEvaluator:
         start_times = self.params['dynamic_metrics']['start_times']
         window_length = self.params['dynamic_metrics']['window_length']
         time_step = self.params['dynamic_metrics']['time_step']
-        num_bins = self.params['dynamic_metrics']['num_bins']
+        max_num_bins = self.params['dynamic_metrics']['max_num_bins']
         num_time_steps = int(window_length//time_step)
         time_deltas = [time_step * (i + 1) for i in range(int(num_time_steps))]
     
-        dynamic_metrics = -1 * torch.ones(len(start_times), num_bins, num_time_steps)
+        dynamic_metrics = -1 * torch.ones(len(start_times), max_num_bins, num_time_steps)
         eff_ns = []
-        bin_boundaries = torch.zeros(len(start_times), num_bins)
+        bin_boundaries = torch.zeros(len(start_times), max_num_bins)
         for s, start_time in enumerate(start_times):
             eff_ns_s = []
             matched_groups, upper_bin_boundaries = \
                 data.split_into_binned_groups_by_num_events(
-                    num_bins, start_time
+                    max_num_bins, start_time
                 )
             groups_iterator = enumerate(zip(matched_groups, upper_bin_boundaries))
             for g, (group, upper_bin_boundary) in groups_iterator:

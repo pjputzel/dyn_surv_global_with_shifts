@@ -58,7 +58,7 @@ DEFAULT_PARAMS =\
                 'start_times': [0, 365, 2*365, 3*365],
                 'window_length': 3*365,
                 'time_step': 30,
-                'num_bins': 1,
+                'max_num_bins': 1,
             }
         },
 

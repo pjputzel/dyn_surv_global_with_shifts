@@ -392,14 +392,15 @@ class Batch:
         #print(num_events[0:50])
         #print(self.cov_times[0], start_time)
         bins_per_person = qcut(\
-            num_events.cpu().detach().numpy(), num_bins
+            num_events.cpu().detach().numpy(), num_bins,
+            duplicates='drop'
         )
         #print(bins_per_person.value_counts())
         bins_per_person = bins_per_person.to_list()
         bin_ends_per_person = [b.right for b in bins_per_person]
         bin_ends = np.unique(bin_ends_per_person)
         batches_grouped_by_bin = []
-        for b in range(num_bins):
+        for b in range(len(bin_ends)):
             bool_idxs_in_bin = bin_ends_per_person == bin_ends[b]
             bin_batch = Batch(
                 None, self.cov_times[bool_idxs_in_bin], self.event_times[bool_idxs_in_bin], 

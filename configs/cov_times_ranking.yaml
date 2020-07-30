@@ -18,7 +18,7 @@ eval_params:
         window_length: 3.
         time_step: .25
         # for evaluation group by num_events
-        num_bins: 2
+        max_num_bins: 3
         
     
 

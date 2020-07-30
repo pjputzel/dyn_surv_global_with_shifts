@@ -23,7 +23,7 @@ class DynamicMetricsPlotter:
         eval_metric_names = eval_metrics_res.keys()
         for metric_name in eval_metric_names:
             metric_results = eval_metrics_res[metric_name]
-            if metric_name.split('_')[1] == 'grouped':
+            if len(metric_name.split('_')) > 1:
                 self.make_and_save_dynamic_eval_metrics_plots_grouped(
                     metric_results, metric_name
                 )
@@ -44,59 +44,83 @@ class DynamicMetricsPlotter:
             for group in range(num_groups):
                 # get a dictionary just for this group
                 metrics_res_cur = metric_results[split]
-                single_group_eval_metric_res = {\
-                    'start_times': metrics_res_cur['start_times'],
-                    'time_deltas': metrics_res_cur['time_deltas'],
-                    'values': metrics_res_cur['values'][:, group, :],
-                    'eff_n': \
-                        [   eff_ns_s[group]
-                            for eff_ns_s in metrics_res_cur['eff_n']
-                        ]
-                }
-                end_bin = metrics_res_cur['bin_upper_boundaries'][group]
-                if group == 0:
-                    start_bin = 0
-                else:
-                    start_bin = metrics_res_cur['bin_upper_boundaries'][group - 1]
-                print(start_bin, end_bin, metrics_res_cur['bin_upper_boundaries'])
-                bin_start_and_finish = '%d_events_to_%d_events' %(start_bin, end_bin)
-                save_name = save_name + bin_start_and_finish + '.png'
-                self.make_and_save_single_metric_plots(
-                    single_group_eval_metric_res,
-                    save_name
-                )
+                start_times = metrics_res_cur['start_times']
+
+                valid_start_times = []
+                valid_start_indices = []
+                for s, start in enumerate(start_times):
+                    if len(metrics_res_cur['eff_n'][s]) - 1 >= group:
+                        valid_start_times.append(start)
+                        valid_start_indices.append(s)
+                for s, start in enumerate(valid_start_times):
+                    print('GROUP=%d START=%.2f NUM BINS=%d--------------------------------------------------------------' %(group, start, len(metrics_res_cur['eff_n'][s])))
+                    
+                    if not ((start == 0) and group == 1):
+                        single_group_eval_metric_res = {\
+                            'start_times': valid_start_times,
+                            'time_deltas': metrics_res_cur['time_deltas'],
+                            'values': metrics_res_cur['values'][:, group, :],
+                            'eff_n': \
+                                [   eff_ns_s[group]
+                                    for st, eff_ns_s in enumerate(metrics_res_cur['eff_n'])
+                                    if st in valid_start_indices
+                                ]
+                        }
+                    else:
+                        # there's only a single group at start=0 since everyone
+                        # only has their first event!
+                        continue
+                    end_bin = metrics_res_cur['bin_upper_boundaries'][s][group]
+                    if group == 0:
+                        start_bin = 1
+                    else:
+                        start_bin = metrics_res_cur['bin_upper_boundaries'][s][group - 1]
+                    #print(start_bin, end_bin, metrics_res_cur['bin_upper_boundaries'])
+                    bin_start_and_finish = '%d_events_to_%d_events' %(start_bin, end_bin)
+                    save_name = save_name_prefix + bin_start_and_finish + '.png'
+                    self.make_and_save_single_metric_plot_at_start_time(
+                        single_group_eval_metric_res,
+                        save_name,
+                        start,
+                        s
+                    )
         
 
     def make_and_save_dynamic_eval_metrics_plots_no_groups(self, 
         metric_results, metric_name
     ):
+        start_times = metric_results['start_times']
         for split in metric_results.keys():
-            save_name = metric_name +  '_' + split + '.png'
-            self.make_and_save_single_metric_plots(
-                metric_results[split],
-                save_name
-            )
+            for s, start in enumerate(start_times):
+                save_name = metric_name +  '_' + split + '.png'
+                self.make_and_save_single_metric_plot_at_start_time(
+                    metric_results[split],
+                    save_name,
+                    start,
+                    s
+                )
 
-    def make_and_save_single_metric_plots(self, metric_res, save_name):
+    def make_and_save_single_metric_plot_at_start_time(self, 
+        metric_res, save_name, start, start_time_idx
+    ):
+        
         metric_name = save_name.split('_')[0]
-        start_times = metric_res['start_times']
         time_deltas = metric_res['time_deltas']
         values = metric_res['values']
         eff_n = metric_res['eff_n']
 
-        for s, start in enumerate(start_times):
-            fig, axes = plt.subplots(2, 1, figsize=(5, 10))
-            fig.suptitle(save_name.split('.')[0] + '_S=%.2f' %start)
-            self.plot_eff_n_vs_deltas(
-                axes[0], save_name, eff_n, 
-                s, time_deltas
-            )
-            self.plot_metric_values_vs_deltas(
-                axes[1], save_name, values, 
-                s, time_deltas
-            )
-            save_path = os.path.join(self.savedir, save_name.split('.')[0] + '_S=%s.png' %start)
-            plt.savefig(save_path)
+        fig, axes = plt.subplots(2, 1, figsize=(5, 10))
+        fig.suptitle(save_name.split('.')[0] + '_S=%.2f' %start)
+        self.plot_eff_n_vs_deltas(
+            axes[0], save_name, eff_n, 
+            start_time_idx, time_deltas
+        )
+        self.plot_metric_values_vs_deltas(
+            axes[1], save_name, values, 
+            start_time_idx, time_deltas
+        )
+        save_path = os.path.join(self.savedir, save_name.split('.')[0] + '_S=%s.png' %start)
+        plt.savefig(save_path)
 
 
     def plot_eff_n_vs_deltas(self, 
