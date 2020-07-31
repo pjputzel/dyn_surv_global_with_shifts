@@ -41,13 +41,7 @@ def plot_cov_times_vs_event_times_for_diff_start_times(data_input, start_times, 
 
 def plot_cov_times_vs_event_times_single_s(data, start_time, savedir):
 
-    bool_idxs_less_than_start = data.cov_times <= start_time
-    idxs_most_recent_times = torch.max(torch.where(
-     bool_idxs_less_than_start,
-        data.cov_times, torch.zeros(data.cov_times.shape)
-    ), dim=1)[1]
-    most_recent_times = data.cov_times[torch.arange(idxs_most_recent_times.shape[0]), idxs_most_recent_times]
-
+    most_recent_times, _ = data.get_most_recent_idxs_before_start(start_time)
     sorted_idxs = torch.argsort(most_recent_times)
     sorted_most_recent_times = most_recent_times[sorted_idxs]
     sorted_event_times = data.event_times[sorted_idxs]

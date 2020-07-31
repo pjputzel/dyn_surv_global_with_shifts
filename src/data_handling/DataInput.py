@@ -178,7 +178,7 @@ class DataInput:
         self.static_covs = torch.tensor(self.static_covs)
 
     def concatenate_covs_with_missingness(self):
-        self.covariate_trajectories = torch.cat([self.covariate_trajectories, self.missing_indicators], axis=-1)
+        self.covariate_trajectories = torch.cat([self.covariate_trajectories, self.missing_indicators], dim=-1)
 
     def split_data(self):
         # just make *_tr and *_te based on a split
