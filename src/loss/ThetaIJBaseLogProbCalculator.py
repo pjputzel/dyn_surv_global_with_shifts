@@ -28,7 +28,10 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
             padding_indicators,
             torch.zeros(logprob.shape), logprob
         )
-
+        if self.params['avg_per_seq']:
+            # prevents long sequences from
+            # dominating the loss
+            logprob = logprob/batch.traj_lens.unsqueeze(1)
         ret = torch.mean(logprob)
         return ret
     
@@ -81,7 +84,7 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
 
     def find_most_recent_times_and_thetas(self, thetas, batch, start_time):
         max_times_less_than_start, idxs_max_times_less_than_start = \
-            batch.get_most_recent_idxs_before_start(start_time)
+            batch.get_most_recent_times_and_idxs_before_start(start_time)
  
         idxs_thetas = \
             [
@@ -118,6 +121,25 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
 
         ret = 1. - end_surv/normalization 
         return ret
+
+    def compute_survival_probability(
+        self, deltas, batch, global_theta,
+        start_time, time_delta=None
+    ):
+        # doesn't actually use the time delta
+        # since survival is from S -> infty
+        
+        _, deltas_at_most_recent_time = \
+            self.find_most_recent_times_and_deltas(deltas, batch, start_time)
+        shifted_start_times = start_time + deltas_at_most_recent_time        
+
+        survival_prob = torch.exp( 
+            self.compute_logsurv(
+                shifted_start_times,
+                global_theta
+            )
+        )
+        return survival_prob
 
 def print_grad(grad):
     print(grad) 

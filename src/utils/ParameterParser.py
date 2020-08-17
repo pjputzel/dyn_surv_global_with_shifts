@@ -43,9 +43,9 @@ DEFAULT_PARAMS =\
             
             'loss_params': {
                 'distribution_type': 'exponential',
-                'avg_per_seq': False,
+                'avg_per_seq': True,
                 'step_ahead_cov_reg': 0.,
-                'theta_drift_reg': 0.,
+                'drift_reg': 0.,
                 'global_diff_reg': 0.,
                 'delta_reg': 0.,
             }

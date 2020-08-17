@@ -25,7 +25,7 @@ class ExponentialLogProbCalculatorThetaPerStep(nn.Module):
         )
 
         if self.params['avg_per_seq']:
-            avg_per_i = 1/(batch.trajectory_lengths) * torch.sum(logprob_per_i, dim=1)
+            avg_per_i = 1/(batch.traj_lens) * torch.sum(logprob_per_i, dim=1)
         else:
             message = 'Averaging type %s not recognized' %s
             raise ValueError(message) 

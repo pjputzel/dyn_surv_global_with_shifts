@@ -48,7 +48,7 @@ class ConstantDeltaModelLinearRegression(nn.Module):
 ########For Baseline only
         baseline_covs = batch_covs[:, 0, :]
         missing_indicators = batch.missing_indicators[:, 0]
-        # don't need times since they are all just at baseline t = 0
+        # don't need times since they are all just at baseline t = 0 or t = 0.5 for filtered data at 6 months
         baseline_covs_with_missing = torch.cat([baseline_covs[:, 1:], missing_indicators], dim=1)
         static_covs = batch.static_covs
         static_covs[torch.isnan(static_covs)] = -1

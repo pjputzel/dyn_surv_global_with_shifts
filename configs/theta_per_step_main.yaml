@@ -37,5 +37,5 @@ train_params:
         distribution_type: 'rayleigh'
         avg_per_seq: True
         step_ahead_cov_reg: .0
-        theta_drift_reg: 0.00
+        drift_reg: 0.00
         global_diff_reg: 0.00

@@ -26,17 +26,23 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
         # zero out the padded values
         padding_indicators = \
             (batch.cov_times == 0) &\
-            torch.cat([torch.zeros(batch.cov_times.shape[0], 1), torch.ones(batch.cov_times.shape[0], batch.cov_times.shape[1] -1 )], dim=1).bool()
+            torch.cat([torch.zeros(batch.cov_times.shape[0], 1), torch.ones(batch.cov_times.shape[0], batch.cov_times.shape[1] - 1)], dim=1).bool()
         logprob = torch.where(\
             padding_indicators,
             torch.zeros(logprob.shape), logprob
         )
+        if self.params['avg_per_seq']:
+            # prevents long sequences from dominating
+            # the loss
+            logprob = logprob/batch.traj_lens.unsqueeze(1)
         ret = torch.mean(logprob)
         return ret
     
     def compute_shifted_times(self, deltas, batch):
         shifted_event_times = batch.event_times.unsqueeze(1) + deltas.squeeze(2)
         shifted_cov_times = batch.cov_times + deltas.squeeze(2)
+        print(shifted_cov_times[0:5, 0:30])
+#        print(torch.sum(~(shifted_cov_times == 0)))
         return shifted_event_times, shifted_cov_times
 
 
@@ -86,7 +92,7 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
 
     def find_most_recent_times_and_deltas(self, deltas, batch, start_time):
         max_times_less_than_start, idxs_max_times_less_than_start = \
-            batch.get_most_recent_idxs_before_start(start_time)
+            batch.get_most_recent_times_and_idxs_before_start(start_time)
  
         idxs_deltas = \
             [
@@ -105,8 +111,6 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
         # 0 to S + \Delta S
         max_times_less_than_start, deltas_at_most_recent_time = \
             self.find_most_recent_times_and_deltas(deltas, batch, start_time)
-
-
         shifted_end_of_window = \
             start_time + time_delta + deltas_at_most_recent_time
 
@@ -123,6 +127,26 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
 
         ret = 1. - end_surv/normalization 
         return ret
+
+    def compute_survival_probability(
+        self, deltas, batch, global_theta,
+        start_time, time_delta=None
+    ):
+        # doesn't actually use the time delta
+        # since survival is from S -> infty
+        
+        _, deltas_at_most_recent_time = \
+            self.find_most_recent_times_and_deltas(deltas, batch, start_time)
+        shifted_start_times = start_time + deltas_at_most_recent_time        
+
+        survival_prob = torch.exp( 
+            self.compute_logsurv(
+                shifted_start_times,
+                global_theta
+            )
+        )
+        return survival_prob
+
         
 
 def print_grad(grad):

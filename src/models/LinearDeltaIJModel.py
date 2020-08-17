@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch.autograd import Variable
 import torch.nn as nn
 
@@ -15,11 +16,17 @@ class LinearDeltaIJModel(nn.Module):
         self.distribution_type = distribution_type
 
         # eventually multiply dynamic cov dim by two for the missing indicators
-        # no plus one since not using time here, instead using averages
+        # no plus one since not using time here since with time its giving weird solutions
+        # (just using negative of the time it seems)
         self.linear = nn.Linear(
             int(2 * self.params['dynamic_cov_dim'] + self.params['static_cov_dim'] + 1),
             1
         )
+        # weights for the linear layer are set to around one in order to
+        # get a random initialization with most deltas around zero
+#        self.linear.weight.data.normal_(0., 1./(np.sqrt(self.linear.in_features)))
+#        self.linear.bias.data.normal_(0., 1./(np.sqrt(self.linear.in_features)))
+#        self.linear.bias.data.fill_(1., 2.)
 
         self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
 #        self.global_param_logspace = nn.Parameter(torch.zeros(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
@@ -34,7 +41,9 @@ class LinearDeltaIJModel(nn.Module):
         all_data = torch.cat([batch_covs, static_covs.unsqueeze(1).repeat(1, batch_covs.shape[1], 1)], dim=2)
 #        print(batch.cov_times.shape, all_data.shape)
         if not self.deltas_fixed_to_zero:
-            pred_deltas = torch.exp(-self.linear(all_data)) - batch.cov_times.unsqueeze(-1)
+            softplus = torch.nn.functional.softplus(self.linear(all_data))
+#            pred_deltas = torch.exp(-self.linear(all_data)) - batch.cov_times.unsqueeze(-1)
+            pred_deltas = softplus - batch.cov_times.unsqueeze(-1)
         else:
             pred_deltas = torch.zeros(all_data.shape[0], 1)
 #        print(pred_deltas.shape)
@@ -43,6 +52,7 @@ class LinearDeltaIJModel(nn.Module):
         # so the last two outputs are just zeros
         hidden_states = torch.zeros(batch_covs.shape[0])
         next_step_cov_preds = torch.tensor(batch_covs.shape[0])
+#        print(pred_deltas)
         #print(self.linear.weight, self.linear.bias)
         return pred_deltas, hidden_states, next_step_cov_preds
 

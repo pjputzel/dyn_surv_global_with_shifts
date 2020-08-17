@@ -40,7 +40,9 @@ class BasicModelTrainer:
         print('Total training time was %d seconds'\
             %(time.time() - start_time)
         )
-        #print(torch.cat([torch.exp(-self.diagnostics.pred_params_per_step[-1]), torch.max(data_input.cov_times, dim=1)[0].unsqueeze(1)], dim=1))
+        # print out the learned params and compare to cov times
+        
+#        print(torch.cat([torch.exp(-self.diagnostics.pred_params_per_step[-1]), torch.max(data_input.cov_times, dim=1)[0].unsqueeze(1)], dim=1))
         #print(model.get_global_param())
         return self.diagnostics
 
@@ -84,7 +86,8 @@ class BasicModelTrainer:
     ):
         if len(pred_params_per_batch) == 1:
             # only one batch, no concatenation/averaging needed
-            return pred_params_per_batch[0], hidden_states_per_batch[0],\
+            return pred_params_per_batch[0][unshuffled_idxs],\
+                hidden_states_per_batch[0][unshuffled_idxs],\
                 total_loss_per_batch[0], reg_per_batch[0], logprob_per_batch[0]
     
         pred_params_all = torch.cat(pred_params_per_batch)

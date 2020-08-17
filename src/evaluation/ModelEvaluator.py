@@ -58,7 +58,7 @@ class ModelEvaluator:
         if metric_name == 'c_index':
             func = self.compute_c_index_at_t_plus_delta_t
         elif metric_name == 'c_index_from_start_time':
-            func = self.compute_c_index_from_start_time
+            func = self.compute_c_index_from_start_time_to_infinity
         elif metric_name == 'auc':
             func = self.compute_auc_at_t_plus_delta_t
         else:
@@ -128,7 +128,9 @@ class ModelEvaluator:
  
     def compute_c_index(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'c_index')
-
+    
+    def compute_c_index_from_start_time(self, model, split_data):
+        return self.evaluate_dynamic_metric(model, split_data, 'c_index_from_start_time')
 
     def compute_auc_at_t_plus_delta_t(self,
        model, data, start_time, time_delta
@@ -167,11 +169,40 @@ class ModelEvaluator:
 
 
 
-    def compute_c_index_from_start_time(self,
-        model, split_data, start_time, time_delta
+    def compute_c_index_from_start_time_to_infinity(self,
+        model, data, start_time, time_delta=None
     ):
+        # time delta not used for this metric
+        time_delta = None
+        risks = self.compute_risks(
+            model, data, 
+            start_time, time_delta,
+            'c_index_from_start_time'
+        )
 
-        pass
+        num_individuals = len(data.event_times)
+        num_ordered_correctly = 0
+        normalization = 0
+        
+        valid_bool_idxs_i = \
+            (data.event_times > start_time) &\
+            (~data.censoring_indicators.bool())
+        valid_idxs_i = torch.arange(num_individuals)[valid_bool_idxs_i]
+        
+        for idx_i in valid_idxs_i:
+            valid_idxs_k = torch.arange(
+                num_individuals
+            )[data.event_times > data.event_times[idx_i]]
+
+            for idx_k in valid_idxs_k:
+                normalization += 1
+                num_ordered_correctly += self.is_ordered_correctly(
+                    risks, idx_i, idx_k
+                )
+        if normalization == 0:
+            return 0
+        c_index = num_ordered_correctly/normalization
+        return c_index, normalization
 
     def compute_c_index_at_t_plus_delta_t(self,
         model, data, start_time, time_delta
@@ -275,22 +306,24 @@ class ModelEvaluator:
             # for model independent evaluation of using the event times
             # themself for prediction
             most_recent_times, _ = \
-                data.get_most_recent_idxs_before_start(start_time)
+                data.get_most_recent_times_and_idxs_before_start(start_time)
             return most_recent_times
 
-        pred_params, _, _ = model(data)
-        logprob_calculator = self.loss_calculator.logprob_calculator
+        prob_calc = self.loss_calculator.logprob_calculator
         if metric_name == 'c_index':
             # in this case use the current CDF
-            risks = logprob_calculator.compute_most_recent_CDF(
-                pred_params, data, model.get_global_param(),
-                start_time, time_delta
-            )
+            risk_func = prob_calc.compute_most_recent_CDF
+        elif metric_name == 'c_index_from_start_time':
+            # in this case we decided it makes most sense to go from S -> infinity
+            # Ie survival function should be used here
+            risk_func = prob_calc.compute_survival_probability
         else:
             # all other cases integrate from S to S + \Delta S
-            risks = logprob_calculator.compute_cond_prob_over_window(
-                pred_params, data, model.get_global_param(),
-                start_time, time_delta
-            )
+            risk_func = prob_calc.compute_cond_prob_over_window
 
+        pred_params, _, _ = model(data)
+        risks = risk_func(
+            pred_params, data, model.get_global_param(),
+            start_time, time_delta
+        )
         return risks 

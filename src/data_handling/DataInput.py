@@ -28,7 +28,7 @@ class DataInput:
         self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
-        #print(self.cov_times[0:5, 0:30])
+        print(self.cov_times[0:5, 0:30])
         #raise RuntimeError('Preston stopped the code!!!')
 #        self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         #print(self.unshuffled_tr_idxs)
@@ -113,7 +113,7 @@ class DataInput:
     def pad_cov_trajs_with_zeros(self): 
         max_len_trajectory = np.max([len(traj) for traj in self.covariate_trajectories])
         padded_trajectories = []
-        trajectory_lengths = []
+        traj_lens = []
         padded_cov_times = []
         padding_indicators = []
         padded_missing_indicators = []
@@ -157,9 +157,9 @@ class DataInput:
             padded_trajectories.append(padded_trajectory)
             padded_missing_indicators.append(padded_missing_indicator)
             padded_cov_times.append(padded_cov_time)
-            trajectory_lengths.append(len(traj))
+            traj_lens.append(len(traj))
         self.covariate_trajectories = padded_trajectories
-        self.trajectory_lengths = trajectory_lengths
+        self.traj_lens = traj_lens
         self.cov_times = padded_cov_times
         self.max_len_trajectory = max_len_trajectory
         self.padding_indicators = padding_indicators
@@ -169,7 +169,7 @@ class DataInput:
     def convert_data_to_tensors(self):
         # could make float64/32 an option in params
         self.covariate_trajectories = torch.tensor(self.covariate_trajectories, dtype=torch.float64)
-        self.trajectory_lengths = torch.tensor(self.trajectory_lengths, dtype=torch.float64)
+        self.traj_lens = torch.tensor(self.traj_lens, dtype=torch.float64)
         self.event_times = torch.tensor(self.event_times, dtype=torch.float64)
         self.censoring_indicators = torch.tensor(self.censoring_indicators)
         self.missing_indicators = torch.tensor(self.missing_indicators)
@@ -192,7 +192,7 @@ class DataInput:
         self.tr_idxs, self.te_idxs = torch.tensor(self.tr_idxs), torch.tensor(self.te_idxs)
 
         self.covariate_trajectories_tr = self.covariate_trajectories[self.tr_idxs]
-        self.trajectory_lengths_tr = self.trajectory_lengths[self.tr_idxs]
+        self.traj_lens_tr = self.traj_lens[self.tr_idxs]
         self.event_times_tr = self.event_times[self.tr_idxs]
         self.censoring_indicators_tr = self.censoring_indicators[self.tr_idxs]
         self.missing_indicators_tr = self.missing_indicators[self.tr_idxs]
@@ -201,7 +201,7 @@ class DataInput:
         self.static_covs_tr = self.static_covs[self.tr_idxs]
         
         self.covariate_trajectories_te = self.covariate_trajectories[self.te_idxs]
-        self.trajectory_lengths_te = self.trajectory_lengths[self.te_idxs]
+        self.traj_lens_te = self.traj_lens[self.te_idxs]
         self.event_times_te = self.event_times[self.te_idxs]
         self.censoring_indicators_te = self.censoring_indicators[self.te_idxs]
         self.missing_indicators_te = self.missing_indicators[self.te_idxs]
@@ -237,7 +237,7 @@ class DataInput:
         self.missing_indicators_tr = self.missing_indicators_tr[idxs]
         self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
         self.event_times_tr = self.event_times_tr[idxs]
-        self.trajectory_lengths_tr = self.trajectory_lengths_tr[idxs]
+        self.traj_lens_tr = self.traj_lens_tr[idxs]
         self.cov_times_tr = self.cov_times_tr[idxs]
         self.padding_indicators_tr = self.padding_indicators_tr[idxs]
         self.static_covs_tr = self.static_covs_tr[idxs]
@@ -245,7 +245,7 @@ class DataInput:
 #        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
 #        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
 #        self.event_times = [self.event_times[idx] for idx in idxs]
-#        self.trajectory_lengths = [self.trajectory_lengths[idx] for idx in idxs]
+#        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
 
         self.shuffled_tr_idxs = idxs
         for i, idx in enumerate(idxs):
@@ -258,7 +258,7 @@ class DataInput:
         self.missing_indicators_tr = self.missing_indicators_tr[idxs]
         self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
         self.event_times_tr = self.event_times_tr[idxs]
-        self.trajectory_lengths_tr = self.trajectory_lengths_tr[idxs]
+        self.traj_lens_tr = self.traj_lens_tr[idxs]
         self.cov_times_tr = self.cov_times_tr[idxs]
         self.padding_indicators_tr = self.padding_indicators_tr[idxs]
         self.static_covs_tr = self.static_covs_tr[idxs]
@@ -266,13 +266,13 @@ class DataInput:
 #        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
 #        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
 #        self.event_times = [self.event_times[idx] for idx in idxs]
-#        self.trajectory_lengths = [self.trajectory_lengths[idx] for idx in idxs]
+#        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
     
     def get_tr_batch_data(self, batch_idx, batch_size):
         batch_indices = slice(batch_idx * batch_size, (batch_idx + 1) * batch_size)
 
         batch_cov_trajs = self.covariate_trajectories_tr[batch_indices]
-        batch_traj_lengths = self.trajectory_lengths_tr[batch_indices]
+        batch_traj_lengths = self.traj_lens_tr[batch_indices]
         batch_cov_trajs = batch_cov_trajs.permute(1, 0, 2)
         batch_packed_cov_trajs = torch.nn.utils.rnn.pack_padded_sequence(
             batch_cov_trajs, batch_traj_lengths, enforce_sorted=False
@@ -296,11 +296,11 @@ class DataInput:
         tr_batch = Batch(
             torch.nn.utils.rnn.pack_padded_sequence(
                 self.covariate_trajectories_tr.permute(1, 0, 2), 
-                self.trajectory_lengths_tr,
+                self.traj_lens_tr,
                 enforce_sorted=False
             ),
             self.cov_times_tr, self.event_times_tr, self.censoring_indicators_tr, 
-            self.trajectory_lengths_tr, torch.arange(self.event_times_tr.shape[0]),
+            self.traj_lens_tr, torch.arange(self.event_times_tr.shape[0]),
             self.static_covs_tr, self.missing_indicators_tr, 
             int(self.max_len_trajectory)
         )
@@ -313,15 +313,44 @@ class DataInput:
         te_batch = Batch(
             torch.nn.utils.rnn.pack_padded_sequence(
                 self.covariate_trajectories_te.permute(1, 0, 2), 
-                self.trajectory_lengths_te,
+                self.traj_lens_te,
                 enforce_sorted=False
             ),
             self.cov_times_te, self.event_times_te, self.censoring_indicators_te, 
-            self.trajectory_lengths_te, torch.arange(self.event_times_te.shape[0]),
+            self.traj_lens_te, torch.arange(self.event_times_te.shape[0]),
             self.static_covs_te, self.missing_indicators_te, 
             int(self.max_len_trajectory)
         )
         return te_batch
+
+    def get_most_recent_times_and_idxs_before_start(self, start_time):
+        
+        if start_time == 0:
+            idxs_most_recent_times = torch.zeros(
+                self.cov_times.shape[0],
+                dtype=torch.int64
+            )
+        else:
+            bool_idxs_less_than_start = self.cov_times <= start_time
+            truncated_at_start = torch.where(
+                bool_idxs_less_than_start,
+                self.cov_times, torch.zeros(self.cov_times.shape)
+            )
+            idxs_most_recent_times = torch.max(truncated_at_start, dim=1)[1]
+            # handle edge cases where torch.max picks the last zero
+            # instead of the first when t_ij = 0
+            idxs_most_recent_times = torch.where(
+                torch.sum(truncated_at_start, dim=1) == 0,
+                torch.zeros(idxs_most_recent_times.shape, dtype=torch.int64),
+                idxs_most_recent_times
+            )
+
+        
+        most_recent_times = self.cov_times[
+            torch.arange(idxs_most_recent_times.shape[0]),
+            idxs_most_recent_times
+        ]
+        return most_recent_times, idxs_most_recent_times
 
 # Simple helper class to make passing around batches of the data easier
 # also handles unpacking cov trajs
@@ -342,7 +371,7 @@ class Batch:
         self.cov_times = batch_cov_times
         self.event_times = batch_event_times
         self.censoring_indicators = batch_censoring_indicators
-        self.trajectory_lengths = torch.tensor(batch_traj_lengths, dtype=torch.float64)
+        self.traj_lens = torch.tensor(batch_traj_lengths, dtype=torch.float64)
         self.static_covs = batch_static_covs
         self.unshuffled_idxs = batch_unshuffle_idxs
         self.max_seq_len_all_batches = max_seq_len_all_batches
@@ -367,7 +396,7 @@ class Batch:
     def split_into_binned_groups_by_num_events(self, num_bins, start_time):
         if start_time == 0:
             return [self], [1]
-        _, idxs_most_recent_times = self.get_most_recent_idxs_before_start(start_time)
+        _, idxs_most_recent_times = self.get_most_recent_times_and_idxs_before_start(start_time)
         # get num_events per person before start time
 #        bool_events_before_start = self.cov_times <= start_time
 #        padding_indicators = \
@@ -405,7 +434,7 @@ class Batch:
             bin_batch = Batch(
                 None, self.cov_times[bool_idxs_in_bin], self.event_times[bool_idxs_in_bin], 
                 self.censoring_indicators[bool_idxs_in_bin], 
-                self.trajectory_lengths[bool_idxs_in_bin], None,
+                self.traj_lens[bool_idxs_in_bin], None,
                 None, None, self.max_seq_len_all_batches
             )
             batches_grouped_by_bin.append(bin_batch)
@@ -416,7 +445,7 @@ class Batch:
         Helper function used mainly in evaluation. Returns the idxs of the most
         recent covariate times t_ij per individual
     ''' 
-    def get_most_recent_idxs_before_start(self, start_time):
+    def get_most_recent_times_and_idxs_before_start(self, start_time):
         
         if start_time == 0:
             idxs_most_recent_times = torch.zeros(

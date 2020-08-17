@@ -13,7 +13,7 @@ class RegularizationCalculatorThetaPerStep(nn.Module):
     ):
 
         step_ahead_cov_reg = 0
-        theta_drift_reg = 0
+        drift_reg = 0
         global_diff_reg = 0
 
         if not self.params['step_ahead_cov_reg'] == 0:
@@ -21,8 +21,8 @@ class RegularizationCalculatorThetaPerStep(nn.Module):
                 step_ahead_cov_preds, batch
             )
 
-        if not self.params['theta_drift_reg'] == 0:
-            theta_drift_reg = self.compute_theta_drift_reg(
+        if not self.params['drift_reg'] == 0:
+            drift_reg = self.compute_drift_reg(
                 pred_params, batch
             )
 
@@ -33,13 +33,13 @@ class RegularizationCalculatorThetaPerStep(nn.Module):
 
 
         step_ahead_cov_reg *= self.params['step_ahead_cov_reg']
-        theta_drift_reg *= self.params['theta_drift_reg']
+        drift_reg *= self.params['drift_reg']
         global_diff_reg *= self.params['global_diff_reg']
 
         if ret_each_term:
-            return step_ahead_cov_reg, theta_drift_reg, global_diff_reg
+            return step_ahead_cov_reg, drift_reg, global_diff_reg
 
-        return step_ahead_cov_reg + theta_drift_reg + global_diff_reg
+        return step_ahead_cov_reg + drift_reg + global_diff_reg
 
     # TODO:mask out missing values here as in Dynamic DeepHit
     def compute_step_ahead_cov_reg(self, step_ahead_cov_preds, batch):
@@ -49,7 +49,7 @@ class RegularizationCalculatorThetaPerStep(nn.Module):
         iterations = enumerate(
             zip(
                 batch_cov_trajs, step_ahead_cov_preds,
-                batch.trajectory_lengths.int()
+                batch.traj_lens.int()
             )
         )
         for i, (batch_cov_traj, next_step_cov_pred, length) in iterations:
@@ -66,7 +66,7 @@ class RegularizationCalculatorThetaPerStep(nn.Module):
 
 
 
-    def compute_theta_drift_reg(self, pred_params, batch):
+    def compute_drift_reg(self, pred_params, batch):
         # TODO: add 1/(delta_t) as a prefactor
         diffs = (pred_params[:, :pred_params.shape[1] - 1] - pred_params[:, 1:])**2
         return torch.mean(torch.mean(diffs))

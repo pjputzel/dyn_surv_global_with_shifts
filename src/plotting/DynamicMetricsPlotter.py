@@ -23,7 +23,7 @@ class DynamicMetricsPlotter:
         eval_metric_names = eval_metrics_res.keys()
         for metric_name in eval_metric_names:
             metric_results = eval_metrics_res[metric_name]
-            if len(metric_name.split('_')) > 1:
+            if len(metric_name.split('_')) > 3:
                 self.make_and_save_dynamic_eval_metrics_plots_grouped(
                     metric_results, metric_name
                 )
@@ -89,8 +89,8 @@ class DynamicMetricsPlotter:
     def make_and_save_dynamic_eval_metrics_plots_no_groups(self, 
         metric_results, metric_name
     ):
-        start_times = metric_results['start_times']
         for split in metric_results.keys():
+            start_times = metric_results[split]['start_times']
             for s, start in enumerate(start_times):
                 save_name = metric_name +  '_' + split + '.png'
                 self.make_and_save_single_metric_plot_at_start_time(
