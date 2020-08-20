@@ -28,7 +28,7 @@ class DataInput:
 
         self.event_times, self.censoring_indicators, self.missing_indicators, self.covariate_trajectories, self.static_covs = dataloader.load_data()
         self.format_data()
-        self.normalize_data()
+        #self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         print(self.cov_times[0:5, 0:30])

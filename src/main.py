@@ -37,7 +37,8 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/linear_constant_delta.yaml'
 #    path_to_config = '../configs/delta_per_step.yaml'
 #    path_to_config = '../configs/dummy_global.yaml'
-    path_to_config = '../configs/cov_times_ranking.yaml'
+#    path_to_config = '../configs/cov_times_ranking.yaml'
 #    path_to_config = '../configs/multi_run_main.yaml'
 #    path_to_config = '../configs/linear_delta_per_step.yaml'
+    path_to_config = '../configs/model_free_configs/synth_configs/cov_times_ranking_synth.yaml'
     main(path_to_config)

@@ -45,6 +45,10 @@ class ModelEvaluator:
                 )
                 eff_ns_s.append(eff_n)    
                 print(dynamic_metrics[s, t], start_time, time_delta)
+                if metric_name == 'c_index_from_start_time':
+                    # this metric is independent of the time delta
+                    dynamic_metrics[s, :] = dynamic_metrics[s, t]
+                    break
             eff_ns.append(eff_ns_s)
         ret = {\
             'start_times': start_times, 
