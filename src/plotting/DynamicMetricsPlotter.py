@@ -23,7 +23,7 @@ class DynamicMetricsPlotter:
         eval_metric_names = eval_metrics_res.keys()
         for metric_name in eval_metric_names:
             metric_results = eval_metrics_res[metric_name]
-            if len(metric_name.split('_')) > 3:
+            if metric_name.split('_')[-1] == 'events':
                 self.make_and_save_dynamic_eval_metrics_plots_grouped(
                     metric_results, metric_name
                 )

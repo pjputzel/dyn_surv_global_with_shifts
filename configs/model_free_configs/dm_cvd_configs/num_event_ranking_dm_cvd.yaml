@@ -1,0 +1,38 @@
+main_type: 'num_events_ranking_main'
+savedir: '../output/dm_cvd/num_events_ranking_only'
+
+data_input_params:
+    dataset_name: 'dm_cvd'
+    te_percent: .20
+    data_loading_params:
+        paths: '../data/dm_cvd/data_dev_filtered_by_events_after_183.pkl'
+
+
+model_params:
+    model_type: 'dummy_global_zero_deltas'
+
+eval_params:
+    eval_metrics: ['auc', 'c_index_from_start_time'] #['auc', 'c_index']
+    dynamic_metrics:
+        start_times: [.5, 1., 1.5, 2.]
+        window_length: 3.
+        time_step: .25
+        
+    
+
+train_params:
+    learning_rate: .1
+    batch_size: 10000
+    conv_thresh: .00000001
+    n_epoch_print: 50
+    max_iter: 300
+
+    diagnostic_params:
+
+    loss_params:
+        distribution_type: 'rayleigh'
+        avg_per_seq: true
+        step_ahead_cov_reg: .0
+        drift_reg: 0.
+        global_diff_reg: 0.
+        delta_reg: 0.0 #.1 #.01

@@ -48,6 +48,8 @@ class ModelEvaluator:
                 if metric_name == 'c_index_from_start_time':
                     # this metric is independent of the time delta
                     dynamic_metrics[s, :] = dynamic_metrics[s, t]
+                    for i in range(len(time_deltas) - 1):
+                        eff_ns_s.append(eff_n)
                     break
             eff_ns.append(eff_ns_s)
         ret = {\
@@ -306,12 +308,12 @@ class ModelEvaluator:
         start_time, time_delta,
         metric_name
     ):
-        if model is None:
-            # for model independent evaluation of using the event times
-            # themself for prediction
-            most_recent_times, _ = \
-                data.get_most_recent_times_and_idxs_before_start(start_time)
-            return most_recent_times
+        if type(model) == str :
+            # for model independent evaluation
+            risks = self.compute_model_independent_risk(
+                model, data, start_time, time_delta
+            )
+            return risks
 
         prob_calc = self.loss_calculator.logprob_calculator
         if metric_name == 'c_index':
@@ -331,3 +333,14 @@ class ModelEvaluator:
             start_time, time_delta
         )
         return risks 
+
+    def compute_model_independent_risk(self, 
+        model_name, data, start_time, time_delta
+    ):
+        most_recent_times, most_recent_idxs = \
+            data.get_most_recent_times_and_idxs_before_start(start_time)
+        if model_name == 'cov_times_ranking':
+            risks = most_recent_times
+        elif model_name == 'num_events_ranking':
+            risks = most_recent_idxs + 1
+        return risks

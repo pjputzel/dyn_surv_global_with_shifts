@@ -10,7 +10,7 @@ from utils.ParameterParser import ParameterParser
 from plotting.DynamicMetricsPlotter import DynamicMetricsPlotter
 from main_types.BaseMain import BaseMain
 
-class EvaluateCovTimesRankingMain(BaseMain):
+class ModelFreeRankingMain(BaseMain):
 
     def load_data(self):
         data_input = DataInput(self.params['data_input_params'])
@@ -43,7 +43,7 @@ class EvaluateCovTimesRankingMain(BaseMain):
             model_type
         )
         # evaluate with no model
-        self.model_evaluator.evaluate_model(None, data_input, diagnostics)
+        self.model_evaluator.evaluate_model('cov_times_ranking', data_input, diagnostics)
         
     def plot_results(self, model_type, data_input, diagnostics):
         metrics_evaluated = self.params['eval_params']['eval_metrics']
@@ -62,4 +62,25 @@ class EvaluateCovTimesRankingMain(BaseMain):
         with open(os.path.join(self.params['savedir'], 'params.pkl'), 'wb') as f:
             pickle.dump(self.params, f) 
 
+class EvaluateCovTimesRankingMain(ModelFreeRankingMain):
+
+    def evaluate_model(self, model_type, data_input, diagnostics):
+        self.model_evaluator = ModelEvaluator(
+            self.params['eval_params'],
+            self.params['train_params']['loss_params'],
+            model_type
+        )
+        # evaluate with cov_times_ranking
+        self.model_evaluator.evaluate_model('cov_times_ranking', data_input, diagnostics)
+
+class EvaluateNumEventsRankingMain(ModelFreeRankingMain):
+
+    def evaluate_model(self, model_type, data_input, diagnostics):
+        self.model_evaluator = ModelEvaluator(
+            self.params['eval_params'],
+            self.params['train_params']['loss_params'],
+            model_type
+        )
+        # evaluate with cov_times_ranking
+        self.model_evaluator.evaluate_model('num_events_ranking', data_input, diagnostics)
 
