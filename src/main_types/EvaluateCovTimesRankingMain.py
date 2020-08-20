@@ -16,6 +16,7 @@ class EvaluateCovTimesRankingMain(BaseMain):
         data_input = DataInput(self.params['data_input_params'])
         data_input.load_data()
         self.data_input = data_input
+        print(data_input.covariate_trajectories)
         return data_input
     
     def preprocess_data(self, data_input):

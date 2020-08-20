@@ -1,4 +1,5 @@
 from data_handling.SyntheticDataLoader import SyntheticDataLoader
+from data_handling.SyntheticDataLoader import SimpleSyntheticDataLoader
 from pandas import qcut
 from sklearn.model_selection import train_test_split
 from data_handling.DmCvdDataLoader import DmCvdDataLoader
@@ -20,6 +21,8 @@ class DataInput:
             # expected format for covariate trajectories: list of [ [timestamp, [covariate_dim1, covariate_dim2, .... ]] ]
         elif self.params['dataset_name'] == 'dm_cvd':
             dataloader = DmCvdDataLoader(self.params['data_loading_params'])
+        elif self.params['dataset_name'] == 'simple_synth':
+            dataloader = SimpleSyntheticDataLoader(self.params['data_loading_params'])
         else:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 

@@ -6,8 +6,8 @@ data_input_params:
     te_percent: .20
     data_loading_params:
         #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
-        paths: '../data/dm_cvd/data_dev_filtered_by_events_after_183.pkl' #'../data/dm_cvd/data_dev.pkl'
-
+#        paths: '../data/dm_cvd/data_dev_filtered_by_events_after_183.pkl' #'../data/dm_cvd/data_dev.pkl'
+        paths: '../data/synth/simple_synth.pkl'
 model_params:
     model_type: 'dummy_global_zero_deltas'
 

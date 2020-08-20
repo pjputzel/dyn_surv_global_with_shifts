@@ -14,12 +14,10 @@ class SyntheticDataLoader(DataLoaderBase):
         formatted_trajectories = []
         for traj in covariate_trajectories:
             formatted_trajectories.append([[traj_t[0], [traj_t[1]]] for traj_t in traj])
-
         # nothing is missing for synth data currently
         # note in general that the missing_indicators will be a nested list with
         # each element having length equal to the covariate dim. Or maybe just a numpy array?
-        missing_indicators = [[[0. for i in range(len(traj[1]))] for j in range(len(traj))] for traj in formatted_trajectories]
-       
+        missing_indicators = [[[0. for i in range(len(traj[j][1]))] for j in range(len(traj))] for traj in formatted_trajectories]
         # no static covs either 
         static_covs = [[0.] for traj in formatted_trajectories]
 
@@ -29,3 +27,28 @@ class SyntheticDataLoader(DataLoaderBase):
         with open(path, 'rb') as f:
             loaded_object = pickle.load(f)
         return loaded_object 
+
+
+class SimpleSyntheticDataLoader(DataLoaderBase):
+
+    def __init__(self, data_loader_params):
+        self.params = data_loader_params
+        
+    def load_data(self):
+        with open(self.params['paths'], 'rb') as f:
+            data = pickle.load(f)
+
+        covariate_trajectories = data.cov_trajs
+        formatted_trajectories = []
+        for traj in covariate_trajectories:
+            formatted_trajectories.append([[traj_t[0], [traj_t[1]]] for traj_t in traj])
+
+        # nothing is missing for synth data currently
+        missing_indicators = [[[0. for i in range(len(traj[j][1]))] for j in range(len(traj))] for traj in formatted_trajectories]
+       
+        # no static covs either 
+        static_covs = [[0.] for traj in formatted_trajectories]
+        
+        # no censoring in simple data
+        censoring = [0 for i in range(len(data.true_event_times))]
+        return data.true_event_times, censoring, missing_indicators, formatted_trajectories, static_covs
