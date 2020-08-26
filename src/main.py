@@ -36,6 +36,9 @@ def main(path_to_config):
 if __name__ == '__main__':
 #    path_to_config = '../configs/model_free_configs/synth_configs/cov_times_ranking_synth.yaml'
 #    path_to_config = '../configs/model_free_configs/synth_configs/num_event_ranking_synth.yaml'
-    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
+#    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
+
+#    path_to_config = '../configs/linear_baseline_configs/synth_configs/linear_theta_per_step_synth.yaml'
+    path_to_config = '../configs/linear_baseline_configs/synth_configs/linear_delta_per_step_synth.yaml'
 
     main(path_to_config)

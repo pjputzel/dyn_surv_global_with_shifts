@@ -1,5 +1,5 @@
-main_type: 'cov_times_ranking_main'
-savedir: '../output/synth/cov_times_ranking_only'
+main_type: 'basic_main'
+savedir: '../output/synth/rayleigh_linear_delta_per_step'
 
 data_input_params:
     dataset_name: 'simple_synth'
@@ -8,23 +8,23 @@ data_input_params:
         paths: '../data/synth/simple_synth_delta_per_step.pkl'
 
 model_params:
-    model_type: 'dummy_global_zero_deltas'
+    model_type: 'linear_delta_per_step'
+    dynamic_cov_dim: 1
+    static_cov_dim: 1 # dummy static var for now that does nothing
 
 eval_params:
-    eval_metrics: ['auc', 'c_index_from_start_time'] #['auc', 'c_index']
+    eval_metrics: ['auc', 'c_index_from_most_recent_time'] #['auc', 'c_index']
     dynamic_metrics:
         start_times: [.06, .12, .18, .24, .3]
         window_length: .3
         time_step: .025
-        
-    
 
 train_params:
-    learning_rate: .1
+    learning_rate: 1. #.001
     batch_size: 10000
     conv_thresh: .00000001
     n_epoch_print: 50
-    max_iter: 300
+    max_iter: 1000
 
     diagnostic_params:
 
@@ -32,6 +32,6 @@ train_params:
         distribution_type: 'rayleigh'
         avg_per_seq: true
         step_ahead_cov_reg: .0
-        drift_reg: 0.
-        global_diff_reg: 0.
+        drift_reg: 0.00
+        global_diff_reg: 0.00
         delta_reg: 0.0 #.1 #.01

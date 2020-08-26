@@ -17,17 +17,18 @@ def main():
 
     # for delta per step
     dataset_type = 'delta_per_step'
-    theta_func = delta_func_one_slope_two 
+    delta_func = linear_func_slope20
+    #maybe healthy should age half as slow (ie 1/2t)
     cov_traj_func_per_class = \
         [
-            linear_func_slope5,
+            linear_func_slope20,
             linear_func_slope_one_half
         ]
     interevent_rate_param_per_class = [.05, .1]
     global_theta = .1
 
     data = SimpleData(
-        n_per_class, theta_func, cov_traj_func_per_class,
+        n_per_class, delta_func, cov_traj_func_per_class,
         interevent_rate_param_per_class, dataset_type=dataset_type,
         global_theta=global_theta
     )
@@ -47,7 +48,10 @@ def main():
     plt.plot(data.cov_times[n_per_class[0]], data.cov_values[n_per_class[0]], label='healthy ex cov traj')
     plt.legend()
     plt.savefig('cov_trajs_ex.png')
-
+    plt.clf()
+    x = np.linspace(0, 1, 100)
+    plt.plot(x, (x/global_theta) * np.exp(-x**2/(2 * global_theta)))
+    plt.savefig('global_density.png')
 
 def test_truncated_sampling():
     n_per_class = [1000, 1000]
@@ -66,8 +70,8 @@ def test_truncated_sampling():
         global_theta=global_theta
     )
     samples = []
-    trunc_time = .5
-    shift = 1.5
+    trunc_time = .2
+    shift = 2.
     for i in range(100000):
         samples.append(data.sample_from_truncated_rayleigh(shift, trunc_time))
     plt.hist(samples, label='truncation at time %.1f with %.1f shift' %(trunc_time, shift), density=True, bins=100)
@@ -75,6 +79,18 @@ def test_truncated_sampling():
     plt.plot(x, (x/global_theta) * np.exp(-x**2/(2 * global_theta)), label='complete density')
     plt.legend()
     plt.savefig('truncation_sampling_test.png')
+
+def zero_func(x):
+    return 0.
+
+def quadratic_func(x):
+    return x ** 2
+
+def square_root_func(x):
+    return x ** (1/2)
+
+def quartic_func(x):
+    return x ** 4
 
 def delta_func_one_half_slope(x):
     return x/2
@@ -86,6 +102,9 @@ def theta_max_one_half_linear(x):
     if x >= .5:
         return 0
     return .5 - x
+
+def base_two_exponential(x):
+    return 2 ** x
 
 def theta_max5_linear(x):
     if x >= 5:
@@ -100,12 +119,27 @@ def inverse_func(x):
 def linear_func_slope1(x):
     return x
 
+def linear_func_slope2(x):
+    return x * 2
+
 def linear_func_slope_one_half(x):
     return .5 * x
 
+def linear_func_slope_one_eighth(x):
+    return (1/8) * x
 def linear_func_slope5(x):
     return 5 * x
 
+def linear_func_slope20(x):
+    return 20 * x
+def linear_func_slope_one_one_hundreth(x):
+    return (1/100) * x
+
+def linear_func_slope_one_ten_thousandth(x):
+    return (1/10000) * x
+
+def linear_func_slope_one_trillionth(x):
+    return (1./1000000000) * x
 class SimpleData:
 
     def __init__(self,
@@ -192,7 +226,6 @@ class SimpleData:
             )
         else:
             raise ValueError('Dataset type %s not recognized' %self.dataset_type)
-            
         return proposed_time
 
     def sample_truncated_distribution(self, delta, truncation_time):

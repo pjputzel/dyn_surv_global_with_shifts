@@ -141,5 +141,64 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
         )
         return survival_prob
 
+    def compute_cond_prob_from_start_to_event_time(
+        self, thetas, batch, global_theta,
+        start_time, time_delta='to_true_event_time'
+    ):
+
+        max_times_less_than_start, thetas_at_most_recent_time = \
+            self.find_most_recent_times_and_thetas(thetas, batch, start_time)
+        end_time = batch.event_times
+        
+        start_surv = torch.exp(
+            self.compute_logsurv(start_time, thetas_at_most_recent_time)
+        )
+
+        end_surv = torch.exp(
+            self.compute_logsurv(end_time, thetas_at_most_recent_time)
+        )
+
+        normalization = torch.exp(
+            self.compute_logsurv(
+                max_times_less_than_start, 
+                thetas_at_most_recent_time
+            )
+        )
+
+        ret = (1/normalization) * (start_surv - end_surv)
+        # use -1 as filler for risks that shouldn't be used
+        # in C-index from start calculation 
+        ret = torch.where(
+            batch.event_times >= start_time,
+            ret, -1 * torch.ones(ret.shape)
+        )
+        return ret
+
+    def compute_cond_prob_from_start_to_event_time_ik(
+        self, thetas, batch, global_theta,
+        start_time, event_time_i, k 
+    ):
+
+        max_times_less_than_start, thetas_at_most_recent_time = \
+            self.find_most_recent_times_and_thetas(thetas, batch, start_time)
+        end_time = event_time_i
+        
+        start_surv = torch.exp(
+            self.compute_logsurv(start_time, thetas_at_most_recent_time[k])
+        )
+
+        end_surv = torch.exp(
+            self.compute_logsurv(end_time, thetas_at_most_recent_time[k])
+        )
+
+        normalization = torch.exp(
+            self.compute_logsurv(
+                max_times_less_than_start[k], 
+                thetas_at_most_recent_time
+            )
+        )
+
+        ret = (1/normalization) * (start_surv - end_surv)
+        return ret
 def print_grad(grad):
     print(grad) 

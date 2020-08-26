@@ -53,7 +53,7 @@ class LinearDeltaIJModel(nn.Module):
         hidden_states = torch.zeros(batch_covs.shape[0])
         next_step_cov_preds = torch.tensor(batch_covs.shape[0])
 #        print(pred_deltas)
-        #print(self.linear.weight, self.linear.bias)
+#        print(self.linear.weight, self.linear.bias, torch.exp(-self.global_param_logspace))
         return pred_deltas, hidden_states, next_step_cov_preds
 
     

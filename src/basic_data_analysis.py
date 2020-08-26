@@ -268,7 +268,7 @@ def frequency_vs_diagnosis_boxplot(data_input, start_time, time_delta, savedir):
 
 if __name__ == '__main__':
     # only data loading params will be used so model is irrelevant
-    path_to_params = '../configs/linear_delta_per_step.yaml'
+    path_to_params = '../configs/linear_baseline_configs/linear_delta_per_step.yaml'
 
     savedir = '../output/dm_cvd/data_analysis_plots/'
     make_data_analysis_plots(path_to_params, savedir)

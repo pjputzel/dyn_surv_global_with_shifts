@@ -31,7 +31,7 @@ class DataInput:
         #self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
-        print(self.cov_times[0:5, 0:30])
+#        print(self.cov_times[0:10, 0:30])
         #raise RuntimeError('Preston stopped the code!!!')
 #        self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         #print(self.unshuffled_tr_idxs)
