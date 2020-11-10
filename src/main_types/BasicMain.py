@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../data/')
 from main_types.BaseMain import BaseMain
 from utils.Diagnostics import Diagnostics
 import os
@@ -8,6 +10,7 @@ from models.BasicModelThetaPerStep import BasicModelThetaPerStep
 from models.DeltaIJModel import DeltaIJModel
 from models.LinearDeltaIJModel import LinearDeltaIJModel
 from models.LinearThetaIJModel import LinearThetaIJModel
+from models.LinearDeltaIJModelNumVisitsOnly import LinearDeltaIJModelNumVisitsOnly
 from models.DummyGlobalModel import DummyGlobalModel
 from models.ConstantDeltaModelLinearRegression import ConstantDeltaModelLinearRegression
 from models.EmbeddingConstantDeltaModelLinearRegression import EmbeddingConstantDeltaModelLinearRegression
@@ -17,10 +20,20 @@ from utils.ParameterParser import ParameterParser
 from data_handling.DataInput import DataInput
 from evaluation.ModelEvaluator import ModelEvaluator
 from plotting.DynamicMetricsPlotter import DynamicMetricsPlotter
+from plotting.ResultsPlotterSynth import ResultsPlotterSynth
 import torch
 
 class BasicMain(BaseMain):
     
+    def __init__(self, params):
+        self.params = params
+        self.params['savedir'] = os.path.join(\
+            params['savedir_pre'], 
+            '%s/%s' %(params['train_params']['loss_params']['distribution_type'], \
+                    params['model_params']['model_type'])
+        )
+        if not os.path.exists(self.params['savedir']):
+            os.makedirs(self.params['savedir'])
 
     def load_data(self):
         data_input = DataInput(self.params['data_input_params'])
@@ -44,7 +57,7 @@ class BasicMain(BaseMain):
                 self.params['train_params']['loss_params']['distribution_type']
             )
             
-        elif model_type == 'dummy_global_zero_deltas':
+        elif model_type == 'dummy_global_zero_deltas' or model_type == 'dummy_global':
             self.model = DummyGlobalModel(
                 self.params['model_params'],
                 self.params['train_params']['loss_params']['distribution_type']
@@ -54,6 +67,12 @@ class BasicMain(BaseMain):
             self.model = LinearDeltaIJModel(
                 self.params['model_params'],
                 self.params['train_params']['loss_params']['distribution_type']
+            )
+        
+        elif model_type == 'linear_delta_per_step_num_visits_only':
+            self.model = LinearDeltaIJModelNumVisitsOnly(
+                self.params['model_params'],
+                self.params['train_params']['loss_params']['distribution_type'],
             )
      
         elif model_type == 'linear_constant_delta':
@@ -66,7 +85,7 @@ class BasicMain(BaseMain):
                 self.params['model_params'],
                 self.params['train_params']['loss_params']['distribution_type']
         )
-        elif model_type == 'delta_per_step':
+        elif model_type == 'RNN_delta_per_step':
             self.model = DeltaIJModel(
                 self.params['model_params'],
                 self.params['train_params']['loss_params']['distribution_type']
@@ -99,15 +118,14 @@ class BasicMain(BaseMain):
             self.params['plot_params'], self.params['savedir']
         )
         plotter.make_and_save_dynamic_eval_metrics_plots(diagnostics.eval_metrics)
-        
-            
-        
-        
-        
+        if self.params['data_input_params']['dataset_name'] == 'simple_synth':
+            plotter = ResultsPlotterSynth(model, self.params['plot_params'])
+            plotter.plot_event_time_samples_from_learned_model(
+                self.params['data_input_params']['data_loading_params']['paths'],
+                self.params['savedir']
+            )
     
     def save_results(self, results_tracker):
-        if not os.path.exists(self.params['savedir']):
-            os.makedirs(self.params['savedir'])
 
         with open(os.path.join(self.params['savedir'], 'tracker.pkl'), 'wb') as f:
             pickle.dump(results_tracker, f)

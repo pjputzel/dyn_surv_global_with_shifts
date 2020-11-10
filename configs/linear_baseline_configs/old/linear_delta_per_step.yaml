@@ -16,9 +16,12 @@ model_params:
 eval_params:
     eval_metrics: ['auc', 'c_index_from_start_time']
     dynamic_metrics:
-        start_times: [.5, 1., 1.5, 2.]
-        window_length: 3.
-        time_step: .25
+        start_times: [.15, .3, .45, .6]
+        window_length: 1.
+        time_step: .2
+#        start_times: [.5, 1., 1.5, 2.]
+#        window_length: 3.
+#        time_step: .25
         
     
 

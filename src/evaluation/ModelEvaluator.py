@@ -47,7 +47,8 @@ class ModelEvaluator:
                 print(dynamic_metrics[s, t], start_time, time_delta)
                 doesnt_use_time_delta = \
                     (metric_name == 'c_index_from_start_time') or \
-                    (metric_name == 'c_index_from_most_recent_time')
+                    (metric_name == 'c_index_from_most_recent_time') or\
+                    (metric_name == 'c_index_truncated_at_S')
                 if doesnt_use_time_delta:
                     # this metric is independent of the time delta
                     dynamic_metrics[s, :] = dynamic_metrics[s, t]
@@ -70,6 +71,8 @@ class ModelEvaluator:
             func = self.compute_c_index_from_start_time_to_event_time_i
         elif metric_name == 'c_index_from_most_recent_time':
             func = self.compute_c_index_from_most_recent_cov_time_k_to_event_time_i
+        elif metric_name == 'c_index_truncated_at_S':
+            func = self.compute_c_index_truncated_at_S_from_S_to_event_times_i
         elif metric_name == 'auc':
             func = self.compute_auc_at_t_plus_delta_t
         elif metric_name == 'auc_truncated_at_S':
@@ -143,6 +146,9 @@ class ModelEvaluator:
     def compute_auc_truncated_at_S(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'auc_truncated_at_S') 
 
+    def compute_c_index_truncated_at_S(self, model, split_data):
+        return self.evaluate_dynamic_metric(model, split_data, 'c_index_truncated_at_S')
+
     def compute_c_index(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'c_index')
     
@@ -160,7 +166,6 @@ class ModelEvaluator:
             start_time, time_delta,
             'auc_truncated_at_S'
         )
-
 ######## For [S, S + \Delta S] version
         case_bool_idxs = \
             (start_time <= data.event_times) &\
@@ -245,6 +250,36 @@ class ModelEvaluator:
         c_index = total_concordant_pairs/total_valid_pairs
         return c_index, total_valid_pairs
 
+
+    def compute_c_index_truncated_at_S_from_S_to_event_times_i(self,
+        model, data, start_time, time_delta=None
+    ):
+        # time delta not used for this metric
+        time_delta = None
+        risks_ik = self.compute_risks(
+            model, data, 
+            start_time, time_delta,
+            'c_index_truncated_at_S'
+        )
+        total_concordant_pairs, total_valid_pairs = \
+            self.compute_c_index_upper_boundary_at_event_time_i(
+                risks_ik, data, start_time
+            )
+
+        if total_valid_pairs == 0:
+            # this should only happen for very large values of S
+            # where either no one is included, or everyone in the
+            # risk set is censored
+            return 0, 0
+        c_index = total_concordant_pairs/total_valid_pairs
+        return c_index, total_valid_pairs
+
+####### NOTE: there was a bug that I fixed for this function, but haven't fixed 
+####### for the other evaluation types. This needs to be updated for other functions
+####### so that when computing c-index with upper boundary at event time i the 
+####### correct pairs are evaluated over (the old compute_risks func returned
+######  a num_uncesnored_ and_at_risk by N array which destroyed the ordering
+###### I assume in the compute_c_index_upper_boundary_at_event_time_i function
     def compute_c_index_from_start_time_to_event_time_i(self,
         model, data, start_time, time_delta=None
     ):
@@ -256,7 +291,9 @@ class ModelEvaluator:
             'c_index_from_start_time'
         )
         total_concordant_pairs, total_valid_pairs = \
-            self.compute_c_index_upper_boundary_at_event_time_i(risks_ik)
+            self.compute_c_index_upper_boundary_at_event_time_i(
+                risks_ik, data, start_time
+            )
 
         if total_valid_pairs == 0:
             # this should only happen for very large values of S
@@ -266,17 +303,27 @@ class ModelEvaluator:
         c_index = total_concordant_pairs/total_valid_pairs
         return c_index, total_valid_pairs
         
-    def compute_c_index_upper_boundary_at_event_time_i(self, risks_ik):
+    def compute_c_index_upper_boundary_at_event_time_i(
+        self, risks_ik, data, start_time
+    ):
+        sorted_event_times, sort_idxs = torch.sort(data.event_times)
+        sorted_cens_inds = data.censoring_indicators[sort_idxs].bool()
         total_concordant_pairs = 0
         total_valid_pairs = 0
         for idx_i, risks_k in enumerate(risks_ik):
-            # risks_ik is of shape U X N where
-            # U is the number of uncensored event times
+            # risks_ik is now of shape N X N after bug correction
+            # it used to be of shape U X N before bug correction where
+            # U was the number of uncensored event times
             # and N is the total number of individuals
+            unc_at_risk = (not (sorted_cens_inds[idx_i]) ) and (sorted_event_times[idx_i] > start_time)
+            if not unc_at_risk:
+                continue
             con_pairs_ik, valid_pairs_ik = \
                 self.compute_concordant_and_valid_pairs_ik(
                     idx_i, risks_k
                 )
+#            print(idx_i, con_pairs_ik, valid_pairs_ik)
+#            print(torch.sum(torch.isnan(risks_k)))
             total_concordant_pairs += con_pairs_ik
             total_valid_pairs += valid_pairs_ik
         return total_concordant_pairs, total_valid_pairs        
@@ -435,7 +482,7 @@ class ModelEvaluator:
 #                        risks, i, j
 #                    )
         if normalization == 0:
-            return 0
+            return 0, 0
         #print('num_ordered_correctly:', num_ordered_correctly, 'normalization:', normalization)
         c_index = num_ordered_correctly/normalization
         print(normalization)
@@ -467,7 +514,7 @@ class ModelEvaluator:
         if type(model) == str :
             # for model independent evaluation
             risks = self.compute_model_independent_risk(
-                model, data, start_time, time_delta
+                model, data, start_time, time_delta, metric_name
             )
             return risks
 
@@ -477,15 +524,15 @@ class ModelEvaluator:
             risk_func = prob_calc.compute_most_recent_CDF
         elif metric_name == 'c_index_from_start_time':
             # in this case we decided it makes most sense to go from S -> infinity
-            # Ie survival function should be used here
-            #risk_func = prob_calc.compute_survival_probability
 
-            # ^ the above is incorrect I'm pretty sure.
             # instead we get the risks for first slot i here by integrating S to T_i
-            # and the risks for the second slot k are computed in the loop from S to T_i as well
             risk_func = prob_calc.compute_cond_probs_k_from_start_to_event_times_i
         elif metric_name == 'c_index_from_most_recent_time':
             risk_func = prob_calc.compute_cond_probs_from_cov_time_k_to_event_times_i
+        elif metric_name == 'auc_truncated_at_S':
+            risk_func = prob_calc.compute_cond_probs_truncated_at_S_over_window
+        elif metric_name == 'c_index_truncated_at_S':
+            risk_func = prob_calc.compute_cond_probs_truncated_at_S_to_event_times_i
         else:
             # all other cases integrate from S to S + \Delta S
             risk_func = prob_calc.compute_cond_prob_over_window
@@ -498,12 +545,68 @@ class ModelEvaluator:
         return risks 
 
     def compute_model_independent_risk(self, 
-        model_name, data, start_time, time_delta
+        model_name, data, start_time, time_delta, metric_name,
+        rep_for_truncated_c_index=False
     ):
-        most_recent_times, most_recent_idxs = \
-            data.get_most_recent_times_and_idxs_before_start(start_time)
-        if model_name == 'cov_times_ranking':
-            risks = most_recent_times
-        elif model_name == 'num_events_ranking':
-            risks = most_recent_idxs + 1
+        if metric_name == 'c_index_truncated_at_S':
+            if rep_for_truncated_c_index:
+                most_recent_times, most_recent_idxs = \
+                    data.get_most_recent_times_and_idxs_before_start(start_time)
+                _, sort_idxs = torch.sort(data.event_times)
+                # probs should just remove cov times ranking and just have this for
+                # num events ranking.. can always add back if needed
+                if model_name == 'cov_times_ranking':
+                    risks = most_recent_times
+                elif model_name == 'num_events_ranking':
+                    risks = most_recent_idxs + 1
+                sorted_risks = risks[sort_idxs]
+                risks = sorted_risks.repeat([data.event_times.shape[0], 1])
+                
+            else:
+                risks = self.compute_c_index_truncated_at_S_model_independent_risks(
+                model_name, data, start_time, time_delta, metric_name
+            )
+        else:
+            most_recent_times, most_recent_idxs = \
+                data.get_most_recent_times_and_idxs_before_start(start_time)
+            # probs should just remove cov times ranking and just have this for
+            # num events ranking.. can always add back if needed
+            if model_name == 'cov_times_ranking':
+                risks = most_recent_times
+            elif model_name == 'num_events_ranking':
+                risks = most_recent_idxs + 1
+            
         return risks
+
+    def compute_c_index_truncated_at_S_model_independent_risks(self,
+        model_name, data, start_time, time_delta, metric_name
+    ):
+        risks_ik = self.get_model_independent_risk_matrix(data, model_name)
+        _, sort_idxs = torch.sort(data.event_times)
+#            risk_matrix = sorted_risks.repeat([data.event_times.shape[0], 1])
+        
+#        unc_at_risk = \
+#            ~data.censoring_indicators[sort_idxs].bool() &\
+#            (data.event_times[sort_idxs] > start_time)
+#        risks = risks_ik[unc_at_risk]
+        risks = risks_ik
+        return risks
+
+    # for use with truncated at time t c-index version
+    def get_model_independent_risk_matrix(self, data, model_name):
+        _, sort_idxs = torch.sort(data.event_times)
+        sorted_event_times = data.event_times[sort_idxs]
+        risks_ik = torch.zeros(
+            sorted_event_times.shape[0], sorted_event_times.shape[0]
+        )
+        for t, time in enumerate(sorted_event_times):
+            most_recent_times, most_recent_idxs = \
+                data.get_most_recent_times_and_idxs_before_start(time)
+            if model_name == 'cov_times_ranking':
+                row = most_recent_times
+            elif model_name == 'num_events_ranking':
+                row = most_recent_idxs + 1
+            risks_ik[t, :] = row
+        return risks_ik
+
+                

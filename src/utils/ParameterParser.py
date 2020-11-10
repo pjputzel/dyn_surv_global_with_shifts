@@ -6,6 +6,7 @@ DEFAULT_PARAMS =\
         'metrics_to_track': ['dummy_test_function'],
 
         'data_input_params': {
+            'saved_tr_te_idxs': None,
             'dataset_name': 'specify in config',
             'cov_time_representation': 'delta',
             'te_percent': .2,

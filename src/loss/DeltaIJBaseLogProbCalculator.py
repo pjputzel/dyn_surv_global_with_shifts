@@ -11,7 +11,9 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
         self.params = logprob_params
 
     def forward(self, deltas, batch, global_theta):
-        
+        #print(torch.sum(torch.isnan(batch.censoring_indicators)))
+        #print(torch.sum(torch.isnan(batch.event_times)))
+#        deltas.register_hook(print_grad)        
         shifted_event_times, shifted_cov_times = self.compute_shifted_times(deltas, batch)
         logpdf = self.compute_logpdf(shifted_event_times, global_theta)
         logsurv = self.compute_logsurv(shifted_event_times, global_theta)
@@ -40,6 +42,13 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
     
     def compute_shifted_times(self, deltas, batch):
         shifted_event_times = batch.event_times.unsqueeze(1) + deltas.squeeze(2)
+        idxs = (shifted_event_times == 0).nonzero()
+#        print((shifted_event_times == 0).nonzero())
+#        print(batch.cov_times[idxs[:, 0], idxs[:, 1]])
+#        print([len(b[~(b == 0)]) for b in batch.cov_times[idxs[:, 0]]])
+#        print(batch.event_times[idxs[:, 0]])
+#        print(batch.censoring_indicators[idxs[:, 0]])
+        
         shifted_cov_times = batch.cov_times + deltas.squeeze(2)
 #        print(shifted_cov_times[0:5, 0:30])
 #        print(torch.sum(~(shifted_cov_times == 0)))
@@ -211,9 +220,8 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
 
     '''
     returns in sorted order (by event times) the conditional probability over the region
-    t_kj* -> T_i for use in computing time dependent c-index
-    return is of size |R| X N, where |R| is the number of uncensored individuals still at
-    risk at start_time
+    t_kj* -> T_i for use in computing time dependent c-index from most recent time version
+    return is of size N X N (before when buggy was U X N)
     '''
 
     def compute_cond_probs_k_from_start_to_event_times_i(self, 
@@ -252,10 +260,65 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
         )        
 
         ret = 1./normalization * (start_surv - end_surv)
-        unc_at_risk = \
-            ~batch.censoring_indicators[sort_idxs].bool() &\
-            (batch.event_times[sort_idxs] > start_time)
-        ret = ret[unc_at_risk]
+#        unc_at_risk = \
+#            ~batch.censoring_indicators[sort_idxs].bool() &\
+#            (batch.event_times[sort_idxs] > start_time)
+#        ret = ret[unc_at_risk]
+        return ret
+
+    def compute_cond_probs_truncated_at_S_over_window(self,
+        deltas, batch, global_theta, start_time, time_delta
+    ):
+        max_times_less_than_start, deltas_at_most_recent_time = \
+            self.find_most_recent_times_and_deltas(deltas, batch, start_time)
+   
+        shifted_end_of_window = \
+            start_time + time_delta + deltas_at_most_recent_time
+
+        shifted_start_of_window = \
+            start_time + deltas_at_most_recent_time
+
+        end_surv = torch.exp(
+            self.compute_logsurv(shifted_end_of_window, global_theta)
+        )
+
+        start_surv = torch.exp(
+            self.compute_logsurv(shifted_start_of_window, global_theta)
+        )
+#        check = (end_surv - start_surv < 1e-121)
+#        print(torch.sum(check)/end_surv.shape[0])
+#        print(end_surv, start_surv)
+        ret = 1. - end_surv/start_surv
+#        print(torch.sum(torch.isnan(ret)))
+        return ret
+
+    def compute_cond_probs_truncated_at_S_to_event_times_i(self,
+        deltas, batch, global_theta, start_time, time_delta
+    ):
+        max_times_less_than_start, deltas_at_most_recent_time = \
+            self.find_most_recent_times_and_deltas(deltas, batch, start_time)
+        sorted_event_times, sort_idxs = torch.sort(batch.event_times)
+        sorted_deltas = deltas_at_most_recent_time[sort_idxs]
+   
+        shifted_end_of_window = \
+            sorted_event_times.reshape(-1, 1) + sorted_deltas.reshape(1, -1)
+
+        shifted_start_of_window = \
+            start_time + sorted_deltas
+
+        end_surv = torch.exp(
+            self.compute_logsurv(shifted_end_of_window, global_theta)
+        )
+
+        start_surv = torch.exp(
+            self.compute_logsurv(shifted_start_of_window, global_theta)
+        )
+
+        ret = 1. - end_surv/start_surv
+#        unc_at_risk = \
+#            ~batch.censoring_indicators[sort_idxs].bool() &\
+#            (batch.event_times[sort_idxs] > start_time)
+#        ret = ret[unc_at_risk]
         return ret
 
     def compute_cond_probs_from_cov_time_k_to_event_times_i(self,
@@ -347,8 +410,6 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
 #
 #        ret = 1./normalization * (start_surv - end_surv)
 #
-#        return ret
-
 
 def print_grad(grad):
-    print(grad) 
+    print(torch.isnan(grad).nonzero())

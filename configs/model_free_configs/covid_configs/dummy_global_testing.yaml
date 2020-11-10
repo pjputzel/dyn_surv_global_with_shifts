@@ -1,0 +1,37 @@
+main_type: 'basic_main'
+savedir_pre: '../output/covid/'
+
+data_input_params:
+
+    saved_tr_te_idxs: '../data/COVID-19/train_test_idxs_covid.pkl'
+    dataset_name: 'covid'
+    te_percent: .0
+    data_loading_params:
+        paths: '../data/COVID-19/processed_covid_data.pkl'
+
+
+model_params:
+    model_type: 'dummy_global'
+
+eval_params:
+    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    dynamic_metrics:
+        start_times: [6., 10., 15., 24.]
+        window_length: 20
+        time_step: 5
+train_params:
+    learning_rate: .1
+    batch_size: 10000
+    conv_thresh: .00000001
+    n_epoch_print: 50
+    max_iter: 300
+
+    diagnostic_params:
+
+    loss_params:
+        distribution_type: 'rayleigh'
+        avg_per_seq: True
+        step_ahead_cov_reg: .0
+        drift_reg: 0.
+        global_diff_reg: 0.
+        delta_reg: 0.0 #.1 #.01

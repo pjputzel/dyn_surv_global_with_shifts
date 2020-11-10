@@ -1,4 +1,5 @@
 from data_handling.DataLoaderBase import DataLoaderBase
+import numpy as np
 import pandas
 import pickle
 
@@ -31,13 +32,16 @@ class DmCvdDataLoader(DataLoaderBase):
 #            ] 
 #            for i, traj in enumerate(trajs)
 #        ]
+        max_event_time = np.max(np.array(event_times))
+        norm = max_event_time
+#        norm = 365
         trajs = [
             [   
-                [traj_t[0]/365., [cov_value for c, cov_value in enumerate(traj_t[1])]]
+                [traj_t[0]/norm, [cov_value for c, cov_value in enumerate(traj_t[1])]]
                 for t, traj_t in enumerate(traj)
             ] 
             for i, traj in enumerate(trajs)
         ]
-        event_times = [event_time/365. for event_time in event_times]
+        event_times = [event_time/norm for event_time in event_times]
         return event_times, censoring_indicators, missing_indicators, trajs, static_vars
         

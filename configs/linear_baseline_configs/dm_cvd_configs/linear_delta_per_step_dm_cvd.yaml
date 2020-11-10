@@ -1,0 +1,42 @@
+main_type: 'basic_main'
+savedir_pre: '../output/dm_cvd/'
+
+data_input_params:
+    dataset_name: 'dm_cvd'
+    te_percent: .20
+    cov_time_representation: 'absolute'
+    data_loading_params:
+        #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
+        paths: '../data/dm_cvd/data_dev_filtered_by_events_after_183.pkl'
+
+model_params:
+    model_type: 'linear_delta_per_step'
+    dynamic_cov_dim: 187
+    static_cov_dim: 4 # dummy static var for now that does nothing
+
+eval_params:
+    eval_metrics: ['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    dynamic_metrics:
+        start_times: [.05, .15, .25, .35, .45, .55, .65]
+        window_length: .5
+        time_step: .25
+        #start_times: [.5, 1., 1.5, 2.]
+        #window_length: 3.
+        #time_step: .25
+
+train_params:
+    learning_rate: .05
+    batch_size: 10000
+    conv_thresh: .00000001
+    n_epoch_print: 50
+    max_iter: 600
+
+    diagnostic_params:
+
+    loss_params:
+        distribution_type: 'gompertz'
+        avg_per_seq: True
+        step_ahead_cov_reg: .0
+        drift_reg: 0.
+        global_diff_reg: 0.
+        delta_reg: 0. #0.1 #.01

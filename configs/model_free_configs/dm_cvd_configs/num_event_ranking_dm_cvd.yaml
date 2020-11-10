@@ -12,7 +12,7 @@ model_params:
     model_type: 'dummy_global_zero_deltas'
 
 eval_params:
-    eval_metrics: ['auc', 'c_index_from_start_time'] #['auc', 'c_index']
+    eval_metrics: ['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
         start_times: [.5, 1., 1.5, 2.]
         window_length: 3.
@@ -31,7 +31,7 @@ train_params:
 
     loss_params:
         distribution_type: 'rayleigh'
-        avg_per_seq: true
+        avg_per_seq: True
         step_ahead_cov_reg: .0
         drift_reg: 0.
         global_diff_reg: 0.

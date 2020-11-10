@@ -1,9 +1,10 @@
 main_type: 'basic_main'
-savedir: '../output/synth/rayleigh_linear_delta_per_step'
+savedir_pre: '../output/synth/'
 
 data_input_params:
     dataset_name: 'simple_synth'
     te_percent: .20
+    cov_time_representation: 'absolute'
     data_loading_params:
         paths: '../data/synth/simple_synth_delta_per_step.pkl'
 
@@ -13,15 +14,15 @@ model_params:
     static_cov_dim: 1 # dummy static var for now that does nothing
 
 eval_params:
-    eval_metrics: ['auc', 'c_index_from_most_recent_time'] #['auc', 'c_index']
+    eval_metrics: ['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
         start_times: [.06, .12, .18, .24, .3]
         window_length: .3
         time_step: .025
 
 train_params:
-    learning_rate: 1. #.001
-    batch_size: 10000
+    learning_rate: .1 #.001
+    batch_size: 20000
     conv_thresh: .00000001
     n_epoch_print: 50
     max_iter: 1000
@@ -30,7 +31,7 @@ train_params:
 
     loss_params:
         distribution_type: 'rayleigh'
-        avg_per_seq: true
+        avg_per_seq: True
         step_ahead_cov_reg: .0
         drift_reg: 0.00
         global_diff_reg: 0.00

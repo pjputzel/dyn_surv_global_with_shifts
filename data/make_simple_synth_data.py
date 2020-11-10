@@ -1,28 +1,30 @@
 import numpy as np
+import torch
 import pickle
 import matplotlib.pyplot as plt
 
 
 def main():
-    n_per_class = [1000, 1000]
+    n_per_class = [10000, 10000]
     # for theta per step
 #    dataset_type = 'theta_per_step'
-#    theta_func = theta_max5_linear
+#    theta_func = theta_max_one_half_linear
 #    cov_traj_func_per_class = \
 #        [
-#            linear_func_slope5,
+#            linear_func_slope2,
 #            linear_func_slope_one_half
 #        ]
 #    interevent_rate_param_per_class = [.1, .2]
+#    global_theta = None
 
     # for delta per step
     dataset_type = 'delta_per_step'
-    delta_func = linear_func_slope20
+    delta_func = linear_func_slope1
     #maybe healthy should age half as slow (ie 1/2t)
     cov_traj_func_per_class = \
         [
             linear_func_slope20,
-            linear_func_slope_one_half
+            linear_func_slope1
         ]
     interevent_rate_param_per_class = [.05, .1]
     global_theta = .1
@@ -39,8 +41,14 @@ def main():
 
     print(data.cov_trajs[0], data.true_event_times[0], data.thetas[0])
     print(data.cov_trajs[-1], data.true_event_times[-1], data.thetas[-1])
-    plt.hist(data.true_event_times[0:n_per_class[0]], alpha=.5, label='unhealthy', bins=50)
-    plt.hist(data.true_event_times[n_per_class[0]:], alpha=.5, label='healthy', bins=50)
+    plt.hist(
+        data.true_event_times[0:n_per_class[0]], alpha=.5, 
+        label='unhealthy', bins=50, density=True
+    )
+    plt.hist(
+        data.true_event_times[n_per_class[0]:], alpha=.5, 
+        label='healthy', bins=50, density=True
+    )
     plt.legend()
     plt.savefig('hist_by_class.png')
     plt.clf()
@@ -49,9 +57,9 @@ def main():
     plt.legend()
     plt.savefig('cov_trajs_ex.png')
     plt.clf()
-    x = np.linspace(0, 1, 100)
-    plt.plot(x, (x/global_theta) * np.exp(-x**2/(2 * global_theta)))
-    plt.savefig('global_density.png')
+#    x = np.linspace(0, 1, 100)
+#    plt.plot(x, (x/global_theta) * np.exp(-x**2/(2 * global_theta)))
+#    plt.savefig('global_density.png')
 
 def test_truncated_sampling():
     n_per_class = [1000, 1000]
@@ -100,7 +108,7 @@ def delta_func_one_slope_two(x):
 
 def theta_max_one_half_linear(x):
     if x >= .5:
-        return 0
+        return 0.01
     return .5 - x
 
 def base_two_exponential(x):
@@ -108,7 +116,7 @@ def base_two_exponential(x):
 
 def theta_max5_linear(x):
     if x >= 5:
-        return 0
+        return 0.001
     return 5 - x
 
 def inverse_func(x):
@@ -140,6 +148,7 @@ def linear_func_slope_one_ten_thousandth(x):
 
 def linear_func_slope_one_trillionth(x):
     return (1./1000000000) * x
+
 class SimpleData:
 
     def __init__(self,
@@ -161,6 +170,7 @@ class SimpleData:
         self.global_theta = global_theta
 
     def construct_data(self):
+        #self.clear_data()
         self.sample_trajs_and_event_times()
         # must censor after sampling cov measurements
         # to prevent correlation between the censoring times
@@ -168,6 +178,7 @@ class SimpleData:
         self.randomly_censor_event_times()
         self.truncate_cov_seqs()
         self.form_cov_trajectories()
+    
 
     def sample_trajs_and_event_times(self):
         cov_vals, cov_times, true_event_times, thetas = [], [], [], []
@@ -218,7 +229,7 @@ class SimpleData:
         if self.dataset_type == 'theta_per_step':
             proposed_time = np.random.__getattribute__(
                 self.dist_type
-            )(*[theta])
+            )(*[theta**(1/2)])
             proposed_time += next_cov_time
         elif self.dataset_type == 'delta_per_step':
             proposed_time = self.sample_truncated_distribution(
@@ -321,8 +332,141 @@ class SimpleData:
         pass
 
 
+class LearnedDataThetaIJ(SimpleData):
+    def __init__(self, trained_model, simple_data):
+        self.n_classes = len(simple_data.n_per_class)
+        self.n_per_class =  simple_data.n_per_class
+        self.model = trained_model
+        self.theta_func = self.get_theta_func()
+        if not simple_data.dataset_type == 'theta_per_step':
+            raise ValueError('LearnedDataThetaIJ must be initialized with a delta_per_step dataset!')
+        self.dataset_type = simple_data.dataset_type
+        self.cov_traj_func_per_class = simple_data.cov_traj_func_per_class
+        self.interevent_rate_param_per_class = simple_data.interevent_rate_param_per_class
+        self.censoring_prob_per_class = simple_data.censoring_prob_per_class
+        self.dist_type = simple_data.dist_type
+        self.global_theta = None
+    
+    def get_theta_func(self):
+        model_class_name = type(self.model).__name__
+        if model_class_name == 'LinearThetaIJModel':
+            theta_func = self.get_theta_func_linear()
+        else:
+            error = '%s model type not yet implemented for LearnedDataClass' %model_class_name
+            raise NotImplementedError(error)
+        return theta_func
 
+    def get_theta_func_linear(self):
+        coef_time = self.model.linear.weight[0][0]
+        coef_cov = self.model.linear.weight[0][1]
+        bias = self.model.linear.bias
+        def theta_func(cov, t):
+            def softplus(x, B=100):
+                return torch.nn.functional.softplus(x, B)
+            activation = coef_time * t + coef_cov * cov + bias
+#            ret = torch.exp(-activation).cpu().detach().numpy()[0]
+            ret = softplus(activation).cpu().detach().numpy()[0]
+            return ret
+        return theta_func
 
+    def sample_single_traj_and_event_time(self, class_idx, max_traj_len=1000):
+        cov_vals = [self.cov_traj_func_per_class[class_idx](0)]
+        cov_times = [0]
+        thetas = [self.theta_func(cov_vals[0], 0)]
+        
+        proposed_time = np.inf 
+        time_delta = self.sample_time_delta_per_class(class_idx)
+        i = 0
+        continue_loop = (cov_times[-1] + time_delta < proposed_time) and (i < max_traj_len)
+        while continue_loop:
+            next_cov_time = cov_times[-1] + time_delta
+            next_cov_val = self.cov_traj_func_per_class[class_idx](next_cov_time)
+            # main difference from SimpleData class
+            next_theta = self.theta_func(next_cov_val, next_cov_time)
+            
+            cov_times.append(next_cov_time)
+            cov_vals.append(next_cov_val)
+            thetas.append(next_theta)         
+
+            proposed_time = self.sample_proposed_time(
+                next_theta, next_cov_time
+            )
+            time_delta = self.sample_time_delta_per_class(class_idx)
+            i += 1
+            continue_loop = (cov_times[-1] + time_delta < proposed_time) and (i < max_traj_len)
+
+        if i >= max_traj_len:
+            print('Max trajectory length reached while sampling from learned data!')
+        true_event_time = proposed_time
+        return cov_vals, cov_times, thetas, true_event_time
+
+class LearnedDataDeltaIJ(SimpleData):
+    
+    def __init__(self, trained_model, simple_data):
+        self.n_classes = len(simple_data.n_per_class)
+        self.n_per_class =  simple_data.n_per_class
+        self.model = trained_model
+        self.theta_func = self.get_theta_func()
+        if not simple_data.dataset_type == 'delta_per_step':
+            raise ValueError('LearnedDataDeltaIJ must be initialized with a delta_per_step dataset!')
+        self.dataset_type = simple_data.dataset_type
+        self.cov_traj_func_per_class = simple_data.cov_traj_func_per_class
+        self.interevent_rate_param_per_class = simple_data.interevent_rate_param_per_class
+        self.censoring_prob_per_class = simple_data.censoring_prob_per_class
+        self.dist_type = simple_data.dist_type
+        self.global_theta = torch.exp(-self.model.global_param_logspace).cpu().detach().numpy()[0]
+
+    def get_theta_func(self):
+        model_class_name = type(self.model).__name__
+        if model_class_name == 'LinearDeltaIJModel':
+            theta_func = self.get_theta_func_linear()
+        else:
+            error = '%s model type not yet implemented for LearnedDataClass' %model_class_name
+            raise NotImplementedError(error)
+        return theta_func
+        
+    def get_theta_func_linear(self):
+        coef_time = self.model.linear.weight[0][0]
+        coef_cov = self.model.linear.weight[0][1]
+        bias = self.model.linear.bias
+        def theta_func(cov, t):
+            def softplus(x, B=100):
+                return torch.nn.functional.softplus(x, B)
+            activation = coef_time * t + coef_cov * cov + bias
+            ret =  (softplus(activation) - t).cpu().detach().numpy()[0]
+            return ret
+        return theta_func
+
+    def sample_single_traj_and_event_time(self, class_idx, max_traj_len=1000):
+        cov_vals = [self.cov_traj_func_per_class[class_idx](0)]
+        cov_times = [0]
+        thetas = [self.theta_func(cov_vals[0], 0)]
+        
+        proposed_time = np.inf 
+        time_delta = self.sample_time_delta_per_class(class_idx)
+        i = 0
+        continue_loop = (cov_times[-1] + time_delta < proposed_time) and (i < max_traj_len)
+        while continue_loop:
+            next_cov_time = cov_times[-1] + time_delta
+            next_cov_val = self.cov_traj_func_per_class[class_idx](next_cov_time)
+            # main difference from SimpleData class
+            next_theta = self.theta_func(next_cov_val, next_cov_time)
+            
+            cov_times.append(next_cov_time)
+            cov_vals.append(next_cov_val)
+            thetas.append(next_theta)         
+
+            proposed_time = self.sample_proposed_time(
+                next_theta, next_cov_time
+            )
+            time_delta = self.sample_time_delta_per_class(class_idx)
+
+            i += 1
+            continue_loop = (cov_times[-1] + time_delta < proposed_time) and (i < max_traj_len)
+        if i >= max_traj_len:
+            print('Max trajectory length reached while sampling from learned data!')
+        true_event_time = proposed_time
+        return cov_vals, cov_times, thetas, true_event_time
 
 if __name__ == '__main__':
     main()

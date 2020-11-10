@@ -20,7 +20,7 @@ class DeltaIJModel(nn.Module):
         )
 
         self.params_fc_layer = nn.Linear(
-            self.params['hidden_dim'],
+            self.params['hidden_dim'] + self.params['static_cov_dim'],
             1
         )
 
@@ -53,11 +53,19 @@ class DeltaIJModel(nn.Module):
             hidden_states, max_len
         )
 
-        fc_output = self.params_fc_layer(unpacked_hidden_states)
+        static_covs = batch.static_covs
+        static_covs[torch.isnan(static_covs)] = -1 
+        shaped_static_covs = \
+            static_covs.unsqueeze(1).repeat(1, unpacked_hidden_states.shape[1], 1)
+        fc_output = self.params_fc_layer(
+            torch.cat([unpacked_hidden_states, shaped_static_covs], axis=2)
+        )
 
         #print(fc_output.shape, batch.cov_times.shape)
         if not self.deltas_fixed_to_zero:
-            pred_deltas = torch.exp(-fc_output) - batch.cov_times.unsqueeze(-1)
+            #pred_deltas = torch.exp(-fc_output) - batch.cov_times.unsqueeze(-1)
+            pred_deltas = torch.nn.functional.softplus(fc_output, beta=100)
+            pred_deltas = pred_deltas - batch.cov_times.unsqueeze(-1)
         else:
             pred_deltas = torch.zeros(all_data.shape[0], 1)
 #        print(pred_deltas.shape)
@@ -120,6 +128,15 @@ class DeltaIJModel(nn.Module):
         unpacked = unpacked.permute(1, 0, 2)
         return unpacked, lens
     
+    def set_and_freeze_global_param(self, global_param):
+        with torch.no_grad():
+            self.global_param_logspace.copy_(
+                -torch.log(nn.Parameter(global_param))
+            )
+        self.freeze_global_param()
+
+    def freeze_global_param(self):
+        self.global_param_logspace.requires_grad = False
     def get_global_param(self):
         #if self.distribution_type == 'weibull':
         #    scale = torch.exp(-self.global_param_logspace[0])

@@ -4,6 +4,7 @@ import numpy as np
 import time
 from utils.Diagnostics import Diagnostics
 from loss.LossCalculator import LossCalculator
+import sys
 
 class BasicModelTrainer:
     def __init__(self, train_params, model_type):
@@ -19,23 +20,29 @@ class BasicModelTrainer:
         cur_loss = torch.tensor(np.inf)
         epoch = 0
         self.optimizer = torch.optim.Adam(model.parameters(), lr=self.params['learning_rate'])
+        #self.lr_scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, self.params['max_iter']/10)
+        #self.lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, int(self.params['max_iter']/10))
         while torch.abs(cur_loss - prev_loss) > self.params['conv_thresh'] and epoch < self.params['max_iter']:
             data_input.make_randomized_tr_batches(self.params['batch_size'])
 
             pred_params, hidden_states, total_loss, reg, logprob =\
                 self.step_params_over_all_batches(model, data_input)
 
-            self.diagnostics.update(
-                pred_params, hidden_states, total_loss, reg, logprob, epoch
-            )
 
             if epoch % self.params['n_epoch_print'] == 0:
+                self.diagnostics.update(
+                    pred_params, hidden_states, total_loss, reg, logprob, epoch
+                )
                 self.diagnostics.print_loss_terms()
-            
+            #self.lr_scheduler.step()
             prev_loss = cur_loss
             cur_loss = total_loss
             epoch += 1
 
+        # update one last time
+        self.diagnostics.update(
+            pred_params, hidden_states, total_loss, reg, logprob, epoch
+        )
         self.diagnostics.print_loss_terms()
         print('Total training time was %d seconds'\
             %(time.time() - start_time)

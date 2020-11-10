@@ -11,6 +11,7 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
         self.params = logprob_params
 
     def forward(self, thetas, batch, global_theta):
+        global_theta = None
         cov_times = batch.cov_times
         shifted_event_times = batch.event_times.unsqueeze(1) - cov_times
         logpdf = self.compute_logpdf(shifted_event_times, thetas)
@@ -37,13 +38,13 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
     
 
 
-    def compute_logpdf(self, shifted_event_times, global_theta):
+    def compute_logpdf(self, shifted_event_times, thetas):
         raise NotImplementedError('Compute logpdf must be defined in subclasses of DeltaIJLogProbCalculator') 
 
-    def compute_logsurv(self, shifted_event_times, global_theta):
+    def compute_logsurv(self, shifted_event_times, thetas):
         raise NotImplementedError('Compute logsurv must be defined in subclasses of DeltaIJLogProbCalculator') 
     
-    def compute_lognormalization(self, shifted_cov_times, global_theta): 
+    def compute_lognormalization(self, shifted_cov_times, thetas): 
         raise NotImplementedError('Compute lognormalization must be defined in subclasses of DeltaIJLogProbCalculator') 
         
 ################################################ For cases in [s, s + \delta s] with fixed 
@@ -123,20 +124,21 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
         return ret
 
     def compute_survival_probability(
-        self, deltas, batch, global_theta,
+        self, thetas, batch, global_theta,
         start_time, time_delta=None
     ):
+        global_theta = None
         # doesn't actually use the time delta
         # since survival is from S -> infty
         
-        _, deltas_at_most_recent_time = \
-            self.find_most_recent_times_and_deltas(deltas, batch, start_time)
-        shifted_start_times = start_time + deltas_at_most_recent_time        
+        _, thetas_at_most_recent_time = \
+            self.find_most_recent_times_and_thetas(thetas, batch, start_time)
+        shifted_start_times = start_time + thetas_at_most_recent_time        
 
         survival_prob = torch.exp( 
             self.compute_logsurv(
                 shifted_start_times,
-                global_theta
+                thetas_at_most_recent_time
             )
         )
         return survival_prob
@@ -145,7 +147,7 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
         self, thetas, batch, global_theta,
         start_time, time_delta='to_true_event_time'
     ):
-
+        global_theta = None
         max_times_less_than_start, thetas_at_most_recent_time = \
             self.find_most_recent_times_and_thetas(thetas, batch, start_time)
         end_time = batch.event_times
@@ -179,6 +181,8 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
         start_time, event_time_i, k 
     ):
 
+        global_theta = None
+
         max_times_less_than_start, thetas_at_most_recent_time = \
             self.find_most_recent_times_and_thetas(thetas, batch, start_time)
         end_time = event_time_i
@@ -199,6 +203,63 @@ class ThetaIJBaseLogProbCalculator(nn.Module):
         )
 
         ret = (1/normalization) * (start_surv - end_surv)
+        return ret
+
+    def compute_cond_probs_truncated_at_S_over_window(self,
+        thetas, batch, global_theta, start_time, time_delta
+    ):
+        global_theta = None
+        max_times_less_than_start, thetas_at_most_recent_time = \
+            self.find_most_recent_times_and_thetas(thetas, batch, start_time)
+   
+        shifted_end_of_window = \
+            start_time + time_delta + thetas_at_most_recent_time
+
+        shifted_start_of_window = \
+            start_time + thetas_at_most_recent_time
+
+        end_surv = torch.exp(
+            self.compute_logsurv(shifted_end_of_window, thetas_at_most_recent_time)
+        )
+
+        start_surv = torch.exp(
+            self.compute_logsurv(shifted_start_of_window, thetas_at_most_recent_time)
+        )
+#        check = (end_surv - start_surv < 1e-121)
+#        print(torch.sum(check)/end_surv.shape[0])
+#        print(end_surv, start_surv)
+        ret = 1. - end_surv/start_surv
+#        print(torch.sum(torch.isnan(ret)))
+        return ret
+
+    def compute_cond_probs_truncated_at_S_to_event_times_i(self,
+        thetas, batch, global_theta, start_time, time_delta
+    ):
+        global_theta = None
+        max_times_less_than_start, thetas_at_most_recent_time = \
+            self.find_most_recent_times_and_thetas(thetas, batch, start_time)
+        sorted_event_times, sort_idxs = torch.sort(batch.event_times)
+        sorted_thetas = thetas_at_most_recent_time[sort_idxs]
+   
+        shifted_end_of_window = \
+            sorted_event_times.reshape(-1, 1) + sorted_thetas.reshape(1, -1)
+
+        shifted_start_of_window = \
+            start_time + sorted_thetas
+
+        end_surv = torch.exp(
+            self.compute_logsurv(shifted_end_of_window, sorted_thetas)
+        )
+
+        start_surv = torch.exp(
+            self.compute_logsurv(shifted_start_of_window, sorted_thetas)
+        )
+
+        ret = 1. - end_surv/start_surv
+        unc_at_risk = \
+            ~batch.censoring_indicators[sort_idxs].bool() &\
+            (batch.event_times[sort_idxs] > start_time)
+        ret = ret[unc_at_risk]
         return ret
 def print_grad(grad):
     print(grad) 

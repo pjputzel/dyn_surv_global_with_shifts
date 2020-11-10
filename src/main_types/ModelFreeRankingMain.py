@@ -81,6 +81,6 @@ class EvaluateNumEventsRankingMain(ModelFreeRankingMain):
             self.params['train_params']['loss_params'],
             model_type
         )
-        # evaluate with cov_times_ranking
+        # evaluate with num_events_ranking
         self.model_evaluator.evaluate_model('num_events_ranking', data_input, diagnostics)
 

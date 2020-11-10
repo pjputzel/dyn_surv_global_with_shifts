@@ -1,11 +1,17 @@
 from data_handling.SyntheticDataLoader import SyntheticDataLoader
 from data_handling.SyntheticDataLoader import SimpleSyntheticDataLoader
+from data_handling.CovidDataLoader import CovidDataLoader
+from data_handling.MimicDataLoader import MimicDataLoader
 from pandas import qcut
 from sklearn.model_selection import train_test_split
 from data_handling.DmCvdDataLoader import DmCvdDataLoader
 import numpy as np
 import torch
+import sys
+import tqdm
+import pickle
 
+COVID_NUM_CONT_COVS = 114
 # there should only be one data-input (don't subclass) but one dataloader per new dataset
 # DataInput is agnostic to tr/te split, but the made batches which are used by the rest of the model will use the corresponding training/testing idxs
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
@@ -23,36 +29,67 @@ class DataInput:
             dataloader = DmCvdDataLoader(self.params['data_loading_params'])
         elif self.params['dataset_name'] == 'simple_synth':
             dataloader = SimpleSyntheticDataLoader(self.params['data_loading_params'])
+        elif self.params['dataset_name'] == 'covid':
+            dataloader = CovidDataLoader(self.params['data_loading_params'])
+            self.num_cont_covs = COVID_NUM_CONT_COVS
+        elif self.params['dataset_name'] == 'mimic':
+            dataloader = MimicDataLoader(self.params['data_loading_params'])
         else:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 
         self.event_times, self.censoring_indicators, self.missing_indicators, self.covariate_trajectories, self.static_covs = dataloader.load_data()
         self.format_data()
-        #self.normalize_data()
+        self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
+        print('data loaded!')
 #        print(self.cov_times[0:10, 0:30])
         #raise RuntimeError('Preston stopped the code!!!')
 #        self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         #print(self.unshuffled_tr_idxs)
 
     def normalize_data(self):
-        # normalization is needed for labtests in cov trajectories only
-        LABTEST_CUTOFF = 120  # plus one from notebook since includes timedeltas
+        print('Assuming data is processed with all continous features occuring first and all discrete/categorical occuring second!')
+        # only normalize the continous features
+        # the + 1 is because the first entry is the timestamp
         cov_trajs = self.covariate_trajectories
-        print(cov_trajs.shape)
-        #cov_trajs[torch.isnan(cov_trajs)] = 0
-        min_covs = torch.min(torch.min(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
-        max_covs = torch.max(torch.max(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
-#        print('min covs:' , min_covs)
-#        print('max covs:', max_covs)
-        numerator = cov_trajs[:, :, 1:120] - min_covs
-        denominator =  max_covs - min_covs 
-        #print(numerator/denominator)
-        normalized_labtests = numerator/denominator
-        normalized_labtests[torch.isnan(normalized_labtests)] = 0
-#        print('Normalized labtests:', torch.sum(normalized_labtests, axis=1)[0])
-        self.covariate_trajectories[:, :, 1:120] = normalized_labtests
+        cov_trajs = torch.where(
+            self.padding_indicators.bool().unsqueeze(-1),
+            torch.ones(cov_trajs.shape) * 1.  * np.nan, cov_trajs
+        ).detach().numpy()
+        cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_covs + 1]
+        mean_covs = np.nanmean(np.nanmean(cont_cov_trajs, axis=0), axis=0)
+#        mean_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].mean(0).mean(0)
+#        std_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].reshape([cov_trajs.shape[0] * cov_trajs.shape[1], self.num_cont_covs]).std(0)
+        std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs]))
+        norm_covs = \
+            (cont_cov_trajs - mean_covs)/std_covs
+        print(np.nanstd(np.nanstd(norm_covs, axis=0), axis=0), 'meooww' )
+        print(np.nanstd(norm_covs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs])))
+        norm_covs[np.isnan(norm_covs)] = 0
+        self.covariate_trajectories[:, :, 1:self.num_cont_covs + 1] = \
+            torch.tensor(norm_covs, dtype=torch.float64)
+
+
+#        min_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].min(0)[0].min(0)[0]
+#        max_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].max(0)[0].max(0)[0]
+
+#        # normalization is needed for labtests in cov trajectories only
+#        labtest_cutoff = 120  # plus one from notebook since includes timedeltas
+#        cov_trajs = self.covariate_trajectories
+#        print(cov_trajs.shape)
+#        #cov_trajs[torch.isnan(cov_trajs)] = 0
+#        min_covs = torch.min(torch.min(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
+#        max_covs = torch.max(torch.max(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
+##        print('min covs:' , min_covs)
+##        print('max covs:', max_covs)
+#        numerator = cov_trajs[:, :, 1:120] - min_covs
+#        denominator =  max_covs - min_covs 
+#        #print(numerator/denominator)
+#        normalized_labtests = numerator/denominator
+#        normalized_labtests[torch.isnan(normalized_labtests)] = 0
+##        print('normalized labtests:', torch.sum(normalized_labtests, axis=1)[0])
+#        self.covariate_trajectories[:, :, 1:120] = normalized_labtests
 
     def format_data(self):
         self.format_cov_trajs_and_event_times_time_rep()
@@ -62,7 +99,15 @@ class DataInput:
         # ended up doing this in preprocessing
 
         self.pad_cov_trajs_with_zeros()
+        print('converting to tensors...')
         self.convert_data_to_tensors()
+        #print('example covs before normalization')
+        #print(self.covariate_trajectories[0][0:2])
+        self.replace_missing_values_with_mean()
+        #print('after replacing vals with mean')
+        #print(self.covariate_trajectories[0][0:2])
+#        self.replace_missing_values_with_zero()
+        print('concatenating with missingness..')
         self.concatenate_covs_with_missingness()
 
     def format_cov_trajs_and_event_times_time_rep(self):
@@ -89,6 +134,12 @@ class DataInput:
         
 
         cov_time_rep = self.params['cov_time_representation']
+#        print([len(event) for event in self.covariate_trajectories[0]])
+##        print(self.covariate_trajectories[0])
+#        print(self.covariate_trajectories[0][0:2])
+#        print(self.covariate_trajectories[0][0])
+#        print(self.covariate_trajectories[-1][-1])
+#        print(type(self.covariate_trajectories), type(self.covariate_trajectories[0]), type(self.covariate_trajectories[0][0]))
         if cov_time_rep == 'delta':
             # event[0] is still the time of the covariate measurement
             self.covariate_trajectories = [ 
@@ -102,16 +153,12 @@ class DataInput:
             #    for j, cov_event in enumerate(traj):
             #        if not j ==0:
             #            self.covariate_trajectories[i][j][0] = self.cov_times[i][j] - self.cov_times[i][j - 1]
-
-                        
-
         elif cov_time_rep == 'absolute':
             # don't need to do anything in this case
             pass
         else:
             message = 'Time representation %s not defined' %cov_time_rep
             raise ValueError(message)
-
 
     def pad_cov_trajs_with_zeros(self): 
         max_len_trajectory = np.max([len(traj) for traj in self.covariate_trajectories])
@@ -120,7 +167,7 @@ class DataInput:
         padded_cov_times = []
         padding_indicators = []
         padded_missing_indicators = []
-        for i, traj in enumerate(self.covariate_trajectories):
+        for i, traj in enumerate(tqdm.tqdm(self.covariate_trajectories)):
             padding_indicators_traj = [0 for i in range(len(traj))]
             if len(traj) < max_len_trajectory:
                 padded_trajectory = traj + \
@@ -180,6 +227,39 @@ class DataInput:
         self.padding_indicators = torch.tensor(self.padding_indicators)
         self.static_covs = torch.tensor(self.static_covs)
 
+    def replace_missing_values_with_zero(self):
+        if not torch.is_tensor(self.covariate_trajectories):
+            raise ValueError('Replacing missingness must occur after converting to tensor')
+        if not self.params['dataset_name'] == 'covid':
+            raise NotImplementedError('replacing missing values with 0 only implemented for covid data where the missing values are -1')
+        self.covariate_trajectories[self.covariate_trajectories == -1] = 0
+
+
+
+    def replace_missing_values_with_mean(self):
+        if not torch.is_tensor(self.covariate_trajectories):
+            raise ValueError('Replacing missingness must occur after converting to tensor')
+        if not self.params['dataset_name'] == 'covid':
+            raise NotImplementedError('replacing missing values with mean only implemented for covid data where the missing values are -1')
+#        print(self.covariate_trajectories.shape)
+#        print(self.covariate_trajectories[0][0])
+        cov_traj = self.covariate_trajectories
+        cov_traj = torch.where(
+            self.padding_indicators.int().bool().unsqueeze(-1),
+            torch.ones(cov_traj.shape).to(dtype=torch.float64) * 1.0 * np.nan, cov_traj
+        )
+        cov_traj[cov_traj == -1] = np.nan
+        
+        means = torch.tensor(np.nanmean(np.nanmean(cov_traj.detach().numpy(), axis=1), axis=0), dtype=torch.float64)
+        print('means in replacement', means[1:self.num_cont_covs + 1])
+        num_i, num_steps, num_dim = self.covariate_trajectories.shape
+        cov_traj = torch.where(
+            torch.isnan(cov_traj),
+            means.unsqueeze(0).unsqueeze(0).expand(num_i, num_steps, num_dim),
+            cov_traj
+        )
+        self.covariate_trajectories = cov_traj
+#        print(self.covariate_trajectories[0][0])
     def concatenate_covs_with_missingness(self):
         self.covariate_trajectories = torch.cat([self.covariate_trajectories, self.missing_indicators], dim=-1)
 
@@ -188,11 +268,16 @@ class DataInput:
         # if you want to do CV with disjoint sets each step then I'd make a separate function
         # which returns an iterator over the CV splits return tr/te batches for each split
         # accordingly, also this will of course be its own main
-        te_percent = self.params['te_percent']
-        self.tr_idxs, self.te_idxs = train_test_split(
-            np.arange(self.event_times.shape[0]), test_size=te_percent
-        )
-        self.tr_idxs, self.te_idxs = torch.tensor(self.tr_idxs), torch.tensor(self.te_idxs)
+        if self.params['saved_tr_te_idxs']:
+            print('Loading saved tr/test idxs, not using te_percent to make a new split')
+            with open(self.params['saved_tr_te_idxs'], 'rb') as f:
+                self.tr_idxs, self.te_idxs = pickle.load(f)
+        else:
+            te_percent = self.params['te_percent']
+            self.tr_idxs, self.te_idxs = train_test_split(
+                np.arange(self.event_times.shape[0]), test_size=te_percent
+            )
+            self.tr_idxs, self.te_idxs = torch.tensor(self.tr_idxs), torch.tensor(self.te_idxs)
 
         self.covariate_trajectories_tr = self.covariate_trajectories[self.tr_idxs]
         self.traj_lens_tr = self.traj_lens[self.tr_idxs]
@@ -379,6 +464,13 @@ class Batch:
         self.unshuffled_idxs = batch_unshuffle_idxs
         self.max_seq_len_all_batches = max_seq_len_all_batches
         self.missing_indicators = batch_missing_indicators
+
+    def __sizeof__(self):
+        tot = 0
+        for param in dir(self):
+            val = getattr(self, param)
+            tot += sys.getsizeof(val)
+        return tot
 
     def get_unpacked_padded_cov_trajs(self):
         batch_covs, lengths = torch.nn.utils.rnn.pad_packed_sequence(
