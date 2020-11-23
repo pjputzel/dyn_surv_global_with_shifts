@@ -6,23 +6,31 @@ from data_handling.DataLoaderBase import DataLoaderBase
 import numpy as np
 import pandas
 import pickle
-
+DEBUG = True 
 class CovidDataLoader(DataLoaderBase):
 
     def __init__(self, data_loader_params):
         self.params = data_loader_params
-
-    def load_data(self):
-        data_path = self.params['paths']
-        with open(data_path, 'rb') as f:
+        self.data_path = self.params['paths']
+        with open(self.data_path, 'rb') as f:
             data = pickle.load(f)
-
+        self.data = data
+        self.o2_enu_to_name = data.o2_enu_to_name
+    def load_data(self):
+        data = self.data
         event_times = data.censored_event_times
         censoring_indicators = list(data.censoring_indicators)
         dynamic_covs = data.dynamic_covs
         missing_indicators = data.missing_indicators
         static_vars = data.static_covs
-        
+        if DEBUG:
+            idxs = np.random.permutation(np.arange(len(event_times)))[0:50]
+            event_times = [event_times[i] for i in idxs]
+            censoring_indicators = [censoring_indicators[i] for i in idxs]
+            missing_indicators = [missing_indicators[i] for i in idxs]
+            dynamic_covs = [dynamic_covs[i] for i in idxs]
+            static_vars = [static_vars[i] for i in idxs]
+
         static_vars = [
             list(static_vars_i[0]) for static_vars_i in static_vars
         ]
@@ -65,5 +73,12 @@ class CovidDataLoader(DataLoaderBase):
 #            ] 
 #            for i, traj in enumerate(trajs)
 #        ]
+#        icu_idx = -1
+#        eff_traj_len = 10
+#        for ind_idx in range(len(trajs)):
+#            print([   meas[1][icu_idx] 
+#                for meas in trajs[ind_idx][0:eff_traj_len]
+#            ])
+ 
         return event_times, censoring_indicators, missing_indicators, trajs, static_vars
         

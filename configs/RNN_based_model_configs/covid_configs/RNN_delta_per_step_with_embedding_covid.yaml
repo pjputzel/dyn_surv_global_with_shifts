@@ -4,7 +4,7 @@ savedir_pre: '../output/covid/'
 data_input_params:
     dataset_name: 'covid'
     saved_tr_te_idxs: '../data/COVID-19/train_test_idxs_covid.pkl'
-    te_percent: 0.1 #not used if saved_tr_te_idxs are given unless debugging
+    te_percent: 0.
     cov_time_representation: 'absolute'
     data_loading_params:
         #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
@@ -13,7 +13,7 @@ data_input_params:
 model_params:
     model_type: 'RNN_delta_per_step'
     dynamic_cov_dim: 248 #103
-    hidden_dim: 10 # current run has 100, probs why it's so slow
+    hidden_dim: 5 # current run has 100, probs why it's so slow
     static_cov_dim: 11 # dummy static var for now that does nothing
 
 eval_params:
@@ -27,16 +27,16 @@ eval_params:
         #time_step: .25
 
 train_params:
-    learning_rate: .01
+    learning_rate: .05
     batch_size: 10000
     conv_thresh: .00000001
     n_epoch_print: 50
-    max_iter: 2000
+    max_iter: 1000
 
     diagnostic_params:
 
     loss_params:
-        distribution_type: 'rayleigh' #'gompertz' #
+        distribution_type: 'rayleigh'
         avg_per_seq: True
         step_ahead_cov_reg: .0
         drift_reg: 0.

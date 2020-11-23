@@ -16,10 +16,13 @@ COVID_NUM_CONT_COVS = 114
 # DataInput is agnostic to tr/te split, but the made batches which are used by the rest of the model will use the corresponding training/testing idxs
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
 
+
+DEBUG = True 
 class DataInput:
 
     def __init__(self, data_input_params):
         self.params = data_input_params
+        self.params['debug'] = DEBUG
     
     def load_data(self):
         if self.params['dataset_name'] == 'synth':
@@ -32,14 +35,23 @@ class DataInput:
         elif self.params['dataset_name'] == 'covid':
             dataloader = CovidDataLoader(self.params['data_loading_params'])
             self.num_cont_covs = COVID_NUM_CONT_COVS
+            self.o2_enu_to_name = dataloader.o2_enu_to_name
         elif self.params['dataset_name'] == 'mimic':
             dataloader = MimicDataLoader(self.params['data_loading_params'])
         else:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 
         self.event_times, self.censoring_indicators, self.missing_indicators, self.covariate_trajectories, self.static_covs = dataloader.load_data()
+#        if self.params['debug']:
+#            idxs = torch.tensor(np.random.permutation(np.arange(len(self.event_times)))[0:50])
+#            self.event_times = [self.event_times[i] for i in idxs]
+#            self.censoring_indicators = [self.censoring_indicators[i] for i in idxs]
+#            self.missing_indicators = [self.missing_indicators[i] for i in idxs]
+#            self.covariate_trajectories = [self.covariate_trajectories[i] for i in idxs]
+#            self.static_covs = [self.static_covs[i] for i in idxs]
+
         self.format_data()
-        self.normalize_data()
+#        self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         print('data loaded!')
@@ -48,6 +60,12 @@ class DataInput:
 #        self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         #print(self.unshuffled_tr_idxs)
 
+#        icu_idx = 247
+#        eff_traj_len = 10
+#        for ind_idx in range(len(self.covariate_trajectories)):
+#            print([   meas[icu_idx] 
+#                for meas in self.covariate_trajectories[ind_idx][0:eff_traj_len]
+#            ])  
     def normalize_data(self):
         print('Assuming data is processed with all continous features occuring first and all discrete/categorical occuring second!')
         # only normalize the continous features
@@ -64,8 +82,8 @@ class DataInput:
         std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs]))
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
-        print(np.nanstd(np.nanstd(norm_covs, axis=0), axis=0), 'meooww' )
-        print(np.nanstd(norm_covs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs])))
+#        print(np.nanstd(np.nanstd(norm_covs, axis=0), axis=0), 'meooww' )
+#        print(np.nanstd(norm_covs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs])))
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
@@ -103,7 +121,7 @@ class DataInput:
         self.convert_data_to_tensors()
         #print('example covs before normalization')
         #print(self.covariate_trajectories[0][0:2])
-        self.replace_missing_values_with_mean()
+#        self.replace_missing_values_with_mean()
         #print('after replacing vals with mean')
         #print(self.covariate_trajectories[0][0:2])
 #        self.replace_missing_values_with_zero()
@@ -268,10 +286,11 @@ class DataInput:
         # if you want to do CV with disjoint sets each step then I'd make a separate function
         # which returns an iterator over the CV splits return tr/te batches for each split
         # accordingly, also this will of course be its own main
-        if self.params['saved_tr_te_idxs']:
-            print('Loading saved tr/test idxs, not using te_percent to make a new split')
-            with open(self.params['saved_tr_te_idxs'], 'rb') as f:
-                self.tr_idxs, self.te_idxs = pickle.load(f)
+        if not self.params['debug']:
+            if self.params['saved_tr_te_idxs']:
+                print('Loading saved tr/test idxs, not using te_percent to make a new split')
+                with open(self.params['saved_tr_te_idxs'], 'rb') as f:
+                    self.tr_idxs, self.te_idxs = pickle.load(f)
         else:
             te_percent = self.params['te_percent']
             self.tr_idxs, self.te_idxs = train_test_split(
