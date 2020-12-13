@@ -58,6 +58,7 @@ class DeltaPerStepResultsPlottingMain:
         with open(model_path, 'rb') as f:
             model = pickle.load(f)
 
+        model.eval()
         self.model = model
         print(torch.exp(-self.model.global_param_logspace))
         #print([param for param in model.parameters()])

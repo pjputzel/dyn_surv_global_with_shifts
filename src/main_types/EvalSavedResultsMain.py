@@ -18,6 +18,7 @@ class EvalSavedResultsMain:
         data_input = self.basic_main.load_data()
         self.basic_main.preprocess_data(data_input)
         model = self.load_model()
+        model.eval()
         self.basic_main.evaluate_model(model, data_input, {})
 
     def load_model(self):

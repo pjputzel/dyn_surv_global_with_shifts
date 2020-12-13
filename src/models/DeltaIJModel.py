@@ -16,7 +16,7 @@ class DeltaIJModel(nn.Module):
         # TODO add dropout back in!!
         self.RNN = nn.GRU(\
             2 * self.params['dynamic_cov_dim'] + 1, self.params['hidden_dim'],
-            #dropout=self.params['dropout']
+            dropout=self.params['dropout']
         )
 
         self.params_fc_layer = nn.Linear(

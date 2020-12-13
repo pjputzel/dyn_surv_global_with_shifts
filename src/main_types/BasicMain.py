@@ -105,6 +105,7 @@ class BasicMain(BaseMain):
         return diagnostics
 
     def evaluate_model(self, model, data_input, diagnostics):
+        model.eval()
         self.model_evaluator = ModelEvaluator(
             self.params['eval_params'],
             self.params['train_params']['loss_params'],
