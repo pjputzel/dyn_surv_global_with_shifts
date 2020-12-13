@@ -2,10 +2,12 @@ import yaml
 import time
 #from main_types.PreTrainingBasicModelMain import PreTrainingBasicModelMain
 from main_types.BasicMain import BasicMain
+from main_types.EvalSavedResultsMain import EvalSavedResultsMain
 from main_types.PreTrainingConstantDeltaMain import PreTrainingConstantDeltaMain
 from main_types.LearnFixedThetaBasicMain import LearnFixedThetaBasicMain
 from main_types.MultiRunMain import MultiRunMain
 from main_types.ModelFreeRankingMain import *
+from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
 from utils.ParameterParser import ParameterParser
 import sys
 sys.path.append("..")
@@ -33,6 +35,10 @@ def main(path_to_config):
         main = EvaluateCovTimesRankingMain(params)
     elif main_type == 'num_events_ranking_main':
         main = EvaluateNumEventsRankingMain(params)
+    elif main_type == 'validate_RNN_hidden_dim_main':
+        main = ValidateHiddenDimMain(params)
+    elif main_type == 'eval_saved_results_main':
+        main = EvalSavedResultsMain(params)
     else:
         raise ValueError('Main type %s not defined' %str(main_type))    
 
@@ -52,14 +58,25 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/mimic_configs/linear_delta_per_step_mimic.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/mimic_configs/linear_delta_per_step_mimic_num_events_only.yaml'
+
     path_to_config = '../configs/linear_baseline_configs/covid_configs/learn_fixed_theta_linear_delta_per_step_covid.yaml'
+
     
 #    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid_num_events_only.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/synth_configs/RNN_delta_per_step.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/RNN_delta_per_step_dm_cvd.yaml'
+
+
+#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
+
+
 #    path_to_config = '../configs/RNN_based_model_configs/covid_configs/RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/mimic_configs/RNN_delta_per_step_mimic.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd_weibull.yaml'
+
+
+    ### Validation main
+    #path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
     main(path_to_config)

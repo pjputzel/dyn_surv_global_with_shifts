@@ -60,8 +60,10 @@ class LossCalculator:
             # 'pred per step' loss. This uses a standard survival log likelihood
             if dist_type == 'rayleigh':
                 self.logprob_calculator = RayleighLogProbCalculatorGlobalParam(self.params)
+            elif dist_type == 'gompertz':
+                self.logprob_calculator = GompertzLogProbCalculatorDeltaIJ(self.params)
             else:
-                raise NotImplementedError('Distribution type %s not yet implemented with dummy global model' %model_type)
+                raise NotImplementedError('Distribution type %s not yet implemented with dummy global model' %dist_type)
             # in this case this is just fed zeros
             self.reg_calculator = RegularizationCalculatorDeltaIJ(self.params)
 

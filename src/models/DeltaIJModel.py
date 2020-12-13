@@ -3,7 +3,7 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 
-SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'chen2000':(2, [1, 1]), 'emwe':(4, [1,1,1,1])}
+SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'chen2000':(2, [1, 1]), 'emwe':(4, [1,1,1,1]), 'gompertz':(2, [1, 1])}
 
 
 

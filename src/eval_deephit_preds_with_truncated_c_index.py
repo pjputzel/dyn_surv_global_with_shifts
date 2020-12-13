@@ -32,23 +32,23 @@ def compute_deephit_risks_ik(pred_time, preds, data):
     ret = risks_ik
     return ret
 
+
 if __name__ == '__main__':
 
-    path_to_deephit_preds = '../data/COVID-19/preds_te.pkl'
+#    path_to_deephit_preds = '../output/covid/preds_deephit_te_default_lr_divided_by_ten_winner.pkl'
+#    path_to_deephit_preds = '../output/covid/preds_deephit_val_lr_divided_by_ten_hidden_state_RNN=50.pkl'
+    path_to_deephit_preds = '../output/covid/preds_deephit_val_lr_divided_by_ten_hidden_state_RNN=100.pkl'
     params = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml' #just to get the data loaded properly
 
     # load data again
     # then get the full te batch to evaluate
     params = ParameterParser(params).parse_params()
     pred_times = params['eval_params']['dynamic_metrics']['start_times']
-    print(pred_times, type(pred_times[0]))
     torch.random.manual_seed(params['random_seed'])
     np.random.seed(params['random_seed'])
     torch.set_default_dtype(torch.float64)
     main = BasicMain(params)
-    # CHANGE ME BACK TO TE!!
     data = main.load_data().get_te_data_as_single_batch()
-    #data = main.load_data().get_tr_data_as_single_batch()
         
 
     
@@ -68,8 +68,5 @@ if __name__ == '__main__':
         print('Truncated C-index for pred time %d is %.3f' %(int(pred_times[p]), c_index))
 
 
-    
-
-    
     
      

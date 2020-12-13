@@ -6,7 +6,7 @@ from data_handling.DataLoaderBase import DataLoaderBase
 import numpy as np
 import pandas
 import pickle
-DEBUG = True 
+DEBUG = False
 class CovidDataLoader(DataLoaderBase):
 
     def __init__(self, data_loader_params):

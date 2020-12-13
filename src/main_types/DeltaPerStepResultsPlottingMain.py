@@ -17,7 +17,7 @@ import torch
 #       }
 
 #matplotlib.rc('font', **font)
-sb.set_context('paper', rc={"font.size":12,"axes.labelsize":14})
+sb.set_context('paper', rc={"font.size":14,"axes.labelsize":14, "axes.ticksize":8, 'axes.titlesize':14})
 
 class DeltaPerStepResultsPlottingMain:
     
@@ -36,6 +36,8 @@ class DeltaPerStepResultsPlottingMain:
         # for easy plotting
         # currently just plotting over train data
         self.make_tr_df_to_plot()
+        self.make_example_plots()
+        self.make_split_by_age_plot()
         self.make_tr_plots()
 
         ### OLD ###
@@ -114,12 +116,46 @@ class DeltaPerStepResultsPlottingMain:
             data_i = np.transpose(data_i)
             df_i = pd.DataFrame(data_i, columns=col_names)
             df_all = pd.concat([df_all, df_i])
+        df_all['sys_bp'] = df_all['sys_bp'].apply(lambda x: x if not x == -1 else np.nan)
+        df_all['dia_bp'] = df_all['dia_bp'].apply(lambda x: x if not x == -1 else np.nan)
+        df_all['icu_name'] = df_all['icu'].apply(lambda x: 'In ICU' if x == 1 else 'Not in ICU')
         self.df_to_plot = df_all
         o2_enu_to_name = self.data_input.o2_enu_to_name
         self.df_to_plot['o2_name'] = self.df_to_plot['o2'].apply(
             lambda x: o2_enu_to_name[x] if not x == 3 else o2_enu_to_name[0]
         )
 
+
+    def make_example_plots(self):
+        order_for_o2 = ['None (Room air)', 'ETT', 'Trached-to-vent', 'Trach mask', 'Nasal cannula']
+        self.make_seaborn_cov_plot_i(8, figsize=1, oxygen_label_order=order_for_o2)
+        self.make_seaborn_cov_plot_i(22, figsize=1, oxygen_label_order=order_for_o2)
+
+    def make_split_by_age_plot(self, day_cutoff=5):
+#        self.df_to_plot['age_thresh_75'] = self.df_to_plot['Age'].apply(
+#            lambda x: '>=75' if x>=75 else '<75'
+#        )
+        #trunc_df_to_plot = self.df_to_plot[self.df_to_plot['day'] < day_cutoff]
+        means = self.df_to_plot[['ind_idx', 'mean_tte_rem', 'Age']].groupby('ind_idx').mean().reset_index()
+        means['Age'] = means['Age'].apply(
+            lambda x: '>=75' if x>=75 else '<75'
+        )
+        boxplot = sb.histplot(
+            x='mean_tte_rem', hue='Age',
+            data=means
+        )
+
+        boxplot.set_xlabel('Predicted %s' %'Mean Time to Event Remaining')        
+#        boxplot.get_figure().legend(loc='lower left')
+        handles, labels = boxplot.get_legend_handles_labels()
+#        boxplot.legend(handles, labels, loc='upper left', title='Age', fontsize=12, title_fontsize=12)
+#        boxplot.get_legend().get_title().set_fontsize('10')
+        boxplot.get_figure().tight_layout()
+        boxplot.get_figure().savefig(
+            self.get_savepath('%s_boxplot_split_by_age>75_vert.png' %'mean_tte_rem')
+        )
+        boxplot.get_figure().clf()
+        
 
     def make_tr_plots(self, day_cutoff=40, skip_days_for_plot=5):
         def make_hoz_boxplot(
@@ -170,13 +206,15 @@ class DeltaPerStepResultsPlottingMain:
             lambda x: '>=75' if x>=75 else '<75'
         )
         boxplot = make_hoz_boxplot(
-            'mean_tte_rem', hue='age_thresh_75', day_cutoff=20,
-             skip_days_for_plot=2
+            'mean_tte_rem', hue='age_thresh_75', day_cutoff=10,
+             skip_days_for_plot=1
         )
         boxplot.set_xlabel('Predicted %s' %'Mean Time to Event Remaining')        
 #        boxplot.get_figure().legend(loc='lower left')
         handles, labels = boxplot.get_legend_handles_labels()
-        boxplot.legend(handles, labels, loc='lower left', title='Age')
+        boxplot.legend(handles, labels, loc='lower left', title='Age', fontsize=12, title_fontsize=12)
+#        boxplot.get_legend().get_title().set_fontsize('10')
+        boxplot.get_figure().tight_layout()
         boxplot.get_figure().savefig(
             self.get_savepath('%s_boxplot_split_by_age>75.png' %'mean_tte_rem')
         )
@@ -204,31 +242,44 @@ class DeltaPerStepResultsPlottingMain:
         for ind_idx in range(to_plot):
             self.make_seaborn_cov_plot_i(ind_idx)
 
-
-    def make_seaborn_cov_plot_i(self, ind_idx):
+    # TODO update this plot to have the oxygen labels be constant across both of the versions
+    # and also make the fonts larger so the images can be shrunk more
+    def make_seaborn_cov_plot_i(self, ind_idx, figsize=1, oxygen_label_order=None):
         ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
-        fig, axes = plt.subplots(5, 1, sharex=True)
-        sb.lineplot(ax=axes[0], x='day', y='mean_tte_rem', data=ind_df_to_plot)
+        fig, axes = plt.subplots(4, 1, sharex=True)
+        sb.lineplot(ax=axes[0], x='day', y='mean_tte_rem', data=ind_df_to_plot, marker='o')
         axes[0].lines[0].set_linestyle('--')
-        axes[0].set_ylabel('Mean Predicted Time Remaining Until Death')
+        axes[0].set_title('Mean Time to Event Remaining')
+        axes[0].set_ylabel('')
         
-        sb.scatterplot(ax=axes[1], x='day', y='icu', data=ind_df_to_plot)
-        axes[1].set_ylabel('ICU Status')
+        plot = sb.scatterplot(ax=axes[1], x='day', y='icu_name', data=ind_df_to_plot, hue='icu_name')
+        axes[1].set_title('ICU Status')
+        axes[1].set_ylabel('')
+        plot.legend().set_visible(False)
 
-        sb.scatterplot(ax=axes[2], x='day', y='o2_name', data=ind_df_to_plot)
-        axes[2].set_ylabel('Oxygen Type')
+        sb.stripplot(x='day', y='o2_name', 
+            order=oxygen_label_order, data=ind_df_to_plot, ax=axes[2],
+            jitter=False
+        )
+#        plot = sb.scatterplot(ax=axes[2], x='day', y='o2_name', data=ind_df_to_plot, hue='o2_name', hue_order=oxygen_label_order)
+        axes[2].set_title('Oxygen Type')
+        axes[2].set_ylabel('')
+        axes[2].set_xlabel('')
+#        plot.legend().set_visible(False)
 
-        sb.lineplot(ax=axes[3], x='day', y='temp', data=ind_df_to_plot)
+        sb.lineplot(ax=axes[3], x='day', y='temp', data=ind_df_to_plot, marker='o')
         axes[3].lines[0].set_linestyle('--')
-        axes[3].set_ylabel('Temperature')
+        axes[3].set_title('Temperature')
+        axes[3].set_ylabel('')
 
+        axes[3].set_xlabel('Days Since Hospitalization')
 
-        sb.lineplot(ax=axes[4], x='day', y='sys_bp', data=ind_df_to_plot)
-        sb.lineplot(ax=axes[4], x='day', y='dia_bp', data=ind_df_to_plot)
-        axes[4].lines[0].set_linestyle('--')
-        axes[4].lines[1].set_linestyle('--')
-        axes[4].set_ylabel('Blood Pressure')
-
+#        sb.lineplot(ax=axes[4], x='day', y='sys_bp', data=ind_df_to_plot, marker='x')
+#        sb.lineplot(ax=axes[4], x='day', y='dia_bp', data=ind_df_to_plot, marker='x')
+#        axes[4].lines[0].set_linestyle('--')
+#        axes[4].lines[1].set_linestyle('--')
+#        axes[4].set_ylabel('Blood Pressure')
+        fig.tight_layout()
         plt.savefig(self.get_savepath('covs_with_mean_tte_rem_%d' %(ind_idx)))
         plt.clf()
     def get_savepath(self, filename):

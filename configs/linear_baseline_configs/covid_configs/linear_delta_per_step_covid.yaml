@@ -3,7 +3,8 @@ savedir_pre: '../output/covid/'
 
 data_input_params:
     dataset_name: 'covid'
-    saved_tr_te_idxs: '../data/COVID-19/train_test_idxs_covid.pkl'
+    saved_tr_te_idxs: '../data/COVID-19/dev_val_idxs_covid.pkl'
+    #'../data/COVID-19/train_test_idxs_covid.pkl'      
     te_percent: 0.
     cov_time_representation: 'absolute'
     data_loading_params:

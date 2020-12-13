@@ -17,7 +17,7 @@ COVID_NUM_CONT_COVS = 114
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
 
 
-DEBUG = True 
+DEBUG = False
 class DataInput:
 
     def __init__(self, data_input_params):
@@ -66,6 +66,9 @@ class DataInput:
 #            print([   meas[icu_idx] 
 #                for meas in self.covariate_trajectories[ind_idx][0:eff_traj_len]
 #            ])  
+        print(torch.mean(self.traj_lens[self.censoring_indicators == 1]),
+                torch.mean(self.traj_lens[self.censoring_indicators == 0])
+        )
     def normalize_data(self):
         print('Assuming data is processed with all continous features occuring first and all discrete/categorical occuring second!')
         # only normalize the continous features
@@ -286,11 +289,17 @@ class DataInput:
         # if you want to do CV with disjoint sets each step then I'd make a separate function
         # which returns an iterator over the CV splits return tr/te batches for each split
         # accordingly, also this will of course be its own main
-        if not self.params['debug']:
-            if self.params['saved_tr_te_idxs']:
+        if self.params['saved_tr_te_idxs']:
+            if not self.params['debug']:
                 print('Loading saved tr/test idxs, not using te_percent to make a new split')
                 with open(self.params['saved_tr_te_idxs'], 'rb') as f:
                     self.tr_idxs, self.te_idxs = pickle.load(f)
+            else:
+                te_percent = self.params['te_percent']
+                self.tr_idxs, self.te_idxs = train_test_split(
+                    np.arange(self.event_times.shape[0]), test_size=te_percent
+                )
+                self.tr_idxs, self.te_idxs = torch.tensor(self.tr_idxs), torch.tensor(self.te_idxs)
         else:
             te_percent = self.params['te_percent']
             self.tr_idxs, self.te_idxs = train_test_split(
