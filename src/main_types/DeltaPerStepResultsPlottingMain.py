@@ -87,6 +87,7 @@ class DeltaPerStepResultsPlottingMain:
             traj_len = int(self.tr_data.traj_lens[ind_idx].detach().numpy())
             deltas_i = tr_deltas[ind_idx][0:traj_len]
             mean_tte_rem_i = self.get_mean_tte_remaining(deltas_i)
+            #risks_i = self.get_risks(deltas_i)
             mean_tte_i = self.get_mean_ttes(deltas_i)
             shifted_times_i = np.array([delta + day for day, delta in enumerate(deltas_i)])
             days = np.arange(deltas_i.shape[0]) + 1
@@ -249,6 +250,7 @@ class DeltaPerStepResultsPlottingMain:
         ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
         fig, axes = plt.subplots(4, 1, sharex=True)
         sb.lineplot(ax=axes[0], x='day', y='mean_tte_rem', data=ind_df_to_plot, marker='o')
+        sb.lineplot(ax=axes[0], x='day', y='risks', data=ind_df_to_plot, marker='o')
         axes[0].lines[0].set_linestyle('--')
         axes[0].set_title('Mean Time to Event Remaining')
         axes[0].set_ylabel('')
@@ -328,6 +330,10 @@ class DeltaPerStepResultsPlottingMain:
             1./(survival) * (2 * np.pi * scale)**(1/2) * \
             (1 - norm.cdf((cov_times + deltas)/scale**(1/2)))
         return mean_ttes 
+
+    def get_risks(self, deltas_i):
+        # risks are the hazard computed at the current time
+        pass
 
     '''
         deltas: a list of numpy arrays with all the deltas per timestep (note that each array is

@@ -3,7 +3,7 @@ savedir_pre: '../output/covid/'
 
 data_input_params:
     dataset_name: 'covid'
-    saved_tr_te_idxs: '../data/COVID-19/train_test_idxs_covid.pkl'
+    saved_tr_te_idxs: #'../data/COVID-19/train_test_idxs_covid.pkl'
     te_percent: 0.25 # not used if saved_tr_te_idxs is given in config
     cov_time_representation: 'absolute'
     data_loading_params:
@@ -14,6 +14,8 @@ model_params:
     model_type: 'RNN_delta_per_step'
     dynamic_cov_dim: 248 #103
     static_cov_dim: 11 # dummy static var for now that does nothing
+    hidden_dim: 32
+    dropout: .3
 
 eval_params:
     eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
@@ -30,7 +32,7 @@ train_params:
     batch_size: 10000
     conv_thresh: .00000001
     n_epoch_print: 50
-    max_iter: 1000
+    max_iter: 10000
 
     diagnostic_params:
 

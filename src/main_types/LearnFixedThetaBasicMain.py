@@ -15,7 +15,9 @@ import copy
 
 # Since learning the params alone will typically have smoother training
 # we can take bigger steps in the descent than training the RNN
-LR_THETA_RATIO = 1000
+# global model generally converges, and this doesn't seem to affect the optimum
+# just the speed of the global training.
+LR_THETA_RATIO = 100
 
 class LearnFixedThetaBasicMain(BasicMain):
     

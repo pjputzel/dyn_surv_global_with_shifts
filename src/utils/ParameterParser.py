@@ -21,7 +21,7 @@ DEFAULT_PARAMS =\
             'static_cov_dim': 'specify in config since data-dependent',
             'hidden_dim': 5,
             #'n_layers_rnn': 3,
-            'keep_prob': .3,
+            'dropout': .3,
             'survival_distribution_type': 'Gamma',
             'embed_hidden_dim': 10,
             'embed_output_dim': 2
