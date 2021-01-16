@@ -27,13 +27,18 @@ class Diagnostics:
         pred_params, hidden_states, total_loss,
         reg, logprob, epoch
     ):
-        self.pred_params_per_step.append(pred_params)
-        self.hidden_states_per_step.append(hidden_states)
+        self.pred_params_per_step.append(pred_params.cpu().detach())
+#        if not ignore_hidden_states:
+#            self.hidden_states_per_step.append(hidden_states)
+#        else:
+        self.hidden_states_per_step.append(hidden_states.cpu().detach())
 
+        #print([sys.getsizeof(self.hidden_states_per_step[i].storage()) for i in range(len(self.hidden_states_per_step))])
+        #print([sys.getsizeof(self.pred_params_per_step[i].storage()) for i in range(len(self.pred_params_per_step))])
 
-        self.total_loss_per_step.append(total_loss)
-        self.reg_per_step.append(reg)
-        self.nll_per_step.append(-logprob)
+        self.total_loss_per_step.append(total_loss.cpu().detach())
+        self.reg_per_step.append(0 if type(reg) is float else reg.cpu().detach())
+        self.nll_per_step.append(-logprob.cpu().detach())
         self.epochs.append(epoch)
 
     

@@ -16,6 +16,7 @@ class EmbeddingConstantDeltaModelLinearRegression(nn.Module):
         self.distribution_type = distribution_type
 
         total_cov_dim = int(2 * self.params['dynamic_cov_dim'] + self.params['static_cov_dim'])
+        print(total_cov_dim)
         self.embedding = nn.Sequential(
             torch.nn.Linear(total_cov_dim, self.params['embed_hidden_dim']),
             torch.nn.ReLU(),
@@ -61,13 +62,17 @@ class EmbeddingConstantDeltaModelLinearRegression(nn.Module):
 #########
 
 ########For Baseline only
-        baseline_covs = batch_covs[:, 0, :]
-        missing_indicators = batch.missing_indicators[:, 0]
+        # first entry of batch cov trajs is the time stamp
+        print(batch_covs.shape)
+        print(batch_covs[0, :, 0])
+        baseline_covs = batch_covs[:, 0, 1:]
+        print(baseline_covs.shape)
+        #missing_indicators = batch.missing_indicators[:, 0]
         # don't need times since they are all just at baseline t = 0
-        baseline_covs_with_missing = torch.cat([baseline_covs[:, 1:], missing_indicators], dim=1)
+        #baseline_covs_with_missing = torch.cat([baseline_covs[:, 1:], missing_indicators], dim=1)
         static_covs = batch.static_covs
         static_covs[torch.isnan(static_covs)] = -1
-        all_data = torch.cat([baseline_covs_with_missing, static_covs], dim=1)
+        all_data = torch.cat([baseline_covs, static_covs], dim=1)
 ########
         #print(all_data.shape)
         # prevent the deltas from pushing the effective age negative
@@ -81,6 +86,7 @@ class EmbeddingConstantDeltaModelLinearRegression(nn.Module):
             #pred_deltas = torch.exp(-self.linear(all_data)) - torch.max(batch.cov_times, dim=1)[0].unsqueeze(1)
             #### For baseline only:
             # try with and without the normalization by global param
+            print(all_data.shape)
             embedded_data = self.embedding(all_data)
             pred_deltas = torch.exp(-self.linear(embedded_data))
 

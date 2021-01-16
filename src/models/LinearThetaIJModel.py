@@ -29,19 +29,25 @@ class LinearThetaIJModel(nn.Module):
 #        print(batch.cov_times.shape, batch_covs.shape, static_covs.shape)
         all_data = torch.cat([batch_covs, static_covs.unsqueeze(1).repeat(1, batch_covs.shape[1], 1)], dim=2)
 #        print(batch.cov_times.shape, all_data.shape)
-        pred_thetas = torch.exp(-self.linear(all_data))
+#        pred_thetas = torch.exp(-self.linear(all_data))
+        pred_thetas = torch.nn.functional.softplus(self.linear(all_data), beta=100)
 #        print(pred_deltas.shape)
         # this model has no hidden states
         # this model has no next step cov preds
         # so the last two outputs are just zeros
         hidden_states = torch.zeros(batch_covs.shape[0])
         next_step_cov_preds = torch.tensor(batch_covs.shape[0])
-        #print(self.linear.weight, self.linear.bias)
+
+#        print(self.linear.weight, self.linear.bias)
+#        print(pred_thetas[0:10])
+        self.cur_pred_thetas = pred_thetas
         return pred_thetas, hidden_states, next_step_cov_preds
 
     
     def get_global_param(self):
-        return torch.exp(-self.linear.bias) 
+        #print('global param has to be estimated with softplus activation!')
+        return torch.mean(self.cur_pred_thetas)
+        #return torch.exp(-self.linear.bias) 
 
 
 

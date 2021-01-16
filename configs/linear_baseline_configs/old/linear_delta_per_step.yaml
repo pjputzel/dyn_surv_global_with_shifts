@@ -1,12 +1,12 @@
 main_type: 'basic_main'
-savedir: '../output/dm_cvd/rayleigh_linear_delta_per_step'
+savedir: '../output/dm_cvd/weibull_linear_delta_per_step'
 
 data_input_params:
     dataset_name: 'dm_cvd'
     te_percent: .20
     data_loading_params:
         #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
-        paths: '../data/dm_cvd/data_dev.pkl'
+        paths: '../data/dm_cvd/data_dev_filtered_by_events_after_183.pkl'
 
 model_params:
     model_type: 'linear_delta_per_step'
@@ -14,11 +14,14 @@ model_params:
     static_cov_dim: 4
 
 eval_params:
-    eval_metrics: ['auc', 'c_index']
+    eval_metrics: ['auc', 'c_index_from_start_time']
     dynamic_metrics:
-        start_times: [0., .25, .5, .75, 1., 1.25, 1.5, 1.75, 2.]
-        window_length: 3.
-        time_step: .25
+        start_times: [.15, .3, .45, .6]
+        window_length: 1.
+        time_step: .2
+#        start_times: [.5, 1., 1.5, 2.]
+#        window_length: 3.
+#        time_step: .25
         
     
 
@@ -27,14 +30,14 @@ train_params:
     batch_size: 10000
     conv_thresh: .00000001
     n_epoch_print: 50
-    max_iter: 1000
+    max_iter: 600
 
     diagnostic_params:
 
     loss_params:
-        distribution_type: 'rayleigh'
-        avg_per_seq: true
+        distribution_type: 'chen2000'
+        avg_per_seq: True
         step_ahead_cov_reg: .0
-        theta_drift_reg: 0.
+        drift_reg: 0.
         global_diff_reg: 0.
-        delta_reg: 0.0 #.1 #.01
+        delta_reg: 0. #0.1 #.01

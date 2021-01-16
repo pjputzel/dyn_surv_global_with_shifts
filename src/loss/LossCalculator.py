@@ -3,6 +3,7 @@ from loss.GammaLogProbCalculatorConstantDelta import GammaLogProbCalculatorConst
 from loss.RayleighLogProbCalculatorConstantDelta import RayleighLogProbCalculatorConstantDelta
 from loss.RayleighLogProbCalculatorDeltaIJ import RayleighLogProbCalculatorDeltaIJ
 from loss.RayleighLogProbCalculatorThetaIJ import RayleighLogProbCalculatorThetaIJ
+from loss.RayleighLogProbCalculatorGlobalParam import RayleighLogProbCalculatorGlobalParam
 from loss.RegularizationCalculatorThetaPerStep import RegularizationCalculatorThetaPerStep
 from loss.WeibullLogProbCalculatorThetaPerStep import WeibullLogProbCalculatorThetaPerStep
 from loss.WeibullLogProbCalculatorDeltaIJ import WeibullLogProbCalculatorDeltaIJ
@@ -11,6 +12,7 @@ from loss.EMWELogProbCalculatorDeltaIJ import EMWELogProbCalculatorDeltaIJ
 from loss.WeibullLogProbCalculatorConstantDelta import WeibullLogProbCalculatorConstantDelta
 from loss.RegularizationCalculatorConstantDelta import RegularizationCalculatorConstantDelta
 from loss.RegularizationCalculatorDeltaIJ import RegularizationCalculatorDeltaIJ
+from loss.GompertzLogProbCalculatorDeltaIJ import GompertzLogProbCalculatorDeltaIJ
 
 class LossCalculator:
     
@@ -22,7 +24,7 @@ class LossCalculator:
     def init_logprob_and_regularization(self):
         dist_type = self.params['distribution_type']
         model_type = self.model_type
-        if model_type == 'delta_per_step' or model_type == 'dummy_global_zero_deltas' or model_type == 'linear_delta_per_step':
+        if model_type == 'RNN_delta_per_step' or  model_type == 'dummy_global_zero_deltas' or model_type == 'linear_delta_per_step' or model_type == 'linear_delta_per_step_num_visits_only':
             if dist_type == 'weibull':
                 self.logprob_calculator = WeibullLogProbCalculatorDeltaIJ(self.params)
             elif dist_type == 'rayleigh':
@@ -31,6 +33,9 @@ class LossCalculator:
                 self.logprob_calculator = Chen2000LogProbCalculatorDeltaIJ(self.params)
             elif dist_type == 'emwe':
                 self.logprob_calculator = EMWELogProbCalculatorDeltaIJ(self.params)
+
+            elif dist_type == 'gompertz':
+                self.logprob_calculator = GompertzLogProbCalculatorDeltaIJ(self.params)
             else:
                 raise ValueError('Distribution type %s not recognized' %dist_type)
             self.reg_calculator = RegularizationCalculatorDeltaIJ(self.params)
@@ -49,6 +54,19 @@ class LossCalculator:
             else:
                 raise ValueError('Distribution type %s not recognized' %dist_type)
             self.reg_calculator = RegularizationCalculatorConstantDelta(self.params)
+        
+        elif model_type == 'dummy_global':
+            # note this is different from dummy_global zero deltas which uses the 
+            # 'pred per step' loss. This uses a standard survival log likelihood
+            if dist_type == 'rayleigh':
+                self.logprob_calculator = RayleighLogProbCalculatorGlobalParam(self.params)
+            elif dist_type == 'gompertz':
+                self.logprob_calculator = GompertzLogProbCalculatorDeltaIJ(self.params)
+            else:
+                raise NotImplementedError('Distribution type %s not yet implemented with dummy global model' %dist_type)
+            # in this case this is just fed zeros
+            self.reg_calculator = RegularizationCalculatorDeltaIJ(self.params)
+
         else:
             raise ValueError('Model type %s not recognized' %model_type)            
 

@@ -1,16 +1,19 @@
-
+from loss.DeltaIJBaseLogProbCalculator import DeltaIJBaseLogProbCalculator
 import torch
 import torch.nn as nn
 
-class WeibullLogProbCalculatorDeltaIJ(nn.Module):
+class WeibullLogProbCalculatorDeltaIJ(DeltaIJBaseLogProbCalculator):
     
-    def compute_shifted_times(self, deltas, batch):
+    def compute_shifted_times(self, deltas, batch, eps=1e-20):
         #deltas.register_hook(print_grad)
         deltas.register_hook(clamp_grad)
         shifted_event_times = batch.event_times.unsqueeze(1) + deltas.squeeze(2)
-        
 
         shifted_cov_times = batch.cov_times + deltas.squeeze(2)
+
+        # prevent numerical issues with gradients
+        shifted_event_times = shifted_event_times + eps
+        shifted_cov_times = shifted_cov_times + eps
 
         #deltas.register_hook(print_grad)
         #print(deltas, 'deltas')
@@ -50,5 +53,5 @@ def print_grad(grad):
 def clamp_grad(grad, thresh=5.):
     grad[grad > float(thresh)] = thresh
     # for beta which goes to positive infinity
-    grad[torch.isnan(grad)] = thresh
+    grad[torch.isnan(grad)] = -thresh
     grad[grad < float(-thresh)] = -thresh

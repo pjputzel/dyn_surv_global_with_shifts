@@ -14,7 +14,8 @@ model_params:
     hidden_dim: 5
 
 eval_params:
-    c_index:
+    eval_metrics: ['auc']
+    dynamic_metrics:
         start_times: [0., .25, .5, .75, 1., 1.25, 1.5, 1.75, 2.]
         window_length: 3.
         time_step: .25
@@ -36,5 +37,5 @@ train_params:
         distribution_type: 'rayleigh'
         avg_per_seq: True
         step_ahead_cov_reg: .0
-        theta_drift_reg: 0.00
+        drift_reg: 0.00
         global_diff_reg: 0.00

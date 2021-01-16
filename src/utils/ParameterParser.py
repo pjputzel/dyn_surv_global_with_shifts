@@ -6,6 +6,7 @@ DEFAULT_PARAMS =\
         'metrics_to_track': ['dummy_test_function'],
 
         'data_input_params': {
+            'saved_tr_te_idxs': None,
             'dataset_name': 'specify in config',
             'cov_time_representation': 'delta',
             'te_percent': .2,
@@ -20,7 +21,7 @@ DEFAULT_PARAMS =\
             'static_cov_dim': 'specify in config since data-dependent',
             'hidden_dim': 5,
             #'n_layers_rnn': 3,
-            'keep_prob': .3,
+            'dropout': .3,
             'survival_distribution_type': 'Gamma',
             'embed_hidden_dim': 10,
             'embed_output_dim': 2
@@ -43,9 +44,9 @@ DEFAULT_PARAMS =\
             
             'loss_params': {
                 'distribution_type': 'exponential',
-                'avg_per_seq': False,
+                'avg_per_seq': True,
                 'step_ahead_cov_reg': 0.,
-                'theta_drift_reg': 0.,
+                'drift_reg': 0.,
                 'global_diff_reg': 0.,
                 'delta_reg': 0.,
             }
@@ -58,7 +59,7 @@ DEFAULT_PARAMS =\
                 'start_times': [0, 365, 2*365, 3*365],
                 'window_length': 3*365,
                 'time_step': 30,
-                'num_bins': 1,
+                'max_num_bins': 1,
             }
         },
 

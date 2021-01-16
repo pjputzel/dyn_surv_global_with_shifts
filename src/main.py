@@ -1,11 +1,20 @@
 import yaml
 import time
-from main_types.PreTrainingBasicModelMain import PreTrainingBasicModelMain
+#from main_types.PreTrainingBasicModelMain import PreTrainingBasicModelMain
 from main_types.BasicMain import BasicMain
+from main_types.EvalSavedResultsMain import EvalSavedResultsMain
 from main_types.PreTrainingConstantDeltaMain import PreTrainingConstantDeltaMain
+from main_types.LearnFixedThetaBasicMain import LearnFixedThetaBasicMain
 from main_types.MultiRunMain import MultiRunMain
-from main_types.EvaluateCovTimesRankingMain import EvaluateCovTimesRankingMain
+from main_types.ModelFreeRankingMain import *
+from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
 from utils.ParameterParser import ParameterParser
+import sys
+sys.path.append("..")
+from data.make_simple_synth_data import *
+sys.path.append('../data/COVID-19/')
+from preprocess_data import COVID19SevereOutcomePreprocessor
+
 
 def main(path_to_config):
     start_time = time.time()
@@ -14,14 +23,22 @@ def main(path_to_config):
     main_type = params['main_type']
     if main_type == 'basic_main':
         main = BasicMain(params)
-    elif main_type == 'pretraining_basic_model_main':
-        main = PreTrainingBasicModelMain(params)
+#    elif main_type == 'pretraining_basic_model_main':
+#        main = PreTrainingBasicModelMain(params)
+    elif main_type == 'learn_fixed_theta_basic_main':
+        main = LearnFixedThetaBasicMain(params)
     elif main_type == 'pretraining_constant_delta_main':
         main = PreTrainingConstantDeltaMain(params)
     elif main_type == 'multi_run':
         main = MultiRunMain(params)
     elif main_type == 'cov_times_ranking_main':
         main = EvaluateCovTimesRankingMain(params)
+    elif main_type == 'num_events_ranking_main':
+        main = EvaluateNumEventsRankingMain(params)
+    elif main_type == 'validate_RNN_hidden_dim_main':
+        main = ValidateHiddenDimMain(params)
+    elif main_type == 'eval_saved_results_main':
+        main = EvalSavedResultsMain(params)
     else:
         raise ValueError('Main type %s not defined' %str(main_type))    
 
@@ -29,12 +46,37 @@ def main(path_to_config):
     print('Total time taken %d' %(time.time() - start_time))
 
 if __name__ == '__main__':
- #   path_to_config = '../configs/basic_main.yaml'
-#    path_to_config = '../configs/theta_per_step_main.yaml'
-#    path_to_config = '../configs/linear_constant_delta.yaml'
-#    path_to_config = '../configs/delta_per_step.yaml'
-#    path_to_config = '../configs/dummy_global.yaml'
-    path_to_config = '../configs/cov_times_ranking.yaml'
-#    path_to_config = '../configs/multi_run_main.yaml'
-#    path_to_config = '../configs/linear_delta_per_step.yaml'
+#    path_to_config = '../configs/model_free_configs/synth_configs/cov_times_ranking_synth.yaml'
+#    path_to_config = '../configs/model_free_configs/synth_configs/num_event_ranking_synth.yaml'
+#    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
+#    path_to_config = '../configs/model_free_configs/covid_configs/num_events.yaml'
+#    path_to_config = '../configs/model_free_configs/covid_configs/dummy_global_testing.yaml'
+
+#    path_to_config = '../configs/model_free_configs/mimic_configs/num_events.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/synth_configs/linear_theta_per_step_synth.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/synth_configs/linear_delta_per_step_synth.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/mimic_configs/linear_delta_per_step_mimic.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/mimic_configs/linear_delta_per_step_mimic_num_events_only.yaml'
+
+#    path_to_config = '../configs/linear_baseline_configs/covid_configs/learn_fixed_theta_linear_delta_per_step_covid.yaml'
+
+    
+#    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid_num_events_only.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/synth_configs/RNN_delta_per_step.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/RNN_delta_per_step_dm_cvd.yaml'
+
+
+#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
+
+
+#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/RNN_delta_per_step_covid.yaml'
+    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/mimic_configs/RNN_delta_per_step_mimic.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd_weibull.yaml'
+
+
+    ### Validation main
+    #path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
     main(path_to_config)

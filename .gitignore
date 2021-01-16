@@ -1,5 +1,7 @@
 /data/synth/
 /data/dm_cvd/
+/data/COVID-19/
+/data/mimic/
 /output
 *.swp
 *.pyc

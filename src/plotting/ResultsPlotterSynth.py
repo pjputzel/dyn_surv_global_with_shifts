@@ -1,3 +1,9 @@
+import sys
+sys.path.append('../../data/')
+import pickle
+from make_simple_synth_data import SimpleData
+from make_simple_synth_data import LearnedDataDeltaIJ
+from make_simple_synth_data import LearnedDataThetaIJ
 import matplotlib.pyplot as plt
 from scipy.stats import gengamma
 import numpy as np
@@ -7,10 +13,11 @@ from scipy.stats import gamma
 class ResultsPlotterSynth:
     
     # assumes the learned parameters are in order by group with counts per group being the number of each group in order. 
-    def __init__(self, pred_params, model_type, plot_params):
-        self.predicted_distribution_parameters = pred_params 
+    def __init__(self, learned_model, plot_params):
+#        self.predicted_distribution_iparameters = pred_params 
+        self.model = learned_model
         self.params = plot_params
-        self.model_type = model_type
+        self.model_class_name = type(self.model).__name__
     
     def plot_learned_distribution_vs_true(self, true_parameters, counts_per_group):
         if self.model_type == 'exponential':
@@ -122,4 +129,56 @@ class ResultsPlotterSynth:
             axes[group_idx].legend()
             axes[group_idx].set_title('Mean Pred Param PDF for Group %d' %group_idx)
             cur_idx = count + cur_idx
-        
+    
+    def plot_event_time_samples_from_learned_model(self, path_to_synth_data, savepath):
+        model_class_name = self.model_class_name
+        if model_class_name[0:6] == 'Linear':
+            plot_func = self.plot_event_time_samples_from_linear_model
+        else:
+            error = 'Plotting for model type %s not yet implemented' %model_class_name
+            raise NotImplementedError(error)
+        plot_func(path_to_synth_data, savepath)
+
+    def plot_event_time_samples_from_linear_model(self, 
+        path_to_synth_data, savepath, figsize=(5, 10)
+    ):
+        learned_model = self.model
+        with open(path_to_synth_data, 'rb') as f:
+            synth_true_data = pickle.load(f)
+        # uses learned model parameters with same poisson rates, and cov trajs
+        # in order to sample from the learned data distribution
+        if synth_true_data.dataset_type == 'delta_per_step':
+            data_sampled_from_model = LearnedDataDeltaIJ(learned_model, synth_true_data)
+        elif synth_true_data.dataset_type == 'theta_per_step':
+            data_sampled_from_model = LearnedDataThetaIJ(learned_model, synth_true_data)
+        else:
+            raise ValueError('Dataset type %s not recognized' %(synth_true_data.dataset_type))
+        data_sampled_from_model.construct_data()
+        print('Data sampled from model!')
+
+        fig, axes = plt.subplots(
+            2, 1, figsize=figsize,
+            sharex=True, sharey=True
+        )
+        axes[0].set_title('Data Sampled from Model')
+        axes[1].set_title('True Data')
+        self.plot_data_event_times_hist(synth_true_data, axes[1])
+        print('Synth plotted!')
+        self.plot_data_event_times_hist(data_sampled_from_model, axes[0])
+        print('Learned model samples plotted!')
+        plt.savefig(savepath)
+
+
+
+    def plot_data_event_times_hist(self, learned_data, axis):
+        n_per_class = learned_data.n_per_class
+        axis.hist(
+            learned_data.true_event_times[0:n_per_class[0]],
+            alpha=.5, label='unhealthy', bins=50, density=True
+        )
+        axis.hist(
+            learned_data.true_event_times[n_per_class[0]:],
+            alpha=.5, label='healthy', bins=50, density=True
+        )
+        axis.legend()
+                    
