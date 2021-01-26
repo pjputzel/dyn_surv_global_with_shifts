@@ -11,7 +11,7 @@ import sys
 import tqdm
 import pickle
 
-COVID_NUM_CONT_COVS = 114
+COVID_NUM_CONT_COVS = 212 # old 114
 # there should only be one data-input (don't subclass) but one dataloader per new dataset
 # DataInput is agnostic to tr/te split, but the made batches which are used by the rest of the model will use the corresponding training/testing idxs
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
@@ -51,7 +51,7 @@ class DataInput:
 #            self.static_covs = [self.static_covs[i] for i in idxs]
 
         self.format_data()
-#        self.normalize_data()
+        self.normalize_data()
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         print('data loaded!')
@@ -66,9 +66,9 @@ class DataInput:
 #            print([   meas[icu_idx] 
 #                for meas in self.covariate_trajectories[ind_idx][0:eff_traj_len]
 #            ])  
-        print(torch.mean(self.traj_lens[self.censoring_indicators == 1]),
-                torch.mean(self.traj_lens[self.censoring_indicators == 0])
-        )
+#        print(torch.mean(self.traj_lens[self.censoring_indicators == 1]),
+#                torch.mean(self.traj_lens[self.censoring_indicators == 0])
+#        )
     def normalize_data(self):
         print('Assuming data is processed with all continous features occuring first and all discrete/categorical occuring second!')
         # only normalize the continous features
@@ -80,37 +80,13 @@ class DataInput:
         ).detach().numpy()
         cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_covs + 1]
         mean_covs = np.nanmean(np.nanmean(cont_cov_trajs, axis=0), axis=0)
-#        mean_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].mean(0).mean(0)
-#        std_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].reshape([cov_trajs.shape[0] * cov_trajs.shape[1], self.num_cont_covs]).std(0)
         std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs]))
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
-#        print(np.nanstd(np.nanstd(norm_covs, axis=0), axis=0), 'meooww' )
-#        print(np.nanstd(norm_covs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs])))
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
 
-
-#        min_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].min(0)[0].min(0)[0]
-#        max_covs = cov_trajs[:, :, 1:self.num_cont_covs + 1].max(0)[0].max(0)[0]
-
-#        # normalization is needed for labtests in cov trajectories only
-#        labtest_cutoff = 120  # plus one from notebook since includes timedeltas
-#        cov_trajs = self.covariate_trajectories
-#        print(cov_trajs.shape)
-#        #cov_trajs[torch.isnan(cov_trajs)] = 0
-#        min_covs = torch.min(torch.min(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
-#        max_covs = torch.max(torch.max(cov_trajs[:, :, 1:120], axis=0)[0], axis=0)[0]
-##        print('min covs:' , min_covs)
-##        print('max covs:', max_covs)
-#        numerator = cov_trajs[:, :, 1:120] - min_covs
-#        denominator =  max_covs - min_covs 
-#        #print(numerator/denominator)
-#        normalized_labtests = numerator/denominator
-#        normalized_labtests[torch.isnan(normalized_labtests)] = 0
-##        print('normalized labtests:', torch.sum(normalized_labtests, axis=1)[0])
-#        self.covariate_trajectories[:, :, 1:120] = normalized_labtests
 
     def format_data(self):
         self.format_cov_trajs_and_event_times_time_rep()
