@@ -8,12 +8,15 @@ from main_types.LearnFixedThetaBasicMain import LearnFixedThetaBasicMain
 from main_types.MultiRunMain import MultiRunMain
 from main_types.ModelFreeRankingMain import *
 from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
+from main_types.SaveLearnedStandardRisksMain import SaveLearnedStandardRisksMain
+#from main_types import *
 from utils.ParameterParser import ParameterParser
 import sys
 sys.path.append("..")
 from data.make_simple_synth_data import *
 sys.path.append('../data/COVID-19/')
 from preprocess_data import COVID19SevereOutcomePreprocessor
+from preprocess_data_old import COVID19_Preprocessor
 
 
 def main(path_to_config):
@@ -39,6 +42,8 @@ def main(path_to_config):
         main = ValidateHiddenDimMain(params)
     elif main_type == 'eval_saved_results_main':
         main = EvalSavedResultsMain(params)
+    elif main_type == 'save_learned_risks_standard_c_index_main':
+        main = SaveLearnedStandardRisksMain(params)
     else:
         raise ValueError('Main type %s not defined' %str(main_type))    
 
@@ -69,9 +74,12 @@ if __name__ == '__main__':
 
 
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
+#    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/learn_fixed_theta_linear_delta_per_step_dm_cvd.yaml'
 
 
 #    path_to_config = '../configs/RNN_based_model_configs/covid_configs/RNN_delta_per_step_covid.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/RNN_delta_per_step_covid.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid_severity.yaml'
     path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/mimic_configs/RNN_delta_per_step_mimic.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd_weibull.yaml'

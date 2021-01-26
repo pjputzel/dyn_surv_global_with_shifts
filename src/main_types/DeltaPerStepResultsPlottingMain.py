@@ -30,6 +30,7 @@ class DeltaPerStepResultsPlottingMain:
         np.random.seed(self.params['random_seed'])
         torch.set_default_dtype(torch.float64)
 
+        print('currently assuming cov times is same as number of measurements, may need to update for non-covid data if processed differently')
         ### NEW ###
         self.setup_data_and_model()
         # condense releveant delta/shift info into df 
@@ -78,7 +79,7 @@ class DeltaPerStepResultsPlottingMain:
 
         col_names = [
             'ind_idx', 'delta', 'mean_tte_rem', 
-            'mean_tte', 'shifted_time', 'day'
+            'mean_tte', 'hazard', 'shifted_time', 'day'
         ]
         col_names = col_names + static_cov_names + cont_cov_names
         df_all = pd.DataFrame(columns=col_names)
@@ -87,7 +88,7 @@ class DeltaPerStepResultsPlottingMain:
             traj_len = int(self.tr_data.traj_lens[ind_idx].detach().numpy())
             deltas_i = tr_deltas[ind_idx][0:traj_len]
             mean_tte_rem_i = self.get_mean_tte_remaining(deltas_i)
-            #risks_i = self.get_risks(deltas_i)
+            hazard_i = self.get_hazards_i(deltas_i)
             mean_tte_i = self.get_mean_ttes(deltas_i)
             shifted_times_i = np.array([delta + day for day, delta in enumerate(deltas_i)])
             days = np.arange(deltas_i.shape[0]) + 1
@@ -111,7 +112,7 @@ class DeltaPerStepResultsPlottingMain:
             ind_idx_rep = np.tile(ind_idx, traj_len)
             data_i = np.stack(
                 [
-                    ind_idx_rep, deltas_i, mean_tte_rem_i, mean_tte_i,
+                    ind_idx_rep, deltas_i, mean_tte_rem_i, mean_tte_i, hazard_i,
                     shifted_times_i, days, age_i, bmi_i, sex_i, race_i,
                 ] + cont_covs_i, axis=0
             )
@@ -249,10 +250,12 @@ class DeltaPerStepResultsPlottingMain:
     def make_seaborn_cov_plot_i(self, ind_idx, figsize=1, oxygen_label_order=None):
         ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
         fig, axes = plt.subplots(4, 1, sharex=True)
-        sb.lineplot(ax=axes[0], x='day', y='mean_tte_rem', data=ind_df_to_plot, marker='o')
-        sb.lineplot(ax=axes[0], x='day', y='risks', data=ind_df_to_plot, marker='o')
+        # toggle comments to switch between mean_tte_rem and hazards
+        #sb.lineplot(ax=axes[0], x='day', y='mean_tte_rem', data=ind_df_to_plot, marker='o')
+        sb.lineplot(ax=axes[0], x='day', y='hazard', data=ind_df_to_plot, marker='o')
         axes[0].lines[0].set_linestyle('--')
-        axes[0].set_title('Mean Time to Event Remaining')
+        #axes[0].set_title('Mean Time to Event Remaining')
+        axes[0].set_title('Hazard')
         axes[0].set_ylabel('')
         
         plot = sb.scatterplot(ax=axes[1], x='day', y='icu_name', data=ind_df_to_plot, hue='icu_name')
@@ -331,9 +334,23 @@ class DeltaPerStepResultsPlottingMain:
             (1 - norm.cdf((cov_times + deltas)/scale**(1/2)))
         return mean_ttes 
 
-    def get_risks(self, deltas_i):
-        # risks are the hazard computed at the current time
-        pass
+    def get_hazards_i(self, deltas_i):
+        scale = torch.exp(-self.model.global_param_logspace).detach().numpy()
+        cov_times = np.arange(len(deltas_i))
+        hazards_i = (cov_times + deltas_i ) * (1./scale)
+        return hazards_i
+
+#    def get_hazards(self, deltas_all):
+#        # hazard computed at the current time
+#        scale = torch.exp(-self.model.global_param_logspace).detach().numpy()
+
+#    def get_hazard_single_time(self, deltas_t, time, scale):
+#        hazards_all = []
+#        for t, deltas_t in enumerate(deltas):
+#            hazards = 1./(scale) * (t + deltas_t)
+#            hazards_all.append(hazards)
+#        return hazards_all
+
 
     '''
         deltas: a list of numpy arrays with all the deltas per timestep (note that each array is

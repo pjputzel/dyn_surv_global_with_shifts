@@ -523,7 +523,7 @@ class ModelEvaluator:
             # in this case use the current CDF
             risk_func = prob_calc.compute_most_recent_CDF
         elif metric_name == 'c_index_from_start_time':
-            # in this case we decided it makes most sense to go from S -> infinity
+            # in this case we decided it makes most sense to include pairs from S -> infinity
 
             # instead we get the risks for first slot i here by integrating S to T_i
             risk_func = prob_calc.compute_cond_probs_k_from_start_to_event_times_i

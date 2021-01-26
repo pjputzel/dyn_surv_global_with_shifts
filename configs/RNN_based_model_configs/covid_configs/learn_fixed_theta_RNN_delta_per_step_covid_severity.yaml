@@ -1,28 +1,28 @@
-main_type: 'save_learned_risks_standard_c_index_main' #'learn_fixed_theta_basic_main'
+main_type: 'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
 
 data_input_params:
     dataset_name: 'covid'
-    saved_tr_te_idxs: '../data/COVID-19/train_test_idxs_covid.pkl'
+    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl'
     te_percent: 0.1 #not used if saved_tr_te_idxs are given unless debugging
     cov_time_representation: 'absolute'
     data_loading_params:
         #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
-        paths: '../data/COVID-19/processed_covid_data.pkl' #'../data/COVID-19/new_processed_covid_data_patched.pkl'
+        paths: '../data/COVID-19/severity_processed_covid_data.pkl'
 
 model_params:
     model_type: 'RNN_delta_per_step'
-    dynamic_cov_dim: 248 # new data:345 
-    hidden_dim: 8  #[2, 4, 8, 16, 32] # current run has 100, probs why it's so slow
+    dynamic_cov_dim: 345 # older data:248 #103
+    hidden_dim: 128  # 128 was the winner 
     static_cov_dim: 11 # dummy static var for now that does nothing
-    dropout: .0
+    dropout: .3 # .3 is default
 
 eval_params:
     eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
-        start_times: [6., 10., 15., 24.]
-        window_length: 20
-        time_step: 5
+        start_times: [3, 4, 7, 11] #old: [6, 10., 15., 24.]
+        window_length: 12
+        time_step: 3
         #start_times: [.5, 1., 1.5, 2.]
         #window_length: 3.
         #time_step: .25

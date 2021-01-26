@@ -1,4 +1,3 @@
-
 main_type: 'learn_fixed_theta_basic_main'
 savedir_pre: '../output/dm_cvd/'
 
@@ -12,7 +11,7 @@ data_input_params:
         paths: '../data/dm_cvd/all_data.pkl'  #data_dev_filtered_by_events_after_183.pkl'
 
 model_params:
-    model_type: 'RNN_delta_per_step'
+    model_type: 'linear_delta_per_step'
     dynamic_cov_dim: 187
     hidden_dim: 20
     static_cov_dim: 4 # dummy static var for now that does nothing

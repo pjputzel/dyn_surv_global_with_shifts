@@ -4,7 +4,7 @@ import sys
 sys.path.append("..")
 
 sys.path.append('../data/COVID-19/')
-from preprocess_data import COVID19_Preprocessor
+from preprocess_data_old import COVID19_Preprocessor
 
 
 if __name__ == '__main__':
