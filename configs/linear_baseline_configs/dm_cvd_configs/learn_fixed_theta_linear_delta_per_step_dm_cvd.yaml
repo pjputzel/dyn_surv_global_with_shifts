@@ -3,7 +3,7 @@ savedir_pre: '../output/dm_cvd/'
 
 data_input_params:
     dataset_name: 'dm_cvd'
-    saved_tr_te_idxs: '../data/train_test_idxs_dm_cvd.pkl'
+    saved_tr_te_idxs: '../data/dm_cvd/train_test_idxs_dm_cvd.pkl'
     te_percent: -1.
     cov_time_representation: 'absolute'
     data_loading_params:

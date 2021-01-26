@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../data/')
 import numpy as np
 import os
 import pickle
