@@ -3,11 +3,11 @@ savedir: '../output/covid/num_events_ranking_only'
 
 data_input_params:
 
-    saved_tr_te_idxs: '../data/COVID-19/train_test_idxs_covid.pkl'
+    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl'
     dataset_name: 'covid'
     te_percent: .0
     data_loading_params:
-        paths: '../data/COVID-19/processed_covid_data.pkl'
+        paths: '../data/COVID-19/severity_processed_covid_data.pkl'
 
 
 model_params:
@@ -16,9 +16,9 @@ model_params:
 eval_params:
     eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
-        start_times: [6., 10., 15., 24.]
-        window_length: 20
-        time_step: 5
+        start_times: [3,4,7,11] #[2, 6, 15, 35] #old [6., 10., 15., 24.]
+        window_length: 12
+        time_step: 3
         
     
 
