@@ -77,6 +77,8 @@ class ModelEvaluator:
             func = self.compute_auc_at_t_plus_delta_t
         elif metric_name == 'auc_truncated_at_S':
             func = self.compute_auc_truncated_at_S_from_S_to_delta_S
+        elif metric_name == 'standard_c_index_truncated_at_S':
+            func = self.compute_standard_c_index_truncated_at_S_over_window
         else:
             raise ValueError('dynamic metric %s not recognized' %metric_name)
         return func
@@ -148,6 +150,9 @@ class ModelEvaluator:
 
     def compute_c_index_truncated_at_S(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'c_index_truncated_at_S')
+
+    def compute_standard_c_index_truncated_at_S(self, model, split_data):
+        return self.evaluate_dynamic_metric(model, split_data, 'standard_c_index_truncated_at_S')
 
     def compute_c_index(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'c_index')
@@ -228,6 +233,43 @@ class ModelEvaluator:
         #print('R/U/cases/controls %.2f/%.2f/%d/%d' %(np.sum(case_ranks), U, num_cases, num_controls))
         return U/(num_cases * num_controls), {'cases':num_cases, 'controls':num_controls}
 
+
+
+    def compute_standard_c_index_truncated_at_S_over_window(self,
+        model, data, start_time, time_delta
+    ):
+        risks = self.compute_risks(
+            model, data,
+            start_time, time_delta,
+            'standard_c_index_truncated_at_S'
+        ) 
+        event_in_time_window = \
+            (start_time <= data.event_times) &\
+            (data.event_times <= start_time + time_delta) &\
+            (~data.censoring_indicators.bool())                    
+
+        is_valid = np.zeros((len(risks), len(risks)))
+        ordered_correct = np.zeros((len(risks), len(risks)))
+        for i in range(len(risks)):
+            if not event_in_time_window[i]:
+                continue
+            time_i = data.event_times[i]
+            risk_i = risks[i]        
+    
+            valid_idxs = np.where(data.event_times > time_i)
+            is_valid[i, valid_idxs] = 1
+            
+            ordered_correct_idxs = np.where(risk_i > risks)
+            ordered_correct[i, ordered_correct_idxs] = 1
+
+            tied_idxs = np.where(risk_i == risks)
+            ordered_correct[i, tied_idxs] = 1/2
+
+        tot_valid_pairs = np.sum(is_valid)
+        if tot_valid_pairs == 0:
+            return 0, 0
+        c_index = np.sum(is_valid * ordered_correct)/tot_valid_pairs
+        return c_index, tot_valid_pairs 
 
     def compute_c_index_from_most_recent_cov_time_k_to_event_time_i(self,
         model, data, start_time, time_delta=None
@@ -412,7 +454,45 @@ class ModelEvaluator:
             return 0.5
         return 0
 
+
+
     def compute_c_index_at_t_plus_delta_t(self,
+        model, data, start_time, time_delta
+    ):
+        risks = self.compute_risks(
+            model, data,
+            start_time, time_delta,
+            'standard_c_index_truncated_at_S'
+        ) 
+        event_in_time_window = \
+            (data.event_times <= start_time + time_delta) &\
+            (~data.censoring_indicators.bool())                    
+
+        is_valid = np.zeros((len(risks), len(risks)))
+        ordered_correct = np.zeros((len(risks), len(risks)))
+        for i in range(len(risks)):
+            if not event_in_time_window[i]:
+                continue
+            time_i = data.event_times[i]
+            risk_i = risks[i]        
+    
+            valid_idxs = np.where(data.event_times > time_i)
+            is_valid[i, valid_idxs] = 1
+            
+            ordered_correct_idxs = np.where(risk_i > risks)
+            ordered_correct[i, ordered_correct_idxs] = 1
+
+            # ties counts as 1/2
+            tied_idxs = np.where(risk_i == risks)
+            ordered_correct[i, tied_idxs] = 1/2
+
+        tot_valid_pairs = np.sum(is_valid)
+        if tot_valid_pairs == 0:
+            return 0, 0
+        c_index = np.sum(is_valid * ordered_correct)/tot_valid_pairs
+        return c_index, tot_valid_pairs 
+
+    def compute_c_index_at_t_plus_delta_t_old(self,
         model, data, start_time, time_delta
     ):
         risks = self.compute_risks(
@@ -420,23 +500,6 @@ class ModelEvaluator:
             start_time, time_delta,
             'c_index'
         )
-        #print('one risk', risks[0])
-        #print('another', risks[1])
-        #print('and a third', risks[2])
-
-#        bool_idxs_less_than_start = data.cov_times <= start_time
-#        print(bool_idxs_less_than_start.shape,' bool ids less than start')
-#        idxs_most_recent_times = torch.max(torch.where(
-#            bool_idxs_less_than_start,
-#            data.cov_times, torch.zeros(data.cov_times.shape)
-#        ), dim=1)[1]
-#        print(idxs_most_recent_times.shape, 'idxs most recent times')
-#        most_recent_times = data.cov_times[torch.arange(idxs_most_recent_times.shape[0]), idxs_most_recent_times]
-        #print(most_recent_times[0:20], start_time)
-#        print(most_recent_times.shape, 'most recent times shape')
-######## For [S, S + \Delta S] version
-        # May want to use this function still?
-#        ranks = rankdata(all_risks.cpu().detach().numpy())        
         
         num_individuals = len(data.event_times)
         num_ordered_correctly = 0
@@ -448,17 +511,6 @@ class ModelEvaluator:
         valid_idxs_i = torch.arange(num_individuals)[valid_bool_idxs_i]
         
         for idx_i in valid_idxs_i:
-#            if data.censoring_indicators[i]:
-#                continue
-##            most_recent_cov_time_i = \
-##                torch.max(data.cov_times[i, data.cov_times[i] <= start_time])
-#            in_interval = \
-#                ( start_time + time_delta >= data.event_times[i])
-##                (data.event_times[i] >= start_time)
-#
-#            if not in_interval:
-#                continue
-#
             valid_idxs_k = torch.arange(
                 num_individuals
             )[data.event_times > data.event_times[idx_i]]
@@ -468,22 +520,8 @@ class ModelEvaluator:
                 num_ordered_correctly += self.is_ordered_correctly(
                     risks, idx_i, idx_k
                 )
-                
-#            for j in range(num_individuals):
-#                #TODO: figure out if there needs to be a different
-#                # condition for \tau_j
-#                # looks like no extra condition is correct as long as \tau_j > \tau_i
-#                # we're gtg 
-#                #if start_time >= data.event_times[j]:
-#                #    continue
-#                if data.event_times[j] > data.event_times[i]:
-#                    normalization += 1
-#                    num_ordered_correctly += self.is_ordered_correctly(
-#                        risks, i, j
-#                    )
         if normalization == 0:
             return 0, 0
-        #print('num_ordered_correctly:', num_ordered_correctly, 'normalization:', normalization)
         c_index = num_ordered_correctly/normalization
         print(normalization)
         return c_index, normalization
@@ -520,8 +558,10 @@ class ModelEvaluator:
 
         prob_calc = self.loss_calculator.logprob_calculator
         if metric_name == 'c_index':
-            # in this case use the current CDF
-            risk_func = prob_calc.compute_most_recent_CDF
+            # wasn't carrying forwards the conditioning before, but deephit
+            # does actually carry forwards conditioning in their code
+#            risk_func = prob_calc.compute_most_recent_CDF
+            risk_func = prob_calc.compute_cond_probs_truncated_at_S_over_window
         elif metric_name == 'c_index_from_start_time':
             # in this case we decided it makes most sense to include pairs from S -> infinity
 
@@ -530,6 +570,8 @@ class ModelEvaluator:
         elif metric_name == 'c_index_from_most_recent_time':
             risk_func = prob_calc.compute_cond_probs_from_cov_time_k_to_event_times_i
         elif metric_name == 'auc_truncated_at_S':
+            risk_func = prob_calc.compute_cond_probs_truncated_at_S_over_window
+        elif metric_name == 'standard_c_index_truncated_at_S':
             risk_func = prob_calc.compute_cond_probs_truncated_at_S_over_window
         elif metric_name == 'c_index_truncated_at_S':
             risk_func = prob_calc.compute_cond_probs_truncated_at_S_to_event_times_i

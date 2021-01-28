@@ -30,6 +30,9 @@ class DummyGlobalModel(nn.Module):
     
     def get_global_param(self):
         return torch.exp(-self.global_param_logspace)
+    
+    def set_global_param(self, global_param):
+        self.global_param_logspace = nn.Parameter(-torch.log(global_param))
 
     def freeze_global_param(self):
         self.global_param_logspace.requires_grad = False

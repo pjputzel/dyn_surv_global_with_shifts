@@ -36,8 +36,22 @@ class BasicMain(BaseMain):
             os.makedirs(self.params['savedir'])
 
     def load_data(self):
-        data_input = DataInput(self.params['data_input_params'])
-        data_input.load_data()
+        split = self.params['data_input_params']['data_loading_params']['paths'].split('/')
+        data_dir = ''
+        for i in range(len(split) - 1):
+            data_dir += split[i] + '/'
+        self.data_dir = data_dir        
+
+        data_path = os.path.join(data_dir, 'data_input.pkl')
+        if 'data_input.pkl' in os.listdir(data_dir):
+            print('Loading saved data input object')
+            with open(data_path, 'rb') as f:
+                data_input = pickle.load(f) 
+        else:
+            data_input = DataInput(self.params['data_input_params'])
+            data_input.load_data()
+            with open(data_path, 'wb') as f:
+                pickle.dump(data_input, f)
         self.data_input = data_input
         return data_input
     

@@ -11,6 +11,7 @@ import pickle
 from utils.ParameterParser import ParameterParser
 from data_handling.DataInput import DataInput
 import torch
+import torch.nn as nn
 import copy 
 
 # Since learning the params alone will typically have smoother training
@@ -35,16 +36,7 @@ class LearnFixedThetaBasicMain(BasicMain):
 
     def train_model(self, model, data_input):
         print('TRAINING GLOBAL PARAM ONLY')
-        config_for_global_param_training = copy.deepcopy(self.params)
-        config_for_global_param_training['model_params']['model_type'] = 'dummy_global'
-        config_for_global_param_training['train_params']['learning_rate'] = \
-            LR_THETA_RATIO  * self.params['train_params']['learning_rate']
-        model_trainer = BasicModelTrainer(
-            config_for_global_param_training['train_params'],
-            config_for_global_param_training['model_params']['model_type']
-        )
-        _ = model_trainer.train_model(self.dummy_global_model, data_input)
-
+        self.train_global_model(data_input)
         print('FREEZING GLOBAL PARAM, TRAINING SHIFTS')
         self.model.set_and_freeze_global_param(
             self.dummy_global_model.get_global_param()
@@ -56,6 +48,27 @@ class LearnFixedThetaBasicMain(BasicMain):
         diagnostics = model_trainer.train_model(model, data_input)
         return diagnostics
     
+    def train_global_model(self, data_input):
+        theta_filename = 'global_theta_%s.pkl' %self.params['train_params']['loss_params']['distribution_type']
+        saved_theta_path = os.path.join(self.data_dir, theta_filename)
+        if os.path.exists(saved_theta_path):
+            with open(saved_theta_path, 'rb') as f:
+                saved_global_theta = pickle.load(f)
+            self.dummy_global_model.set_global_param(saved_global_theta)
+            print('Loading pre-saved global theta with value:', saved_global_theta)
+        else:
+            config_for_global_param_training = copy.deepcopy(self.params)
+            config_for_global_param_training['model_params']['model_type'] = 'dummy_global'
+            config_for_global_param_training['train_params']['learning_rate'] = \
+                LR_THETA_RATIO  * self.params['train_params']['learning_rate']
+            model_trainer = BasicModelTrainer(
+                config_for_global_param_training['train_params'],
+                config_for_global_param_training['model_params']['model_type']
+            )
+            _ = model_trainer.train_model(self.dummy_global_model, data_input)
+            with open(saved_theta_path, 'wb') as f:
+                pickle.dump(self.dummy_global_model.get_global_param(), f)
+
 #    def freeze_hidden_state_and_cov_pred_params(self, model):
 #        if self.params['model_params']['model_type'] == 'one_theta':
 #            model.freeze_rnn_parameters()

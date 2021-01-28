@@ -34,7 +34,8 @@ class DmCvdDataLoader(DataLoaderBase):
 #        ]
         max_event_time = np.max(np.array(event_times))
 #        norm = max_event_time
-        norm = 365
+#        norm = 365
+        norm = 1
         trajs = [
             [   
                 [traj_t[0]/norm, [cov_value for c, cov_value in enumerate(traj_t[1])]]

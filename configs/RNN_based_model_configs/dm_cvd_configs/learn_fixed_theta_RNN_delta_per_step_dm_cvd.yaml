@@ -13,7 +13,7 @@ data_input_params:
 
 model_params:
     model_type: 'RNN_delta_per_step'
-    dynamic_cov_dim: 187
+    dynamic_cov_dim: 186
     hidden_dim: 128 #20
     static_cov_dim: 4 # dummy static var for now that does nothing
 
