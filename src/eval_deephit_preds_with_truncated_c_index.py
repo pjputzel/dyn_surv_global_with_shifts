@@ -12,13 +12,15 @@ def compute_deephit_risks_ik(pred_time, preds, data):
     sorted_event_times = data.event_times[sort_idxs]
     sorted_cens_ind = data.censoring_indicators[sort_idxs]
     sorted_preds = preds[sort_idxs]
-
-    normalization = 1. - np.sum(sorted_preds[:, 0:pred_time + 1], axis=1).squeeze()
+    
+    # double check, had pred-time + 1 here
+    normalization = 1. - np.sum(sorted_preds[:, 0:pred_time], axis=1).squeeze()
 #    normalization = normalization
     #print(normalization)
     risks_ik = []
     for i, time in enumerate(sorted_event_times):
-        risks_k = 1/(normalization[i]) * np.sum(sorted_preds[:, pred_time + 1:int(time) + 1], axis=1).squeeze()
+        # double check, had pred_time + 1 here
+        risks_k = 1/(normalization[i]) * np.sum(sorted_preds[:, pred_time:int(time) + 1], axis=1).squeeze()
         risks_ik.append(risks_k)
     risks_ik = np.array(risks_ik)
     #print(risks_ik.shape, normalization.shape, sorted_preds.shape)

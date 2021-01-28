@@ -40,6 +40,7 @@ class BasicMain(BaseMain):
         data_dir = ''
         for i in range(len(split) - 1):
             data_dir += split[i] + '/'
+        self.data_dir = data_dir        
 
         data_path = os.path.join(data_dir, 'data_input.pkl')
         if 'data_input.pkl' in os.listdir(data_dir):

@@ -11,7 +11,9 @@ import sys
 import tqdm
 import pickle
 
-COVID_NUM_CONT_COVS = 212 # old 114
+COVID_NUM_CONT_DYNAMIC_COVS = 212 # old 114
+DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 #TODO: after dmcvd is processed put num_cont_covs here
+
 # there should only be one data-input (don't subclass) but one dataloader per new dataset
 # DataInput is agnostic to tr/te split, but the made batches which are used by the rest of the model will use the corresponding training/testing idxs
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
@@ -30,11 +32,12 @@ class DataInput:
             # expected format for covariate trajectories: list of [ [timestamp, [covariate_dim1, covariate_dim2, .... ]] ]
         elif self.params['dataset_name'] == 'dm_cvd':
             dataloader = DmCvdDataLoader(self.params['data_loading_params'])
+            self.num_cont_dynamic_covs = DM_CVD_NUM_CONT_DYNAMIC_COVS
         elif self.params['dataset_name'] == 'simple_synth':
             dataloader = SimpleSyntheticDataLoader(self.params['data_loading_params'])
         elif self.params['dataset_name'] == 'covid':
             dataloader = CovidDataLoader(self.params['data_loading_params'])
-            self.num_cont_covs = COVID_NUM_CONT_COVS
+            self.num_cont_dynamic_covs = COVID_NUM_CONT_DYNAMIC_COVS
             self.o2_enu_to_name = dataloader.o2_enu_to_name
         elif self.params['dataset_name'] == 'mimic':
             dataloader = MimicDataLoader(self.params['data_loading_params'])
@@ -78,14 +81,15 @@ class DataInput:
             self.padding_indicators.bool().unsqueeze(-1),
             torch.ones(cov_trajs.shape) * 1.  * np.nan, cov_trajs
         ).detach().numpy()
-        cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_covs + 1]
+        cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1]
         mean_covs = np.nanmean(np.nanmean(cont_cov_trajs, axis=0), axis=0)
-        std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_covs]))
+        std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
         norm_covs[np.isnan(norm_covs)] = 0
-        self.covariate_trajectories[:, :, 1:self.num_cont_covs + 1] = \
+        self.covariate_trajectories[:, :, 1:self.num_cont_dynamic_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
+        print(self.covariate_trajectories.shape)
 
 
     def format_data(self):
