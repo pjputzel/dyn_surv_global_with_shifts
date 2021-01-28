@@ -1,4 +1,4 @@
-main_type: 'eval_saved_results_main' #'learn_fixed_theta_basic_main' # #'learn_fixed_theta_basic_main'
+main_type: 'save_learned_risks_standard_c_index_main' #'eval_saved_results_main' #'learn_fixed_theta_basic_main' # #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
 
 data_input_params:

@@ -54,7 +54,7 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/model_free_configs/synth_configs/cov_times_ranking_synth.yaml'
 #    path_to_config = '../configs/model_free_configs/synth_configs/num_event_ranking_synth.yaml'
 #    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
-    path_to_config = '../configs/model_free_configs/covid_configs/num_events.yaml'
+#    path_to_config = '../configs/model_free_configs/covid_configs/num_events.yaml'
 #    path_to_config = '../configs/model_free_configs/covid_configs/dummy_global_testing.yaml'
 
 #    path_to_config = '../configs/model_free_configs/mimic_configs/num_events.yaml'
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
 #    path_to_config = '../configs/RNN_based_model_configs/covid_configs/RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/covid_configs/learn_fixed_theta_linear_delta_per_step_covid.yaml'
+    path_to_config = '../configs/linear_baseline_configs/covid_configs/learn_fixed_theta_linear_delta_per_step_covid.yaml'
 
 #    path_to_config = '../configs/RNN_based_model_configs/mimic_configs/RNN_delta_per_step_mimic.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd_weibull.yaml'
