@@ -17,13 +17,17 @@ model_params:
     #hidden_dim: 10 
     hidden_dims_to_validate: [8, 64, 128, 256]
     static_cov_dim: 11
+    dropout: .3
 
 eval_params:
-    eval_metrics: ['c_index', 'c_index_truncated_at_S'] 
+    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] 
     dynamic_metrics:
-        start_times: [6., 10., 15., 24.]
-        window_length: 20
-        time_step: 5
+        start_times: [0, 3, 4, 7, 11] #old: [6, 10., 15., 24.]
+        window_length: 12
+        time_step: 3
+#        start_times: [6., 10., 15., 24.]
+#        window_length: 20
+#        time_step: 5
         #start_times: [.5, 1., 1.5, 2.]
         #window_length: 3.
         #time_step: .25

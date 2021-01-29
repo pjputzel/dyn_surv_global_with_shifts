@@ -50,8 +50,12 @@ class BasicMain(BaseMain):
         else:
             data_input = DataInput(self.params['data_input_params'])
             data_input.load_data()
-            with open(data_path, 'wb') as f:
-                pickle.dump(data_input, f)
+            try:
+                with open(data_path, 'wb') as f:
+                    pickle.dump(data_input, f)
+            except:
+                os.remove(data_path)
+                print('processed data too large to pickle')
         self.data_input = data_input
         return data_input
     
