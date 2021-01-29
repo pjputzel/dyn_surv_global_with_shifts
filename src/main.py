@@ -69,7 +69,6 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid_num_events_only.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/synth_configs/RNN_delta_per_step.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/RNN_delta_per_step_dm_cvd.yaml'
-#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/validate_RNN_delta_per_step_dm_cvd.yaml'
 
 
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
@@ -87,4 +86,6 @@ if __name__ == '__main__':
 
     ### Validation main
 #    path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
+    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/validate_RNN_delta_per_step_dm_cvd.yaml'
+
     main(path_to_config)
