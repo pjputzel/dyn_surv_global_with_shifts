@@ -1,8 +1,12 @@
 import sys
+sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
+print(sys.path, 'in loading')
 #sys.path.append('../data/COVID-19/')
-#from preprocess_data import COVID19_Preprocessor
+#from preprocess_data import COVID19SevereOutcomePreprocessor
 #from data_handling.COVID19_Preprocessor import COVID19_Preprocessor
 from data_handling.DataLoaderBase import DataLoaderBase
+#from data_handling.COVIDSevereOutcomePreprocessor import COVID19SevereOutcomePreprocessor
+#from preprocess_data import COVID19SevereOutcomePreprocessor
 import numpy as np
 import pandas
 import pickle
@@ -23,6 +27,7 @@ class CovidDataLoader(DataLoaderBase):
         dynamic_covs = data.dynamic_covs
         missing_indicators = data.missing_indicators
         static_vars = data.static_covs
+        meas_times = data.meas_times
         if DEBUG:
             idxs = np.random.permutation(np.arange(len(event_times)))[0:50]
             event_times = [event_times[i] for i in idxs]
@@ -30,6 +35,7 @@ class CovidDataLoader(DataLoaderBase):
             missing_indicators = [missing_indicators[i] for i in idxs]
             dynamic_covs = [dynamic_covs[i] for i in idxs]
             static_vars = [static_vars[i] for i in idxs]
+            meas_times = [data.meas_times[i] for i in idxs]
 
         static_vars = [
             list(static_vars_i[0]) for static_vars_i in static_vars
@@ -52,6 +58,7 @@ class CovidDataLoader(DataLoaderBase):
     
         max_event_time = np.max(np.array(event_times))
         median_event_time = np.median(np.array(event_times))
+        #print(meas_times)
 #       norm = max_event_time
 #        norm = 365
 #        norm = median_event_time
@@ -59,10 +66,10 @@ class CovidDataLoader(DataLoaderBase):
         norm = (10**9 * 3600 * 24) #normalize from nanoseconds to days
         trajs = [
             [
-                [float(i) * data.time_res_in_days,  [val if not np.isnan(val) else replace_nans_with for val in values]] # times are discretized here, get real time by multiplying index by the time resolution
+                [meas_times[individual][i],  [val if not np.isnan(val) else replace_nans_with for val in values]] # times are discretized here, get real time by multiplying index by the time resolution old time:float(i) * data.time_res_in_days
                 for i, values in enumerate(list(cov_values_i))
             ]
-            for cov_values_i in dynamic_covs
+            for individual, cov_values_i in enumerate(dynamic_covs)
         ]
         event_times = [event_time/norm for event_time in event_times]
 #        print(len(missing_indicators[0][0]), len(trajs[0][0][1]))

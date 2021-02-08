@@ -6,7 +6,14 @@ from data_handling.COVIDSevereOutcomePreprocessor import COVID19SevereOutcomePre
 from evaluation.ModelEvaluator import ModelEvaluator
 import torch
 
-def compute_deephit_risks_ik(pred_time, preds, data):
+def compute_standard_deephit_risks(pred_time, window, preds, data):
+    normalization = 1. - np.sum(preds[:, 0:pred_time], axis=1).squeeze()
+    risks = 1/(normalization) * np.sum(preds[:, pred_time:pred_time + int(window) + 1], axis=1).squeeze()
+    return risks
+
+    
+
+def compute_trunc_deephit_risks_ik(pred_time, preds, data):
     # person X 1 X time_bins
     sort_idxs = np.argsort(data.event_times)
     sorted_event_times = data.event_times[sort_idxs]
@@ -46,15 +53,23 @@ if __name__ == '__main__':
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001_hdim100_preds_val.pkl'
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001_hdim200_preds_val.pkl'
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.00001_hdim200_preds_val.pkl'
-    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001_hdim200_preds_te_winner.pkl'
+#    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001000_hdim200_preds_val.pkl'
+    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.000010_hdim50_preds_te_winner.pkl'
+    print('Loading preds from path %s' %path_to_deephit_preds)
 
     #params = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml' #just to get the data loaded properly
-    params = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid_severity.yaml' #just to get the data loaded properly
+    params = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml' #just to get the data loaded properly
     # load data again
     # then get the full te batch to evaluate
     params = ParameterParser(params).parse_params()
-    params['data_input_params']['saved_tr_te_idxs'] = '../data/COVID-19/severity_dev_val_idxs_covid.pkl'
+ #   params['data_input_params']['saved_tr_te_idxs'] = '../data/COVID-19/severity_dev_val_idxs_covid.pkl'
     pred_times = params['eval_params']['dynamic_metrics']['start_times']
+    window_length = params['eval_params']['dynamic_metrics']['window_length']
+    time_step = params['eval_params']['dynamic_metrics']['time_step']
+    num_time_steps = int(window_length//time_step)
+    windows = [time_step * (i + 1) for i in range(int(num_time_steps))]
+    print('windows:', windows)
+    print('pred times:', pred_times)
     torch.random.manual_seed(params['random_seed'])
     np.random.seed(params['random_seed'])
     torch.set_default_dtype(torch.float64)
@@ -68,19 +83,57 @@ if __name__ == '__main__':
     preds_all = [pred.squeeze() for pred in preds_all]
 
     evaluator = ModelEvaluator(params['eval_params'], params['train_params']['loss_params'], params['model_params']['model_type'])
-    c_indices = []
+    trunc_c_indices = []
+    standard_trunc_c_indices = []
+    standard_c_indices = []
     for p, preds in enumerate(preds_all):
-        risks = compute_deephit_risks_ik(int(pred_times[p]), preds, data)
+        # Truncated C-index computation
+        risks = compute_trunc_deephit_risks_ik(int(pred_times[p]), preds, data)
         total_concordant_pairs, total_valid_pairs = evaluator.compute_c_index_upper_boundary_at_event_time_i(torch.tensor(risks), data, int(pred_times[p]))
         if total_valid_pairs == 0:
             c_index = 0
         else:
             c_index = total_concordant_pairs/total_valid_pairs
 
-        print('Truncated C-index for pred time %d is %.3f' %(int(pred_times[p]), c_index))
-        c_indices.append(c_index)
+        trunc_c_index = c_index
+        trunc_c_indices.append(c_index)
 
-    print('Average at-risk c-index is %.4f' %np.mean(np.array(c_indices)))
+        # Standard Truncated C-index computation
+        avg_at_pred_time = 0.
+        for window in windows:
+            risks = compute_standard_deephit_risks(
+                int(pred_times[p]), window, preds, data
+            )
+            c_index, _ = evaluator.calc_standard_c_index_truncated_at_S_with_risks(
+                risks, data, int(pred_times[p]), window
+            )
+            avg_at_pred_time += c_index
+        standard_trunc_c_index = avg_at_pred_time/len(windows)         
+        standard_trunc_c_indices.append(standard_trunc_c_index)
+
+        # Standard C-index computation
+        avg_at_pred_time = 0.
+        for window in windows:
+            risks = compute_standard_deephit_risks(
+                int(pred_times[p]), window, preds, data
+            )
+            c_index, _ = evaluator.calc_standard_c_index_with_risks(
+                risks, data, int(pred_times[p]), window
+            )
+            avg_at_pred_time += c_index
+#            print('standard c index at time %d, window %d is %.4f' %(int(pred_times[p]), window, c_index))
+        standard_c_index = avg_at_pred_time/len(windows)
+        standard_c_indices.append(standard_c_index)
+
+        print('-------Pred Time %d Days-------' %int(pred_times[p]))
+        print('Truncated C-index for pred time %d is %.3f' %(int(pred_times[p]), trunc_c_index))
+        print('Standard Truncated C-index for pred time %d is %.3f' %(int(pred_times[p]), standard_trunc_c_index))
+        print('Standard C-index for pred time %d is %.3f' %(int(pred_times[p]), standard_c_index))
+        print('-------------------------------')
+
+    print('Average at-risk c-index is %.4f' %np.mean(np.array(trunc_c_indices)))
+    print('Average standard truncated c-index is %.4f' %np.mean(np.array(standard_trunc_c_indices)))
+    print('Average standard c-index is %.4f' %np.mean(np.array(standard_c_indices)))
 
     
      

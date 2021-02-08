@@ -1,5 +1,5 @@
-main_type: 'num_events_ranking_main'
-savedir: '../output/covid/num_events_ranking_only'
+main_type: 'cov_times_ranking_main'
+savedir: '../output/covid/most_recent_cov_times'
 
 data_input_params:
 

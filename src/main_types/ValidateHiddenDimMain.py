@@ -70,7 +70,7 @@ class ValidateHiddenDimMain:
 
 
     def main(self):
-        # TODO:remove pre-saved data input and theta here so we always re-run once
+        # remove pre-saved data input and theta here so we always re-run once
         # before validating to ensure we don't use stale data_input/global_theta
         # for a large run
         split = self.params['data_input_params']['data_loading_params']['paths'].split('/')

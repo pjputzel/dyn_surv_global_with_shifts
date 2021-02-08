@@ -1,4 +1,5 @@
 import torch
+import time
 import math
 import numpy as np
 import time
@@ -12,7 +13,7 @@ class BasicModelTrainer:
         self.diagnostics = Diagnostics(train_params['diagnostic_params'])
         self.loss_calc = LossCalculator(train_params['loss_params'], model_type)
 
-
+#    @profile
     def train_model(self, model, data_input):
         self.diagnostics.padding_indicators = data_input.padding_indicators
         start_time = time.time()
@@ -52,7 +53,7 @@ class BasicModelTrainer:
 #        print(torch.cat([torch.exp(-self.diagnostics.pred_params_per_step[-1]), torch.max(data_input.cov_times, dim=1)[0].unsqueeze(1)], dim=1))
         #print(model.get_global_param())
         return self.diagnostics
-
+#    @profile
     def step_params_over_all_batches(self, model, data_input):
         pred_params_per_batch, hidden_states_per_batch, step_ahead_cov_preds_per_batch = [], [], []
         total_loss_per_batch, reg_per_batch, logprob_per_batch = [], [], []
