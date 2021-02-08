@@ -27,11 +27,25 @@ class BasicMain(BaseMain):
     
     def __init__(self, params):
         self.params = params
-        self.params['savedir'] = os.path.join(\
-            params['savedir_pre'], 
-            '%s/%s' %(params['train_params']['loss_params']['distribution_type'], \
-                    params['model_params']['model_type'])
-        )
+
+        if params['model_params']['model_type'] == 'RNN_delta_per_step':
+            self.params['savedir'] = os.path.join(\
+                params['savedir_pre'], 
+                '%s/%s_hdim%d' %(
+                        params['train_params']['loss_params']['distribution_type'],
+                        params['model_params']['model_type'],
+                        params['model_params']['hidden_dim']
+                )
+            )
+        else:
+            self.params['savedir'] = os.path.join(\
+                params['savedir_pre'], 
+                '%s/%s' %(
+                        params['train_params']['loss_params']['distribution_type'],
+                        params['model_params']['model_type'],
+                )
+            )
+            
         if not os.path.exists(self.params['savedir']):
             os.makedirs(self.params['savedir'])
 

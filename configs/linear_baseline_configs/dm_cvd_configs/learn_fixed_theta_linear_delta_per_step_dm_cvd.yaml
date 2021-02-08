@@ -12,19 +12,18 @@ data_input_params:
 
 model_params:
     model_type: 'linear_delta_per_step'
-    dynamic_cov_dim: 187
-    hidden_dim: 20
+    dynamic_cov_dim: 186
     static_cov_dim: 4 # dummy static var for now that does nothing
 
 eval_params:
-    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
-        start_times: [.5, 1., 1.5, 2.]
-        window_length: 3.
-        time_step: .25
+        start_times: [0, 3, 8, 16, 30] #[.5, 1., 1.5, 2.]
+        window_length: 28
+        time_step: 7
 
 train_params:
-    learning_rate: .001
+    learning_rate: .01
     batch_size: 10000
     conv_thresh: .00000001
     n_epoch_print: 50
