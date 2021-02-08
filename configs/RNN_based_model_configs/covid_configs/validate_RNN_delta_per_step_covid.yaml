@@ -15,12 +15,12 @@ model_params:
     model_type: 'RNN_delta_per_step'
     dynamic_cov_dim: 345 #older data: 248 
     #hidden_dim: 10 
-    hidden_dims_to_validate: [8, 64, 128, 256]
+    hidden_dims_to_validate: [64, 128, 256]
     static_cov_dim: 11
     dropout: .3
 
 eval_params:
-    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] 
+    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S', 'auc', 'auc_truncated_at_S']
     dynamic_metrics:
         start_times: [0, 3, 4, 7, 11] #old: [6, 10., 15., 24.]
         window_length: 12
@@ -35,9 +35,9 @@ eval_params:
 train_params:
     learning_rate: .01 #RAYLEIGH: 0.01 #Gompertz .001
     batch_size: 10000 # this is full batch gradient descent since so large
-    conv_thresh: .00000001
-    n_epoch_print: 50
-    max_iter: 2000
+    conv_thresh: .00000000000000000000000001
+    n_epoch_print: 500
+    max_iter: 5000
 
     diagnostic_params:
 

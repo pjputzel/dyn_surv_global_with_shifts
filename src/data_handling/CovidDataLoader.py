@@ -66,7 +66,7 @@ class CovidDataLoader(DataLoaderBase):
         norm = (10**9 * 3600 * 24) #normalize from nanoseconds to days
         trajs = [
             [
-                [meas_times[individual][i],  [val if not np.isnan(val) else replace_nans_with for val in values]] # times are discretized here, get real time by multiplying index by the time resolution old time:float(i) * data.time_res_in_days
+                [float(meas_times[individual][i]),  [val if not np.isnan(val) else replace_nans_with for val in values]] # times are discretized here, get real time by multiplying index by the time resolution old time:float(i) * data.time_res_in_days
                 for i, values in enumerate(list(cov_values_i))
             ]
             for individual, cov_values_i in enumerate(dynamic_covs)

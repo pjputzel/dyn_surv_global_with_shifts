@@ -16,6 +16,7 @@ class ModelEvaluator:
     def evaluate_model(self, model, data_input, diagnostics):
         eval_metrics = {}
         for eval_metric in self.params['eval_metrics']:
+            print('---------------Evaluating %s-----------------' %eval_metric)
             eval_func_name = 'compute_' + eval_metric
             data_tr = data_input.get_tr_data_as_single_batch() 
             data_te = data_input.get_te_data_as_single_batch()
