@@ -243,6 +243,14 @@ class ModelEvaluator:
             start_time, time_delta,
             'standard_c_index_truncated_at_S'
         ) 
+        c_index, tot_valid_pairs = self.calc_standard_c_index_truncated_at_S_with_risks(
+            risks, data, start_time, time_delta
+        )
+        return c_index, tot_valid_pairs
+
+    def calc_standard_c_index_truncated_at_S_with_risks(
+        self, risks, data, start_time, time_delta
+    ):
         event_in_time_window = \
             (start_time <= data.event_times) &\
             (data.event_times <= start_time + time_delta) &\
@@ -464,6 +472,14 @@ class ModelEvaluator:
             start_time, time_delta,
             'standard_c_index_truncated_at_S'
         ) 
+        c_index, tot_valid_pairs = self.calc_standard_c_index_with_risks(
+            risks, data, start_time, time_delta
+        )
+        return c_index, tot_valid_pairs
+
+    def calc_standard_c_index_with_risks(self,
+        risks, data, start_time, time_delta
+    ):
         event_in_time_window = \
             (data.event_times <= start_time + time_delta) &\
             (~data.censoring_indicators.bool())                    

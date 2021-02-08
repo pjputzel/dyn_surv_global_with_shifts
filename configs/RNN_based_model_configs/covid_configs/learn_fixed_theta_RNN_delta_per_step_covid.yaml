@@ -3,7 +3,7 @@ savedir_pre: '../output/covid/'
 
 data_input_params:
     dataset_name: 'covid'
-    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl'
+    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl' #'../data/COVID-19/severity_dev_val_idxs_covid.pkl' #'../data/COVID-19/severity_train_test_idxs_covid.pkl'
     te_percent: 0.1 #not used if saved_tr_te_idxs are given unless debugging
     cov_time_representation: 'absolute'
     data_loading_params:

@@ -11,14 +11,19 @@ from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
 from main_types.SaveLearnedStandardRisksMain import SaveLearnedStandardRisksMain
 #from main_types import *
 from utils.ParameterParser import ParameterParser
+#from data_handling.COVIDSevereOutcomePreprocessor import *
 import sys
+#import os
+#sys.path.append(os.getcwd())
 sys.path.append("..")
 from data.make_simple_synth_data import *
 sys.path.append('../data/COVID-19/')
+# for use with line profiler which doesn't add this to the path for some reason
+#sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
+import preprocess_data
 from preprocess_data import COVID19SevereOutcomePreprocessor
-from preprocess_data_old import COVID19_Preprocessor
-
-
+#from preprocess_data_old import COVID19_Preprocessor
+#from data_handling.COVIDSevereOutcomePreprocessor import COVID19SevereOutcomePreprocessor
 def main(path_to_config):
     start_time = time.time()
     params = ParameterParser(path_to_config).parse_params()
@@ -54,7 +59,7 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/model_free_configs/synth_configs/cov_times_ranking_synth.yaml'
 #    path_to_config = '../configs/model_free_configs/synth_configs/num_event_ranking_synth.yaml'
 #    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
-#    path_to_config = '../configs/model_free_configs/covid_configs/num_events.yaml'
+#    path_to_config = '../configs/model_free_configs/covid_configs/most_recent_cov_times.yaml'
 #    path_to_config = '../configs/model_free_configs/covid_configs/dummy_global_testing.yaml'
 
 #    path_to_config = '../configs/model_free_configs/mimic_configs/num_events.yaml'
@@ -66,7 +71,6 @@ if __name__ == '__main__':
 
 
     
-#    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid_num_events_only.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/synth_configs/RNN_delta_per_step.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/RNN_delta_per_step_dm_cvd.yaml'

@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import sys
 import tqdm
+sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
 import pickle
 
 COVID_NUM_CONT_DYNAMIC_COVS = 212 # old 114
