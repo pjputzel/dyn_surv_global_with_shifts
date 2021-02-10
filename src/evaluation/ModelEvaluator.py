@@ -11,7 +11,8 @@ class ModelEvaluator:
 
     def __init__(self, eval_params, loss_params, model_type):
         self.params = eval_params
-        self.loss_calculator = LossCalculator(loss_params, model_type)
+        if not model_type == 'landmarked_cox':
+            self.loss_calculator = LossCalculator(loss_params, model_type)
 
     def evaluate_model(self, model, data_input, diagnostics):
         eval_metrics = {}
@@ -572,6 +573,11 @@ class ModelEvaluator:
                 model, data, start_time, time_delta, metric_name
             )
             return risks
+        elif type(model).__name__ == 'LandmarkedCoxModel':
+            risks = self.compute_landmarked_cox_risks(
+                model, data, start_time, metric_name
+            )
+            return risks
 
         prob_calc = self.loss_calculator.logprob_calculator
         if metric_name == 'c_index':
@@ -602,6 +608,7 @@ class ModelEvaluator:
             start_time, time_delta
         )
         return risks 
+
 
     def compute_model_independent_risk(self, 
         model_name, data, start_time, time_delta, metric_name,
@@ -636,6 +643,24 @@ class ModelEvaluator:
                 risks = most_recent_idxs + 1
             
         return risks
+
+    def compute_landmarked_cox_risks(self, model, data, start_time, metric_name):
+        _, most_recent_idxs = \
+            data.get_most_recent_times_and_idxs_before_start(start_time)
+        covs = data.get_unpacked_padded_cov_trajs()
+        covs = \
+            covs[torch.arange(covs.shape[0]), most_recent_idxs, :]
+        covs = covs.cpu().detach().numpy()
+        risks = torch.tensor(
+            model.models[start_time].predict_risk(covs),
+            dtype=torch.float64
+        )
+        if metric_name == 'c_index_truncated_at_S':
+            sorted_risks = risks[torch.sort(data.event_times)[1]]
+            risks = sorted_risks.repeat([data.event_times.shape[0], 1])
+        return risks
+            
+
 
     def compute_c_index_truncated_at_S_model_independent_risks(self,
         model_name, data, start_time, time_delta, metric_name

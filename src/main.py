@@ -10,6 +10,7 @@ from main_types.ModelFreeRankingMain import *
 from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
 from main_types.ValidateHiddenDimMain import ParallelValidateHiddenDimMain
 from main_types.SaveLearnedStandardRisksMain import SaveLearnedStandardRisksMain
+from main_types.LandmarkedCoxMain import LandmarkedCoxMain
 #from main_types import *
 from utils.ParameterParser import ParameterParser
 #from data_handling.COVIDSevereOutcomePreprocessor import *
@@ -52,6 +53,8 @@ def main(path_to_config):
         main = EvalSavedResultsMain(params)
     elif main_type == 'save_learned_risks_standard_c_index_main':
         main = SaveLearnedStandardRisksMain(params)
+    elif main_type == 'landmarked_cox_main':
+        main = LandmarkedCoxMain(params)
     else:
         raise ValueError('Main type %s not defined' %str(main_type))    
 
@@ -92,6 +95,8 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/RNN_based_model_configs/mimic_configs/RNN_delta_per_step_mimic.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd_weibull.yaml'
 
+    ### Landmarked cox model
+    path_to_config = '../configs/landmark_cox_configs/covid_configs/landmark_cox_covid.yaml'
 
     ### Validation main
     #path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
