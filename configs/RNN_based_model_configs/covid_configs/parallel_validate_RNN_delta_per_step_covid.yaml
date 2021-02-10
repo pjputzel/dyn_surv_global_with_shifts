@@ -1,0 +1,51 @@
+main_type: 'parallel_validate_RNN_hidden_dim_main'
+savedir_pre: '../output/covid/'
+
+data_input_params:
+    dataset_name: 'covid'
+    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl'
+#    te_percent: 0.1 #not used if saved_tr_te_idxs are given unless debugging
+    saved_dev_val_idxs: '../data/COVID-19/severity_dev_val_idxs_covid.pkl'
+    cov_time_representation: 'absolute'
+    data_loading_params:
+        #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
+        paths: '../data/COVID-19/severity_processed_covid_data.pkl'
+
+model_params:
+    model_type: 'RNN_delta_per_step'
+    dynamic_cov_dim: 345 #older data: 248 
+    #hidden_dim: 10 
+    hidden_dims_to_validate: [64, 128, 256] #[2, 2] 
+    static_cov_dim: 11
+    dropout: .3
+
+eval_params:
+    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S', 'auc', 'auc_truncated_at_S']
+    dynamic_metrics:
+        start_times: [0, 3, 4, 7, 11] #old: [6, 10., 15., 24.]
+        window_length: 12
+        time_step: 3
+#        start_times: [6., 10., 15., 24.]
+#        window_length: 20
+#        time_step: 5
+        #start_times: [.5, 1., 1.5, 2.]
+        #window_length: 3.
+        #time_step: .25
+
+train_params:
+    learning_rate: .1 #RAYLEIGH: 0.01 #Gompertz .001
+    batch_size: 10000 # this is full batch gradient descent since so large
+    conv_thresh: .00000000000000000000000001
+    n_epoch_print: 500
+    max_iter: 5000
+
+    diagnostic_params:
+
+    loss_params:
+
+        distribution_type: 'rayleigh' #'gompertz'  
+        avg_per_seq: True
+        step_ahead_cov_reg: .0
+        drift_reg: 0.
+        global_diff_reg: 0.
+        delta_reg: 0. #0.1 #.01

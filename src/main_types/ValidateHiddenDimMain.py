@@ -1,4 +1,6 @@
 from main_types.LearnFixedThetaBasicMain import LearnFixedThetaBasicMain
+from multiprocessing import Process, Queue
+import time
 import os
 import torch
 import numpy as np
@@ -73,6 +75,7 @@ class ValidateHiddenDimMain:
         # remove pre-saved data input and theta here so we always re-run once
         # before validating to ensure we don't use stale data_input/global_theta
         # for a large run
+        start_time = time.time()
         split = self.params['data_input_params']['data_loading_params']['paths'].split('/')
         data_dir = ''
         for i in range(len(split) - 1):
@@ -129,6 +132,94 @@ class ValidateHiddenDimMain:
         print('Best trunc c-index and hidden dim', best_trunc_c_index, best_hidden_dim_trunc)    
         print('Best standard c-index and hidden dim', best_standard_c_index, best_hidden_dim_standard)    
         print('Best standard trunc at S c-index and hidden dim', best_standard_trunc_c_index, best_hidden_dim_standard_trunc)
+        print('Total time elapsed for validation main is %.2f' %(time.time() - start_time))
+        # we're now setting up a new main with the winning param training on all tr data 
+        # (not just dev)
+        # and then evaluating it on the test data instead of the val data
+        # so note that the params file must have 
+        # both saved_tr_te_idxs and saved_dev_val_idxs with
+        # dev val being a split within the tr
+
+        #best_hidden_dims = [best_hidden_dim_standard, best_hidden_dim_standard_trunc, best_hidden_dim_trunc]
+        #params_for_final_run = deepcopy(self.params)
+        #params_for_final_run['main_type'] = 'learn_fixed_theta_basic_main'
+        #params_for_final_run['model_params']['hidden_dim'] = best_hidden_dim
+        #basic_main = LearnFixedThetaBasicMain(params_for_final_run)
+        #basic_main.main()
+
+class ParallelValidateHiddenDimMain:
+
+    def __init__(self, params):
+        self.params = params
+
+    def main(self):
+        # remove pre-saved data input and theta here so we always re-run once
+        # before validating to ensure we don't use stale data_input/global_theta
+        # for a large run
+        start_time = time.time()
+        split = self.params['data_input_params']['data_loading_params']['paths'].split('/')
+        data_dir = ''
+        for i in range(len(split) - 1):
+            data_dir += split[i] + '/'
+        self.data_dir = data_dir        
+        data_path = os.path.join(data_dir, 'data_input.pkl')
+        theta_filename = 'global_theta_%s.pkl' %self.params['train_params']['loss_params']['distribution_type']
+        saved_theta_path = os.path.join(data_dir, theta_filename)
+        if os.path.exists(data_path):
+            os.remove(data_path)
+
+#        if os.path.exists(saved_theta_path):
+#            os.remove(saved_theta_path)
+
+        hidden_dims = self.params['model_params']['hidden_dims_to_validate']
+        output = Queue()
+        processes = []
+        for h_dim in hidden_dims:
+            p = Process(target=self.train_single_model, args=(h_dim, output))
+            processes.append(p)
+            p.start()
+        for p in processes:
+            p.join()
+        results = [output.get() for p in processes]
+        hdims_in_order_of_completion = [d['hidden_dim'] for d in results]
+        trunc_c_indices = [d['avg_trunc_c_index'] for d in results]
+        standard_trunc_c_indices = [d['avg_standard_trunc_c_index'] for d in results]
+        standard_c_indices = [d['avg_standard_c_index'] for d in results]
+    
+        best_trunc_c_index, best_hidden_dim_trunc = \
+            np.max(trunc_c_indices), hdims_in_order_of_completion[np.argmax(trunc_c_indices)]
+        best_standard_trunc_c_index, best_hidden_dim_standard_trunc = \
+            np.max(standard_trunc_c_indices), hdims_in_order_of_completion[np.argmax(standard_trunc_c_indices)]
+        best_standard_c_index, best_hidden_dim_standard = \
+            np.max(standard_c_indices), hdims_in_order_of_completion[np.argmax(standard_c_indices)]
+        print('best trunc c-index and hidden dim', best_trunc_c_index, best_hidden_dim_trunc)    
+        print('Best standard c-index and hidden dim', best_standard_c_index, best_hidden_dim_standard)    
+        print('Best standard trunc at S c-index and hidden dim', best_standard_trunc_c_index, best_hidden_dim_standard_trunc)
+        print('Total time elapsed for validation main is %.2f' %(time.time() - start_time))
+    
+    def train_single_model(self, hidden_dim, output):
+        cur_val_params = deepcopy(self.params)
+        cur_val_params['model_params']['hidden_dim'] = hidden_dim
+        # change to run the desired main type instead of validation
+        cur_val_params['main_type'] = 'learn_fixed_theta_basic_main'
+        # update so that we evaluate on the val data instead of test
+        cur_val_params['data_input_params']['saved_tr_te_idxs'] = \
+            self.params['data_input_params']['saved_dev_val_idxs']
+        basic_main = BasicValidationMain(cur_val_params)
+        basic_main.main()
+
+        avg_trunc_c_index = \
+            torch.mean(basic_main.results_tracker.eval_metrics['c_index_truncated_at_S']['te']['values'][:, 0])
+        avg_standard_c_index = \
+            torch.mean(basic_main.results_tracker.eval_metrics['c_index']['te']['values'])
+        avg_standard_trunc_c_index = \
+            torch.mean(basic_main.results_tracker.eval_metrics['standard_c_index_truncated_at_S']['te']['values'])
+        output.put({
+            'hidden_dim':hidden_dim,
+            'avg_standard_trunc_c_index':avg_standard_trunc_c_index.detach().numpy(), 
+            'avg_trunc_c_index':avg_trunc_c_index.detach().numpy(), 
+            'avg_standard_c_index':avg_standard_c_index.detach().numpy()
+        })
         # we're now setting up a new main with the winning param training on all tr data 
         # (not just dev)
         # and then evaluating it on the test data instead of the val data

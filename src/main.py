@@ -8,6 +8,7 @@ from main_types.LearnFixedThetaBasicMain import LearnFixedThetaBasicMain
 from main_types.MultiRunMain import MultiRunMain
 from main_types.ModelFreeRankingMain import *
 from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
+from main_types.ValidateHiddenDimMain import ParallelValidateHiddenDimMain
 from main_types.SaveLearnedStandardRisksMain import SaveLearnedStandardRisksMain
 #from main_types import *
 from utils.ParameterParser import ParameterParser
@@ -45,6 +46,8 @@ def main(path_to_config):
         main = EvaluateNumEventsRankingMain(params)
     elif main_type == 'validate_RNN_hidden_dim_main':
         main = ValidateHiddenDimMain(params)
+    elif main_type == 'parallel_validate_RNN_hidden_dim_main':
+        main = ParallelValidateHiddenDimMain(params)
     elif main_type == 'eval_saved_results_main':
         main = EvalSavedResultsMain(params)
     elif main_type == 'save_learned_risks_standard_c_index_main':
@@ -91,7 +94,9 @@ if __name__ == '__main__':
 
 
     ### Validation main
-    path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
+    #path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
+    path_to_config = '../configs/RNN_based_model_configs/covid_configs/parallel_validate_RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/validate_RNN_delta_per_step_dm_cvd.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/parallel_validate_RNN_delta_per_step_dm_cvd.yaml'
 
     main(path_to_config)

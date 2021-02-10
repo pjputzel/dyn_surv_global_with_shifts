@@ -27,7 +27,7 @@ train_params:
     batch_size: 10000
     conv_thresh: .00000001
     n_epoch_print: 50
-    max_iter: 2000
+    max_iter: 5000
 
     diagnostic_params:
 
