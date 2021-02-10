@@ -1,3 +1,12 @@
+from main_types.BasicMain import BasicMain 
+from utils.Diagnostics import Diagnostics
+import os
+import pickle
+from evaluation.ModelEvaluator import ModelEvaluator
+import torch
+import numpy as np
+from models.LandmarkedCoxModel import LandmarkedCoxModel
+
 class LandmarkedCoxMain(BasicMain):
 
     def __init__(self, params):
@@ -14,24 +23,30 @@ class LandmarkedCoxMain(BasicMain):
         # landmarked model
         self.model = LandmarkedCoxModel(
             self.params['model_params'], 
-            self.params['eval_params']['start_times']
+            self.params['eval_params']['dynamic_metrics']['start_times']
         )
         return self.model 
 
     def train_model(self, model, data_input):
         # just handling the training here
-        for landmark_time in self.params['eval_params']['start_times']:
-            landmark_data = data_input.get_landmarked_dataset(landmark_time)
+        for landmark_time in self.params['eval_params']['dynamic_metrics']['start_times']:
+            landmark_data = data_input.get_tr_landmarked_dataset(landmark_time)
             self.train_single_cox_model(
-                model.landmarked_cox_models[landmark_time],
+                model.models[landmark_time],
                 landmark_data
             )
         # check that this is correct todo when not needing diagnositcs
-        self.diagnostics = {}
-        return diagnostics
+        self.diagnostics = Diagnostics(self.params['train_params']['diagnostic_params'])
+        return self.diagnostics
 
     def train_single_cox_model(self, model, data):
-        # whatever the call is goes here
+        event_indicators = (~data['censoring'].astype(bool)).astype(int)
+        model.fit(
+            data['covs'], data['event_times'], event_indicators,
+            max_iter=self.params['train_params']['max_iter'],
+            lr=self.params['train_params']['learning_rate'],
+            #verbose=False
+        )
 
     
     def evaluate_model(self, model, data_input, diagnostics):
@@ -40,4 +55,6 @@ class LandmarkedCoxMain(BasicMain):
             self.params['train_params']['loss_params'],
             self.params['model_params']['model_type']
         )
-        
+        self.model_evaluator.evaluate_model(
+            model, data_input, diagnostics
+        )

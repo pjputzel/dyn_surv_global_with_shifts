@@ -39,6 +39,9 @@ class DataInput:
         elif self.params['dataset_name'] == 'covid':
             dataloader = CovidDataLoader(self.params['data_loading_params'])
             self.num_cont_dynamic_covs = COVID_NUM_CONT_DYNAMIC_COVS
+            if DEBUG:
+                print('IN DEBUG MODE')
+                self.num_cont_dynamic_covs = 100
             self.o2_enu_to_name = dataloader.o2_enu_to_name
         elif self.params['dataset_name'] == 'mimic':
             dataloader = MimicDataLoader(self.params['data_loading_params'])
@@ -449,6 +452,15 @@ class DataInput:
         ]
         return most_recent_times, idxs_most_recent_times
 
+    def get_tr_landmarked_dataset(self, landmark_time):
+        data = self.get_tr_data_as_single_batch()
+        return data.get_landmarked_dataset(landmark_time)
+        
+        
+        
+        
+                
+
 # Simple helper class to make passing around batches of the data easier
 # also handles unpacking cov trajs
 # note: packed_cov_trajs uses whatever time rep is selected for cov_times
@@ -558,6 +570,8 @@ class Batch:
             )
         else:
             bool_idxs_less_than_start = self.cov_times <= start_time
+        #    print(self.cov_times.dtype, 'cov_times')
+        #    print(torch.zeros(self.cov_times.shape).dtype, 'zeros')
             truncated_at_start = torch.where(
                 bool_idxs_less_than_start,
                 self.cov_times, torch.zeros(self.cov_times.shape)
@@ -577,6 +591,31 @@ class Batch:
             idxs_most_recent_times
         ]
         return most_recent_times, idxs_most_recent_times
+
+    def get_landmarked_dataset(self, landmark_time):
+        N = self.event_times.shape[0]
+        idxs_to_keep = torch.arange(N)[torch.where(
+            self.event_times > landmark_time,
+            torch.tensor([1] * N),
+            torch.tensor([0] * N) 
+        ).bool()]
+        _, idxs_most_recent_times = \
+            self.get_most_recent_times_and_idxs_before_start(landmark_time)
+        idxs_most_recent_times = idxs_most_recent_times[idxs_to_keep]
+       
+ 
+        landmark_data = {}
+        covs_all = self.get_unpacked_padded_cov_trajs()
+        print(covs_all.shape, 'covariate shape')
+        covs = \
+            covs_all[idxs_to_keep, idxs_most_recent_times, :]
+        landmark_data['covs'] = covs.cpu().detach().numpy()
+
+        landmark_data['event_times'] = \
+            self.event_times[idxs_to_keep].cpu().detach().numpy()
+        landmark_data['censoring'] = \
+            self.censoring_indicators[idxs_to_keep].cpu().detach().numpy()
+        return landmark_data
         
         
         
