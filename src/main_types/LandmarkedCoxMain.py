@@ -45,7 +45,9 @@ class LandmarkedCoxMain(BasicMain):
             data['covs'], data['event_times'], event_indicators,
             max_iter=self.params['train_params']['max_iter'],
             lr=self.params['train_params']['learning_rate'],
-            #verbose=False
+            tol=self.params['train_params']['conv_thresh'],
+            l2_reg=self.params['train_params']['loss_params']['cox_l2_reg'],
+            verbose=False
         )
 
     

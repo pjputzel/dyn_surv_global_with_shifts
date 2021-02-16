@@ -12,7 +12,7 @@ data_input_params:
 
 model_params:
     model_type: 'landmarked_cox'
-    dynamic_cov_dim: 345 #cur 345 #older data 248 #debug:102
+    dynamic_cov_dim: 85 #345 #cur 345 #older data 248 #debug:85 or 102?
     static_cov_dim: 11 # dummy static var for now that does nothing
 
 eval_params:
@@ -29,9 +29,9 @@ eval_params:
 train_params:
     learning_rate: .005
     batch_size: 15000
-    conv_thresh: .0000000000000000000000000000001
+    conv_thresh: .01
     n_epoch_print: 50
-    max_iter: 5000
+    max_iter: 2000
 
     diagnostic_params:
 
@@ -42,3 +42,4 @@ train_params:
         drift_reg: 0.
         global_diff_reg: 0.
         delta_reg: 0. #0.1 #.01
+        cox_l2_reg: 1.

@@ -41,7 +41,7 @@ class DataInput:
             self.num_cont_dynamic_covs = COVID_NUM_CONT_DYNAMIC_COVS
             if DEBUG:
                 print('IN DEBUG MODE')
-                self.num_cont_dynamic_covs = 100
+                self.num_cont_dynamic_covs = 50
             self.o2_enu_to_name = dataloader.o2_enu_to_name
         elif self.params['dataset_name'] == 'mimic':
             dataloader = MimicDataLoader(self.params['data_loading_params'])
@@ -456,6 +456,24 @@ class DataInput:
         data = self.get_tr_data_as_single_batch()
         return data.get_landmarked_dataset(landmark_time)
         
+    def to_device(self, device):
+        self.covariate_trajectories_tr.to(device) 
+        self.traj_lens_tr.to(device) 
+        self.event_times_tr.to(device) 
+        self.censoring_indicators_tr.to(device) 
+        self.missing_indicators_tr.to(device) 
+        self.cov_times_tr.to(device) 
+        self.padding_indicators_tr.to(device) 
+        self.static_covs_tr.to(device) 
+        
+        self.covariate_trajectories_te.to(device) 
+        self.traj_lens_te.to(device) 
+        self.event_times_te.to(device) 
+        self.censoring_indicators_te.to(device) 
+        self.missing_indicators_te.to(device) 
+        self.cov_times_te.to(device) 
+        self.padding_indicators_te.to(device) 
+        self.static_covs_te.to(device) 
         
         
         

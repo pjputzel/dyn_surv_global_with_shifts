@@ -1,4 +1,5 @@
 import yaml
+import click
 import time
 #from main_types.PreTrainingBasicModelMain import PreTrainingBasicModelMain
 from main_types.BasicMain import BasicMain
@@ -26,9 +27,12 @@ import preprocess_data
 from preprocess_data import COVID19SevereOutcomePreprocessor
 #from preprocess_data_old import COVID19_Preprocessor
 #from data_handling.COVIDSevereOutcomePreprocessor import COVID19SevereOutcomePreprocessor
-def main(path_to_config):
+
+@click.command()
+@click.option('--config', help='path to configuration file in yaml format')
+def main(config):
     start_time = time.time()
-    params = ParameterParser(path_to_config).parse_params()
+    params = ParameterParser(config).parse_params()
     print(params)
     main_type = params['main_type']
     if main_type == 'basic_main':
@@ -62,25 +66,5 @@ def main(path_to_config):
     print('Total time taken %d' %(time.time() - start_time))
 
 if __name__ == '__main__':
-#    path_to_config = '../configs/model_free_configs/synth_configs/cov_times_ranking_synth.yaml'
-#    path_to_config = '../configs/model_free_configs/synth_configs/num_event_ranking_synth.yaml'
-#    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
-#    path_to_config = '../configs/model_free_configs/covid_configs/most_recent_cov_times.yaml'
-#    path_to_config = '../configs/model_free_configs/covid_configs/dummy_global_testing.yaml'
-#    path_to_config = '../configs/model_free_configs/mimic_configs/num_events.yaml'
+    main()
 
-#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/learn_fixed_theta_linear_delta_per_step_dm_cvd.yaml'
-
-    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/covid_configs/learn_fixed_theta_linear_delta_per_step_covid.yaml'
-
-
-    ### Landmarked cox model
-#    path_to_config = '../configs/landmark_cox_configs/covid_configs/landmark_cox_covid.yaml'
-
-    ### Validation main
-#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/parallel_validate_RNN_delta_per_step_covid.yaml'
-#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/parallel_validate_RNN_delta_per_step_dm_cvd.yaml'
-
-    main(path_to_config)
