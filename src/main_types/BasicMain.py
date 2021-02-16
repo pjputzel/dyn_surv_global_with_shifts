@@ -104,6 +104,8 @@ class BasicMain(BaseMain):
         return diagnostics
 
     def evaluate_model(self, model, data_input, diagnostics):
+        data_input.to_device('cpu')
+        model.to('cpu')
         model.eval()
         self.model_evaluator = ModelEvaluator(
             self.params['eval_params'],

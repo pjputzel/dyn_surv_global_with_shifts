@@ -457,24 +457,23 @@ class DataInput:
         return data.get_landmarked_dataset(landmark_time)
         
     def to_device(self, device):
-        self.covariate_trajectories_tr.to(device) 
-        self.traj_lens_tr.to(device) 
-        self.event_times_tr.to(device) 
-        self.censoring_indicators_tr.to(device) 
-        self.missing_indicators_tr.to(device) 
-        self.cov_times_tr.to(device) 
-        self.padding_indicators_tr.to(device) 
-        self.static_covs_tr.to(device) 
+        self.covariate_trajectories_tr = self.covariate_trajectories_tr.to(device) 
+        self.traj_lens_tr = self.traj_lens_tr.to(device) 
+        self.event_times_tr = self.event_times_tr.to(device) 
+        self.censoring_indicators_tr = self.censoring_indicators_tr.to(device) 
+        self.missing_indicators_tr = self.missing_indicators_tr.to(device) 
+        self.cov_times_tr = self.cov_times_tr.to(device) 
+        self.padding_indicators_tr = self.padding_indicators_tr.to(device) 
+        self.static_covs_tr = self.static_covs_tr.to(device) 
         
-        self.covariate_trajectories_te.to(device) 
-        self.traj_lens_te.to(device) 
-        self.event_times_te.to(device) 
-        self.censoring_indicators_te.to(device) 
-        self.missing_indicators_te.to(device) 
-        self.cov_times_te.to(device) 
-        self.padding_indicators_te.to(device) 
-        self.static_covs_te.to(device) 
-        
+        self.covariate_trajectories_te = self.covariate_trajectories_te.to(device) 
+        self.traj_lens_te = self.traj_lens_te.to(device) 
+        self.event_times_te = self.event_times_te.to(device) 
+        self.censoring_indicators_te = self.censoring_indicators_te.to(device) 
+        self.missing_indicators_te = self.missing_indicators_te.to(device) 
+        self.cov_times_te = self.cov_times_te.to(device) 
+        self.padding_indicators_te = self.padding_indicators_te.to(device) 
+        self.static_covs_te = self.static_covs_te.to(device) 
         
         
                 
@@ -498,7 +497,7 @@ class Batch:
         self.cov_times = batch_cov_times
         self.event_times = batch_event_times
         self.censoring_indicators = batch_censoring_indicators
-        self.traj_lens = torch.tensor(batch_traj_lengths, dtype=torch.float64)
+        self.traj_lens = batch_traj_lengths #torch.tensor(batch_traj_lengths, dtype=torch.float64)
         self.static_covs = batch_static_covs
         self.unshuffled_idxs = batch_unshuffle_idxs
         self.max_seq_len_all_batches = max_seq_len_all_batches
@@ -590,18 +589,24 @@ class Batch:
             bool_idxs_less_than_start = self.cov_times <= start_time
         #    print(self.cov_times.dtype, 'cov_times')
         #    print(torch.zeros(self.cov_times.shape).dtype, 'zeros')
-            truncated_at_start = torch.where(
-                bool_idxs_less_than_start,
-                self.cov_times, torch.zeros(self.cov_times.shape)
-            )
+
+#            truncated_at_start = torch.where(
+#                bool_idxs_less_than_start,
+#                self.cov_times, torch.zeros(self.cov_times.shape)
+#            )
+            truncated_at_start = bool_idxs_less_than_start * self.cov_times
             idxs_most_recent_times = torch.max(truncated_at_start, dim=1)[1]
             # handle edge cases where torch.max picks the last zero
             # instead of the first when t_ij = 0
-            idxs_most_recent_times = torch.where(
-                torch.sum(truncated_at_start, dim=1) == 0,
-                torch.zeros(idxs_most_recent_times.shape, dtype=torch.int64),
+
+#            idxs_most_recent_times = torch.where(
+#                torch.sum(truncated_at_start, dim=1) == 0,
+#                torch.zeros(idxs_most_recent_times.shape, dtype=torch.int64),
+#                idxs_most_recent_times
+#            )
+            idxs_most_recent_times =\
+                (~(torch.sum(truncated_at_start, dim=1) == 0)) *\
                 idxs_most_recent_times
-            )
 
         
         most_recent_times = self.cov_times[

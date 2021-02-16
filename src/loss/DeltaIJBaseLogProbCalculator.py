@@ -27,12 +27,16 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
 
         # zero out the padded values
         padding_indicators = \
-            (batch.cov_times == 0) &\
-            torch.cat([torch.zeros(batch.cov_times.shape[0], 1), torch.ones(batch.cov_times.shape[0], batch.cov_times.shape[1] - 1)], dim=1).bool()
-        logprob = torch.where(\
-            padding_indicators,
-            torch.zeros(logprob.shape), logprob
-        )
+            (batch.cov_times == 0) #&\
+            #torch.cat([torch.zeros(batch.cov_times.shape[0], 1), torch.ones(batch.cov_times.shape[0], batch.cov_times.shape[1] - 1)], dim=1).bool()
+        # first time is never padding despite being 0
+        padding_indicators[0, :] = False
+
+#        logprob = torch.where(\
+#            padding_indicators,
+#            torch.zeros(logprob.shape), logprob
+#        )
+        logprob = (~padding_indicators) * logprob
         if self.params['avg_per_seq']:
             # prevents long sequences from dominating
             # the loss
