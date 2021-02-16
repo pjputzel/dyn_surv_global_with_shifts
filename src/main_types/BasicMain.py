@@ -91,7 +91,7 @@ class BasicMain(BaseMain):
             )
         except:
             raise ValueError('Model type %s not recognized' %(model_type))
-        model.to_device(self.device)
+        self.model.to(self.device)
         return self.model
 
     def train_model(self, model, data_input):

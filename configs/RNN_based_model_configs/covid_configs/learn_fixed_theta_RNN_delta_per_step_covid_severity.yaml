@@ -13,7 +13,7 @@ data_input_params:
 model_params:
     model_type: 'RNN_delta_per_step'
     dynamic_cov_dim: 345 # older data:248 #103
-    hidden_dim: 64  # 128 was the winner 
+    hidden_dim: 32  # 128 was the winner 
     static_cov_dim: 11 # dummy static var for now that does nothing
     dropout: .3 # .3 is default
 
