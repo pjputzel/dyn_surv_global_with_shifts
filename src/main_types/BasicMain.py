@@ -81,57 +81,14 @@ class BasicMain(BaseMain):
 
     def load_model(self):
         model_type = self.params['model_params']['model_type']
-        self.model = models_dict[model_type](
-                #fill out
-        )
-        #model.to_device(self.device)
-        if model_type == 'theta_per_step':
-            self.model = BasicModelThetaPerStep(
+        try:
+            self.model = models_dict[model_type](
                 self.params['model_params'],
                 self.params['train_params']['loss_params']['distribution_type']
             )
-        elif model_type == 'linear_theta_per_step':
-            self.model = LinearThetaIJModel(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
-            )
-            
-        elif model_type == 'dummy_global_zero_deltas' or model_type == 'dummy_global':
-            self.model = DummyGlobalModel(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
-            )
-       
-        elif model_type == 'linear_delta_per_step':
-            self.model = LinearDeltaIJModel(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
-            )
-        
-        elif model_type == 'linear_delta_per_step_num_visits_only':
-            self.model = LinearDeltaIJModelNumVisitsOnly(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type'],
-            )
-     
-        elif model_type == 'linear_constant_delta':
-            self.model = ConstantDeltaModelLinearRegression(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
-        )
-        elif model_type == 'embedding_linear_constant_delta':
-            self.model = EmbeddingConstantDeltaModelLinearRegression(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
-        )
-        elif model_type == 'RNN_delta_per_step':
-            self.model = DeltaIJModel(
-                self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
-            )
-            
-        else:
+        except:
             raise ValueError('Model type %s not recognized' %(model_type))
+        #model.to_device(self.device)
         return self.model
 
     def train_model(self, model, data_input):
