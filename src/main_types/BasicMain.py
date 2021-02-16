@@ -4,16 +4,18 @@ from main_types.BaseMain import BaseMain
 from utils.Diagnostics import Diagnostics
 import os
 #from models.BasicModelOneTheta import BasicModelOneTheta
-from models.GlobalPlusEpsModel import GlobalPlusEpsModel
-from models.BasicModelTrainer import BasicModelTrainer
-from models.BasicModelThetaPerStep import BasicModelThetaPerStep
-from models.DeltaIJModel import DeltaIJModel
-from models.LinearDeltaIJModel import LinearDeltaIJModel
-from models.LinearThetaIJModel import LinearThetaIJModel
-from models.LinearDeltaIJModelNumVisitsOnly import LinearDeltaIJModelNumVisitsOnly
-from models.DummyGlobalModel import DummyGlobalModel
-from models.ConstantDeltaModelLinearRegression import ConstantDeltaModelLinearRegression
-from models.EmbeddingConstantDeltaModelLinearRegression import EmbeddingConstantDeltaModelLinearRegression
+from models import models_dict
+#from models.GlobalPlusEpsModel import GlobalPlusEpsModel
+#from models.BasicModelTrainer import BasicModelTrainer
+#from models.BasicModelThetaPerStep import BasicModelThetaPerStep
+#from models.DeltaIJModel import DeltaIJModel
+#from models.LinearDeltaIJModel import LinearDeltaIJModel
+#from models.LinearThetaIJModel import LinearThetaIJModel
+#from models.LinearDeltaIJModelNumVisitsOnly import LinearDeltaIJModelNumVisitsOnly
+#from models.DummyGlobalModel import DummyGlobalModel
+#from models.ConstantDeltaModelLinearRegression import ConstantDeltaModelLinearRegression
+#from models.EmbeddingConstantDeltaModelLinearRegression import EmbeddingConstantDeltaModelLinearRegression
+
 import pickle
 #from utils.MetricsTracker import MetricsTracker
 from utils.ParameterParser import ParameterParser
@@ -71,6 +73,7 @@ class BasicMain(BaseMain):
                 os.remove(data_path)
                 print('processed data too large to pickle')
         self.data_input = data_input
+        # data_input.to_device(self.device)
         return data_input
     
     def preprocess_data(self, data_input):
@@ -78,6 +81,10 @@ class BasicMain(BaseMain):
 
     def load_model(self):
         model_type = self.params['model_params']['model_type']
+        self.model = models_dict[model_type](
+                #fill out
+        )
+        #model.to_device(self.device)
         if model_type == 'theta_per_step':
             self.model = BasicModelThetaPerStep(
                 self.params['model_params'],

@@ -81,6 +81,8 @@ class ModelEvaluator:
             func = self.compute_auc_truncated_at_S_from_S_to_delta_S
         elif metric_name == 'standard_c_index_truncated_at_S':
             func = self.compute_standard_c_index_truncated_at_S_over_window
+        elif metric_name == 'brier_score':
+            func = self.compute_brier_score
         else:
             raise ValueError('dynamic metric %s not recognized' %metric_name)
         return func
@@ -351,6 +353,8 @@ class ModelEvaluator:
             # this should only happen for very large values of S
             # where either no one is included, or everyone in the
             # risk set is censored
+            print('No valid pairs for start time %d and delta %d' %(start_time, time_delta))
+            print('Risks:', risks)
             return 0, 0
         c_index = total_concordant_pairs/total_valid_pairs
         return c_index, total_valid_pairs
@@ -487,6 +491,8 @@ class ModelEvaluator:
             (~data.censoring_indicators.bool())                    
 
         is_valid = np.zeros((len(risks), len(risks)))
+        #print(len(risks))
+        #print(risks)
         ordered_correct = np.zeros((len(risks), len(risks)))
         for i in range(len(risks)):
             if not event_in_time_window[i]:
@@ -506,6 +512,8 @@ class ModelEvaluator:
 
         tot_valid_pairs = np.sum(is_valid)
         if tot_valid_pairs == 0:
+            print('No valid pairs for start time %d and delta %d' %(start_time, time_delta))
+            print('Risks:', risks)
             return 0, 0
         c_index = np.sum(is_valid * ordered_correct)/tot_valid_pairs
         return c_index, tot_valid_pairs 

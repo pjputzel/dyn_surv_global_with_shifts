@@ -41,7 +41,7 @@ class DataInput:
             self.num_cont_dynamic_covs = COVID_NUM_CONT_DYNAMIC_COVS
             if DEBUG:
                 print('IN DEBUG MODE')
-                self.num_cont_dynamic_covs = 100
+                self.num_cont_dynamic_covs = 50
             self.o2_enu_to_name = dataloader.o2_enu_to_name
         elif self.params['dataset_name'] == 'mimic':
             dataloader = MimicDataLoader(self.params['data_loading_params'])
