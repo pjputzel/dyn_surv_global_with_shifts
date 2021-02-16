@@ -32,16 +32,16 @@ class BasicModelThetaPerStep(nn.Module):
             self.params['dynamic_cov_dim']
             #self.params['dynamic_cov_dim'] + 1 to predict time too
         )
+        self.init_hidden_state = nn.Parameter(
+            torch.rand(1, 1, self.params['hidden_dim'])
+        )
         
     def forward(self, batch):
         packed_sequence_batch = batch.packed_cov_trajs
         max_len = batch.max_seq_len_all_batches
         batch_size = packed_sequence_batch.batch_sizes[0]
 
-        h_0 = Variable(torch.randn(\
-            1, batch_size, 
-            self.params['hidden_dim']
-        ))
+        h_0 = self.init_hidden_state.repeat(1, batch_size, 1)
 
         # eventually may add attention by using the hidden_states/'output' of the GRU
         hidden_states, _ = self.RNN(packed_sequence_batch, h_0)
