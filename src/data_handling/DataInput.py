@@ -456,6 +456,24 @@ class DataInput:
         data = self.get_tr_data_as_single_batch()
         return data.get_landmarked_dataset(landmark_time)
         
+    def to_device(self, device):
+        self.covariate_trajectories_tr.to_device(device) 
+        self.traj_lens_tr.to_device(device) 
+        self.event_times_tr.to_device(device) 
+        self.censoring_indicators_tr.to_device(device) 
+        self.missing_indicators_tr.to_device(device) 
+        self.cov_times_tr.to_device(device) 
+        self.padding_indicators_tr.to_device(device) 
+        self.static_covs_tr.to_device(device) 
+        
+        self.covariate_trajectories_te.to_device(device) 
+        self.traj_lens_te.to_device(device) 
+        self.event_times_te.to_device(device) 
+        self.censoring_indicators_te.to_device(device) 
+        self.missing_indicators_te.to_device(device) 
+        self.cov_times_te.to_device(device) 
+        self.padding_indicators_te.to_device(device) 
+        self.static_covs_te.to_device(device) 
         
         
         

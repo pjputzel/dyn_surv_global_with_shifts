@@ -4,6 +4,7 @@ DEFAULT_PARAMS =\
     {
         'random_seed': 0,
         'metrics_to_track': ['dummy_test_function'],
+        'device': 'cpu',
 
         'data_input_params': {
             'saved_tr_te_idxs': None,

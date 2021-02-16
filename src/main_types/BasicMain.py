@@ -50,6 +50,9 @@ class BasicMain(BaseMain):
             
         if not os.path.exists(self.params['savedir']):
             os.makedirs(self.params['savedir'])
+        
+        self.device = torch.device(self.params['device'])
+        
 
     def load_data(self):
         split = self.params['data_input_params']['data_loading_params']['paths'].split('/')
@@ -73,7 +76,7 @@ class BasicMain(BaseMain):
                 os.remove(data_path)
                 print('processed data too large to pickle')
         self.data_input = data_input
-        # data_input.to_device(self.device)
+        data_input.to_device(self.device)
         return data_input
     
     def preprocess_data(self, data_input):
@@ -88,7 +91,7 @@ class BasicMain(BaseMain):
             )
         except:
             raise ValueError('Model type %s not recognized' %(model_type))
-        #model.to_device(self.device)
+        model.to_device(self.device)
         return self.model
 
     def train_model(self, model, data_input):
