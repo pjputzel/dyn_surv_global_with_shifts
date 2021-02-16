@@ -30,8 +30,8 @@ eval_params:
 train_params:
     learning_rate: .01 #old: .01
     batch_size: 15000
-    conv_thresh: .000000000000000001 #basically just run for max iter to avoid getting stuck at beginnning of training.
-    n_epoch_print: 50
+    conv_thresh: .00000000000000000000001 #basically just run for max iter to avoid getting stuck at beginnning of training.
+    n_epoch_print: 500
     max_iter: 5000 #10000
 
     diagnostic_params:

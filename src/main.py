@@ -67,41 +67,20 @@ if __name__ == '__main__':
 #    path_to_config = '../configs/model_free_configs/dm_cvd_configs/num_event_ranking_dm_cvd.yaml'
 #    path_to_config = '../configs/model_free_configs/covid_configs/most_recent_cov_times.yaml'
 #    path_to_config = '../configs/model_free_configs/covid_configs/dummy_global_testing.yaml'
-
 #    path_to_config = '../configs/model_free_configs/mimic_configs/num_events.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/synth_configs/linear_theta_per_step_synth.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/synth_configs/linear_delta_per_step_synth.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/mimic_configs/linear_delta_per_step_mimic.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/mimic_configs/linear_delta_per_step_mimic_num_events_only.yaml'
-
-
-    
-#    path_to_config = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid_num_events_only.yaml'
-#    path_to_config = '../configs/RNN_based_model_configs/synth_configs/RNN_delta_per_step.yaml'
-#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/RNN_delta_per_step_dm_cvd.yaml'
-
 
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/learn_fixed_theta_linear_delta_per_step_dm_cvd.yaml'
 
-
-#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/RNN_delta_per_step_covid.yaml'
-
-#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
+    path_to_config = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/linear_baseline_configs/covid_configs/learn_fixed_theta_linear_delta_per_step_covid.yaml'
 
 
-#    path_to_config = '../configs/RNN_based_model_configs/mimic_configs/RNN_delta_per_step_mimic.yaml'
-#    path_to_config = '../configs/linear_baseline_configs/dm_cvd_configs/linear_delta_per_step_dm_cvd_weibull.yaml'
-
     ### Landmarked cox model
-    path_to_config = '../configs/landmark_cox_configs/covid_configs/landmark_cox_covid.yaml'
+#    path_to_config = '../configs/landmark_cox_configs/covid_configs/landmark_cox_covid.yaml'
 
     ### Validation main
-    #path_to_config = '../configs/RNN_based_model_configs/covid_configs/validate_RNN_delta_per_step_covid.yaml'
-    path_to_config = '../configs/RNN_based_model_configs/covid_configs/parallel_validate_RNN_delta_per_step_covid.yaml'
-#    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/validate_RNN_delta_per_step_dm_cvd.yaml'
+#    path_to_config = '../configs/RNN_based_model_configs/covid_configs/parallel_validate_RNN_delta_per_step_covid.yaml'
 #    path_to_config = '../configs/RNN_based_model_configs/dm_cvd_configs/parallel_validate_RNN_delta_per_step_dm_cvd.yaml'
 
     main(path_to_config)
