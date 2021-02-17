@@ -6,15 +6,21 @@ SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'e
 
 
 
-class DeltaIJModel(nn.Module):
+class RNNDeltaIJWithEmbeddingModel(nn.Module):
     def __init__(self, model_params, distribution_type):
         super().__init__()
         self.params = model_params
         self.distribution_type = distribution_type
+        self.embedding = nn.Sequential(
+            nn.Linear(2 * self.params['dynamic_cov_dim'] + 1, self.params['embed_hidden_dim']),
+            nn.ReLU(),
+            nn.Linear(self.params['embed_hidden_dim'], self.params['embed_output_dim'])
+        )
+            
         # plus one is for the timestamp -> needs to be updated to 2 * covariate_dim + 1 to account for missing indicators
         # TODO add dropout back in!!
         self.RNN = nn.GRU(
-            2 * self.params['dynamic_cov_dim'] + 1, self.params['hidden_dim'],
+            self.params['embed_output_dim'], self.params['hidden_dim'],
             dropout=self.params['dropout']
         )
 
@@ -45,12 +51,17 @@ class DeltaIJModel(nn.Module):
     def forward(self, batch):
         packed_sequence_batch = batch.packed_cov_trajs
         max_len = batch.max_seq_len_all_batches
+        batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
         batch_size = packed_sequence_batch.batch_sizes[0]
-
-
+        
+        embedded_covs = self.embedding(batch_covs_unpacked)
+        packed_embedded_covs = nn.utils.rnn.pack_padded_sequence(
+            embedded_covs.permute(1, 0, 2), batch.traj_lens,
+            enforce_sorted=False
+        )
         # eventually may add attention by using the hidden_states/'output' of the GR
         h_0 = self.init_hidden_state.repeat(1, batch_size, 1)
-        hidden_states, _ = self.RNN(packed_sequence_batch, h_0)
+        hidden_states, _ = self.RNN(packed_embedded_covs, h_0)
         unpacked_hidden_states, lengths = self.unpack_and_permute(
             hidden_states, max_len
         )
@@ -71,7 +82,6 @@ class DeltaIJModel(nn.Module):
         else:
             pred_deltas = torch.zeros(all_data.shape[0], 1)
 #        print(pred_deltas.shape)
-        batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
 
 #        next_step_cov_preds = self.make_next_step_cov_preds(
 #            unpacked_hidden_states, 

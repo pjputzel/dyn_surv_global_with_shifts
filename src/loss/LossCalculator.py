@@ -24,7 +24,7 @@ class LossCalculator:
     def init_logprob_and_regularization(self):
         dist_type = self.params['distribution_type']
         model_type = self.model_type
-        if model_type == 'RNN_delta_per_step' or  model_type == 'dummy_global_zero_deltas' or model_type == 'linear_delta_per_step' or model_type == 'linear_delta_per_step_num_visits_only':
+        if model_type == 'RNN_delta_per_step' or  model_type == 'dummy_global_zero_deltas' or model_type == 'linear_delta_per_step' or model_type == 'linear_delta_per_step_num_visits_only' or model_type == 'embedded_RNN_delta_per_step':
             if dist_type == 'weibull':
                 self.logprob_calculator = WeibullLogProbCalculatorDeltaIJ(self.params)
             elif dist_type == 'rayleigh':
