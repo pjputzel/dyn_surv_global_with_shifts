@@ -24,14 +24,14 @@ class Diagnostics:
         self.eval_metrics = {}
 
     def update(self,
-        pred_params, hidden_states, total_loss,
-        reg, logprob, epoch
+        total_loss, reg, logprob, epoch
+        #pred_params, hidden_states, total_loss,
     ):
-        self.pred_params_per_step.append(pred_params.cpu().detach())
+#        self.pred_params_per_step.append(pred_params.cpu().detach())
 #        if not ignore_hidden_states:
 #            self.hidden_states_per_step.append(hidden_states)
 #        else:
-        self.hidden_states_per_step.append(hidden_states.cpu().detach())
+#        self.hidden_states_per_step.append(hidden_states.cpu().detach())
 
         #print([sys.getsizeof(self.hidden_states_per_step[i].storage()) for i in range(len(self.hidden_states_per_step))])
         #print([sys.getsizeof(self.pred_params_per_step[i].storage()) for i in range(len(self.pred_params_per_step))])

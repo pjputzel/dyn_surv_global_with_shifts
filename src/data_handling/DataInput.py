@@ -310,66 +310,86 @@ class DataInput:
         self.static_covs_te = self.static_covs[self.te_idxs]
 
     def make_randomized_tr_batches(self, batch_size):
-        self.shuffle_tr_data()
+#        self.shuffle_tr_data()
+        self.shuffle_tr_idxs()
+        self.tr_batches = self.get_batch_generator(batch_size)      
         
         
-        batches = []
+#        batches = []
+##        num_individuals = self.covariate_trajectories.shape[0]
+#        num_individuals_tr = len(self.tr_idxs)
+#        if num_individuals_tr % batch_size == 0:
+#            num_batches = num_individuals_tr//batch_size
+#        else:
+#            num_batches = num_individuals_tr//batch_size + 1
+#        
+#        for batch_idx in range(num_batches):
+#            batch = Batch(*self.get_tr_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
+#            batches.append(batch) 
+#        self.tr_batches = batches
+    
+    def get_batch_generator(self, batch_size):
 #        num_individuals = self.covariate_trajectories.shape[0]
         num_individuals_tr = len(self.tr_idxs)
-        if num_individuals_tr % batch_size == 0:
-            num_batches = num_individuals_tr//batch_size
-        else:
-            num_batches = num_individuals_tr//batch_size + 1
-        
+#        if num_individuals_tr % batch_size == 0:
+#            num_batches = num_individuals_tr//batch_size
+#        else:
+#            num_batches = num_individuals_tr//batch_size + 1
+        # Cutoff tiny batches to avoid taking super noisy steps
+        num_batches = num_individuals_tr//batch_size 
         for batch_idx in range(num_batches):
             batch = Batch(*self.get_tr_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
-            batches.append(batch) 
-        self.tr_batches = batches
-    
+            #batches.append(batch) 
+            yield batch
 
-    def shuffle_tr_data(self):
-        # to avoid being unable to unshuffle-> makes
-        # sure they aren't two shuffles in a row
-        # we want to be able to see original order for analysis
-        self.unshuffle_tr_data()
-        idxs = torch.randperm(len(self.covariate_trajectories_tr))
-        self.covariate_trajectories_tr = self.covariate_trajectories_tr[idxs]
-        self.missing_indicators_tr = self.missing_indicators_tr[idxs]
-        self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
-        self.event_times_tr = self.event_times_tr[idxs]
-        self.traj_lens_tr = self.traj_lens_tr[idxs]
-        self.cov_times_tr = self.cov_times_tr[idxs]
-        self.padding_indicators_tr = self.padding_indicators_tr[idxs]
-        self.static_covs_tr = self.static_covs_tr[idxs]
-#        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
-#        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
-#        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
-#        self.event_times = [self.event_times[idx] for idx in idxs]
-#        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
-
-        self.shuffled_tr_idxs = idxs
-        for i, idx in enumerate(idxs):
+    def shuffle_tr_idxs(self):
+        self.shuffled_tr_idxs = torch.randperm(len(self.covariate_trajectories_tr))
+        for i, idx in enumerate(self.shuffled_tr_idxs):
             self.unshuffled_tr_idxs[idx] = i
-        #print(self.shuffled_idxs, self.unshuffled_idxs)
 
-    def unshuffle_tr_data(self):
-        idxs = self.unshuffled_tr_idxs
-        self.covariate_trajectories_tr = self.covariate_trajectories_tr[idxs]
-        self.missing_indicators_tr = self.missing_indicators_tr[idxs]
-        self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
-        self.event_times_tr = self.event_times_tr[idxs]
-        self.traj_lens_tr = self.traj_lens_tr[idxs]
-        self.cov_times_tr = self.cov_times_tr[idxs]
-        self.padding_indicators_tr = self.padding_indicators_tr[idxs]
-        self.static_covs_tr = self.static_covs_tr[idxs]
-#        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
-#        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
-#        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
-#        self.event_times = [self.event_times[idx] for idx in idxs]
-#        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
+#    def shuffle_tr_data(self):
+#        # to avoid being unable to unshuffle-> makes
+#        # sure they aren't two shuffles in a row
+#        # we want to be able to see original order for analysis
+#        self.unshuffle_tr_data()
+#        idxs = torch.randperm(len(self.covariate_trajectories_tr))
+#        self.covariate_trajectories_tr = self.covariate_trajectories_tr[idxs]
+#        self.missing_indicators_tr = self.missing_indicators_tr[idxs]
+#        self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
+#        self.event_times_tr = self.event_times_tr[idxs]
+#        self.traj_lens_tr = self.traj_lens_tr[idxs]
+#        self.cov_times_tr = self.cov_times_tr[idxs]
+#        self.padding_indicators_tr = self.padding_indicators_tr[idxs]
+#        self.static_covs_tr = self.static_covs_tr[idxs]
+##        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
+##        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
+##        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
+##        self.event_times = [self.event_times[idx] for idx in idxs]
+##        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
+#
+#        self.shuffled_tr_idxs = idxs
+#        for i, idx in enumerate(idxs):
+#            self.unshuffled_tr_idxs[idx] = i
+#        #print(self.shuffled_idxs, self.unshuffled_idxs)
+#
+#    def unshuffle_tr_data(self):
+#        idxs = self.unshuffled_tr_idxs
+#        self.covariate_trajectories_tr = self.covariate_trajectories_tr[idxs]
+#        self.missing_indicators_tr = self.missing_indicators_tr[idxs]
+#        self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
+#        self.event_times_tr = self.event_times_tr[idxs]
+#        self.traj_lens_tr = self.traj_lens_tr[idxs]
+#        self.cov_times_tr = self.cov_times_tr[idxs]
+#        self.padding_indicators_tr = self.padding_indicators_tr[idxs]
+#        self.static_covs_tr = self.static_covs_tr[idxs]
+##        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
+##        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
+##        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
+##        self.event_times = [self.event_times[idx] for idx in idxs]
+##        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
     
     def get_tr_batch_data(self, batch_idx, batch_size):
-        batch_indices = slice(batch_idx * batch_size, (batch_idx + 1) * batch_size)
+        batch_indices = self.shuffled_tr_idxs[batch_idx * batch_size : (batch_idx + 1) * batch_size]
 
         batch_cov_trajs = self.covariate_trajectories_tr[batch_indices]
         batch_traj_lengths = self.traj_lens_tr[batch_indices]

@@ -30,9 +30,9 @@ eval_params:
 
 train_params:
     learning_rate: .001 #old: .01
-    batch_size: 15000
+    batch_size: 100
     conv_thresh: .0000000000001
-    n_epoch_print: 500
+    n_epoch_print: 50
     max_iter: 5000 #10000
 
     diagnostic_params:
