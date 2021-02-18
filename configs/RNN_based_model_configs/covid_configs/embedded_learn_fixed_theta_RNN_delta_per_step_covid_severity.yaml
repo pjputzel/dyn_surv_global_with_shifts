@@ -14,11 +14,11 @@ data_input_params:
 model_params:
     model_type: 'embedded_RNN_delta_per_step'
     dynamic_cov_dim: 345 # older data:248 #103
-    hidden_dim: 16  # 128 was the winner 
+    hidden_dim: 4  # 128 was the winner 
     static_cov_dim: 11 # dummy static var for now that does nothing
     dropout: 0. # .3 is default
-    embed_hidden_dim: 64
-    embed_output_dim: 32
+    embed_hidden_dim: 32
+    embed_output_dim: 8
     
 
 eval_params:
