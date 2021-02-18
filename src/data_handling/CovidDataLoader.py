@@ -11,6 +11,12 @@ import numpy as np
 import pandas
 import pickle
 DEBUG = False
+
+
+DISC_STATIC_COV_IDXS = [1, 2, 3, 4, 8, 9, 10]
+NUM_CATEGORIES_DISC_STATIC = {
+    1:2, 2:9, 3:4, 4:9, 8:6, 9:11, 10:4
+}
 class CovidDataLoader(DataLoaderBase):
 
     def __init__(self, data_loader_params):
@@ -20,6 +26,40 @@ class CovidDataLoader(DataLoaderBase):
             data = pickle.load(f)
         self.data = data
         self.o2_enu_to_name = data.o2_enu_to_name
+
+    def convert_static_vars_to_bit_strings_with_missingness(self, static_vars):
+        '''Convert all static vars to one hot encoded bit strings with missingness
+
+        Args:
+            static_vars (list): Static vars per individual
+        
+        Returns:
+            list: Static vars one hot encoded with missing indicator at the
+                end of each expanded bit string for each variable.
+            
+        '''
+
+        def convert_single_ind(svars):
+            temp_svars = []
+            for s, svar in enumerate(svars):
+                if s in DISC_STATIC_COV_IDXS:
+                    # plus one for the missing indicator at the end
+                    bit_str = [0 for i in range(NUM_CATEGORIES_DISC_STATIC[s] + 1)]
+                    if np.isnan(svar):
+                        # it's missing so map to end of bit string
+                        svar = -1
+                    bit_str[int(svar)] = 1.
+                    svar = bit_str
+                else:
+                    svar = [svar]
+                temp_svars = temp_svars + svar
+            return temp_svars
+        static_vars = [
+            convert_single_ind(svars)
+            for svars in static_vars
+        ]
+        return static_vars
+
     def load_data(self):
         data = self.data
         event_times = data.censored_event_times
@@ -40,52 +80,24 @@ class CovidDataLoader(DataLoaderBase):
         static_vars = [
             list(static_vars_i[0]) for static_vars_i in static_vars
         ]
-        print(static_vars[0])
+        static_vars =\
+            self.convert_static_vars_to_bit_strings_with_missingness(static_vars)
+
+        print('static vars example:', static_vars[0])
         
         print('Length of dynamic covs: %s, length of static covs: %s' %(len(dynamic_covs[0][0]), len(static_vars[0])))
         missing_indicators = [[[float(entry) for entry in m] for m in list(missingness_i)] for missingness_i in missing_indicators]
-        # lets try masking out values to zero
-        # TODO: make this an option-either masking to zero or use averages
-#        trajs = [
-#            [   
-#                [traj_t[0]/365., [cov_value * (1 - missing_indicators[i][t][c]) for c, cov_value in enumerate(traj_t[1])]]
-#                for t, traj_t in enumerate(traj)
-#            ] 
-#            for i, traj in enumerate(trajs)
-#        ]
-        
-        # fix formatting to traj style used in DMCvd data
     
-        max_event_time = np.max(np.array(event_times))
-        median_event_time = np.median(np.array(event_times))
-        #print(meas_times)
-#       norm = max_event_time
-#        norm = 365
-#        norm = median_event_time
         replace_nans_with = -1
-        norm = (10**9 * 3600 * 24) #normalize from nanoseconds to days
         trajs = [
             [
-                [float(meas_times[individual][i]),  [val if not np.isnan(val) else replace_nans_with for val in values]] # times are discretized here, get real time by multiplying index by the time resolution old time:float(i) * data.time_res_in_days
+                [float(meas_times[individual][i]),  [val if not np.isnan(val) else replace_nans_with for val in values]] 
                 for i, values in enumerate(list(cov_values_i))
             ]
             for individual, cov_values_i in enumerate(dynamic_covs)
         ]
+        norm = (10**9 * 3600 * 24) #normalize from nanoseconds to days
         event_times = [event_time/norm for event_time in event_times]
-#        print(len(missing_indicators[0][0]), len(trajs[0][0][1]))
-#        trajs = [
-#            [   
-#                [traj_t[0]/norm, [cov_value for c, cov_value in enumerate(traj_t[1])]]
-#                for t, traj_t in enumerate(traj)
-#            ] 
-#            for i, traj in enumerate(trajs)
-#        ]
-#        icu_idx = -1
-#        eff_traj_len = 10
-#        for ind_idx in range(len(trajs)):
-#            print([   meas[1][icu_idx] 
-#                for meas in trajs[ind_idx][0:eff_traj_len]
-#            ])
- 
+
         return event_times, censoring_indicators, missing_indicators, trajs, static_vars
         
