@@ -1,5 +1,6 @@
 main_type: 'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
+device: 'cuda:5'
 
 data_input_params:
     dataset_name: 'covid'
@@ -18,9 +19,9 @@ model_params:
     dropout: .3 # .3 is default
 
 eval_params:
-    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
-        start_times: [3, 4, 7, 11] #old: [6, 10., 15., 24.]
+        start_times: [0, 3, 4, 7, 11] #old: [6, 10., 15., 24.]
         window_length: 12
         time_step: 3
         #start_times: [.5, 1., 1.5, 2.]
@@ -32,7 +33,7 @@ train_params:
     batch_size: 15000
     conv_thresh: .0000000000001
     n_epoch_print: 50
-    max_iter: 2000 #10000
+    max_iter: 5000 #10000
 
     diagnostic_params:
 

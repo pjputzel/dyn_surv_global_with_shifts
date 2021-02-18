@@ -104,6 +104,8 @@ class BasicMain(BaseMain):
         return diagnostics
 
     def evaluate_model(self, model, data_input, diagnostics):
+        data_input.to_device('cpu')
+        model.to('cpu')
         model.eval()
         self.model_evaluator = ModelEvaluator(
             self.params['eval_params'],
@@ -127,8 +129,11 @@ class BasicMain(BaseMain):
     
     def save_results(self, results_tracker):
 
-        with open(os.path.join(self.params['savedir'], 'tracker.pkl'), 'wb') as f:
-            pickle.dump(results_tracker, f)
+        try:
+            with open(os.path.join(self.params['savedir'], 'tracker.pkl'), 'wb') as f:
+                pickle.dump(results_tracker, f)
+        except:
+            print('Tracker save file too large to save!')
 
         with open(os.path.join(self.params['savedir'], 'model.pkl'), 'wb') as f:
             pickle.dump(self.model, f)
