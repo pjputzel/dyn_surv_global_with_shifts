@@ -12,7 +12,6 @@ import tqdm
 sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
 import pickle
 
-COVID_NUM_CONT_DYNAMIC_COVS = 212 # old 114
 DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 #TODO: after dmcvd is processed put num_cont_covs here
 
 # there should only be one data-input (don't subclass) but one dataloader per new dataset
@@ -20,7 +19,11 @@ DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 #TODO: after dmcvd is processed put num_cont_
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
 
 
-DEBUG = False
+DEBUG = True
+if DEBUG:
+    COVID_NUM_CONT_DYNAMIC_COVS = 50 # old 114
+else:
+    COVID_NUM_CONT_DYNAMIC_COVS = 212 # old 114
 class DataInput:
 
     def __init__(self, data_input_params):
@@ -59,6 +62,7 @@ class DataInput:
 
         self.format_data()
         self.normalize_data()
+#        self.replace_missingness_with_zeros() # Not needed, handled in normalize
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         print('data loaded!')
@@ -77,15 +81,27 @@ class DataInput:
 #                torch.mean(self.traj_lens[self.censoring_indicators == 0])
 #        )
     def normalize_data(self):
+        '''
+            Normalizes continous covariates only.
+        '''
         print('Assuming data is processed with all continous features occuring first and all discrete/categorical occuring second!')
         # only normalize the continous features
         # the + 1 is because the first entry is the timestamp
         cov_trajs = self.covariate_trajectories
+        # replace missing continuous features with nans to avoid averaging over
+        # missing placeholders
+        cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1] = torch.where(
+            self.missing_indicators[:, :, :self.num_cont_dynamic_covs] == 1,
+            torch.ones(cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1].shape) * 1. * np.nan,
+            cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1]
+        )
+        # replace padded values with nans to avoid averaging over padding values
         cov_trajs = torch.where(
             self.padding_indicators.bool().unsqueeze(-1),
             torch.ones(cov_trajs.shape) * 1.  * np.nan, cov_trajs
         ).detach().numpy()
         cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1]
+        
         mean_covs = np.nanmean(np.nanmean(cont_cov_trajs, axis=0), axis=0)
         std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
         norm_covs = \
@@ -93,7 +109,23 @@ class DataInput:
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_dynamic_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
-        print(self.covariate_trajectories.shape)
+#        print(self.covariate_trajectories.shape)
+
+    def replace_missingness_with_zeros(self):
+        '''
+            Updates covariates to have zeros as a placeholder when missing 
+            indicators are one. Assumes covariate trajectories are already
+            concatenated with missingness.
+        '''
+        # at this point cov trajs are already concatenated with missingness
+        # first entry of each covariate trajectory is the time so add one as well
+        end_of_covs = int((self.covariate_trajectories.shape[-1] - 1)/2) + 1
+        self.covariate_trajectories[:, :, 1:end_of_covs] = torch.where(
+            self.missing_indicators == 1,
+            torch.zeros(self.missing_indicators.shape),
+            self.covariate_trajectories[:, :, 1:end_of_covs]
+        )
+        
 
 
     def format_data(self):

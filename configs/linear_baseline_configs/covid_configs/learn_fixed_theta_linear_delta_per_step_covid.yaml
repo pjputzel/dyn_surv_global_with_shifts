@@ -1,6 +1,6 @@
 main_type: 'learn_fixed_theta_basic_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
-device: 'cuda:5'
+#device: 'cuda:5'
 
 data_input_params:
     dataset_name: 'covid'
