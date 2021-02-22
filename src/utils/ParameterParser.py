@@ -50,6 +50,7 @@ DEFAULT_PARAMS =\
                 'drift_reg': 0.,
                 'global_diff_reg': 0.,
                 'delta_reg': 0.,
+                'l1_reg':0.,
             }
             
         },

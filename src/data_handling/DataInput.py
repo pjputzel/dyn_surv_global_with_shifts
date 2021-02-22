@@ -19,7 +19,7 @@ DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 #TODO: after dmcvd is processed put num_cont_
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
 
 
-DEBUG = True
+DEBUG = False
 if DEBUG:
     COVID_NUM_CONT_DYNAMIC_COVS = 50 # old 114
 else:

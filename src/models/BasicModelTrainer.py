@@ -70,8 +70,7 @@ class BasicModelTrainer:
                 
             total_loss, reg, logprob =\
                 self.loss_calc.compute_batch_loss(
-                    model.get_global_param(),
-                    pred_params, hidden_states, 
+                    model, pred_params, hidden_states, 
                     step_ahead_cov_preds, batch
                 )
             total_loss.backward()            

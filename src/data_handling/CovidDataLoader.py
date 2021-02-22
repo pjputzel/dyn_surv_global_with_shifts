@@ -60,6 +60,23 @@ class CovidDataLoader(DataLoaderBase):
         ]
         return static_vars
 
+    def remove_disc_static_covs(self, static_covs):
+        def convert_single_ind(svars):
+            temp_svars = []
+            for s, svar in enumerate(svars):
+                if s in DISC_STATIC_COV_IDXS:
+                    continue
+                else:
+                    svar = [svar]
+                temp_svars = temp_svars + svar
+            return temp_svars
+        static_vars = [
+            convert_single_ind(svars)
+            for svars in static_covs
+        ]
+        return static_vars
+        
+
     def load_data(self):
         data = self.data
         event_times = data.censored_event_times
@@ -80,10 +97,15 @@ class CovidDataLoader(DataLoaderBase):
         static_vars = [
             list(static_vars_i[0]) for static_vars_i in static_vars
         ]
+
+#        print('not converting static disc vars to bit strings while testing removing them')
         static_vars =\
             self.convert_static_vars_to_bit_strings_with_missingness(static_vars)
 
-        print('static vars example:', static_vars[0])
+#        print('Removing disc static covs to see what happens')
+#        static_vars = self.remove_disc_static_covs(static_vars)
+
+#        print('static vars example:', static_vars[0])
         
         print('Length of dynamic covs: %s, length of static covs: %s' %(len(dynamic_covs[0][0]), len(static_vars[0])))
         missing_indicators = [[[float(entry) for entry in m] for m in list(missingness_i)] for missingness_i in missing_indicators]

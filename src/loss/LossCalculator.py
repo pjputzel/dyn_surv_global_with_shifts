@@ -13,6 +13,7 @@ from loss.WeibullLogProbCalculatorConstantDelta import WeibullLogProbCalculatorC
 from loss.RegularizationCalculatorConstantDelta import RegularizationCalculatorConstantDelta
 from loss.RegularizationCalculatorDeltaIJ import RegularizationCalculatorDeltaIJ
 from loss.GompertzLogProbCalculatorDeltaIJ import GompertzLogProbCalculatorDeltaIJ
+import torch.nn as nn
 
 class LossCalculator:
     
@@ -72,11 +73,11 @@ class LossCalculator:
 
 
     def compute_batch_loss(self,
-        global_theta,
+        model,
         pred_params, hidden_states, 
         step_ahead_cov_preds, batch
     ):
-
+        global_theta = model.get_global_param()
         logprob = self.logprob_calculator(pred_params, batch, global_theta=global_theta)
         reg = self.reg_calculator(
             global_theta,
@@ -85,8 +86,18 @@ class LossCalculator:
         )
         if reg < 0:
             print(reg)
+        reg = reg + self.compute_l1_loss(model)
         total_loss = -logprob + reg
         return total_loss, reg, logprob
 
-    
+    def compute_l1_loss(self, model):
+        if self.params['l1_reg'] == 0:
+            return 0
+        l1_crit = nn.L1Loss()
+        l1_total_loss = 0
+        for param in model.parameters():
+            # param * 0 because it strangely requires a target (without default of 0)
+            l1_total_loss = l1_total_loss + l1_crit(param, param * 0.)
+        return l1_total_loss * self.params['l1_reg']           
+            
         
