@@ -56,6 +56,7 @@ DEFAULT_PARAMS =\
 
         'eval_params': {
             'eval_metrics': ['c_index'],
+            'tracked_eval_metrics': ['c_index', 'c_index_truncated_at_S'],
             'dynamic_metrics': {
                 'start_times': [0, 365, 2*365, 3*365],
                 'window_length': 3*365,

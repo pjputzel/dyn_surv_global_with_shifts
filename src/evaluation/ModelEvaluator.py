@@ -9,24 +9,35 @@ from loss.LossCalculator import LossCalculator
 # to call the object and compute the metric
 class ModelEvaluator:
 
-    def __init__(self, eval_params, loss_params, model_type):
+    def __init__(self, eval_params, loss_params, model_type, verbose=False):
         self.params = eval_params
+        self.verbose = verbose
         if not model_type == 'landmarked_cox':
             self.loss_calculator = LossCalculator(loss_params, model_type)
 
-    def evaluate_model(self, model, data_input, diagnostics):
+    def evaluate_model(self,
+        model, data_input, diagnostics,
+        is_during_training=False
+    ):
         eval_metrics = {}
+        verbose = self.verbose
         for eval_metric in self.params['eval_metrics']:
-            print('---------------Evaluating %s-----------------' %eval_metric)
+            if verbose:
+                print('---------------Evaluating %s-----------------' %eval_metric)
             eval_func_name = 'compute_' + eval_metric
             data_tr = data_input.get_tr_data_as_single_batch() 
             data_te = data_input.get_te_data_as_single_batch()
-            print('Evaluation on Train')
+            if verbose:
+                print('Evaluation on Train')
             metric_results_tr = getattr(self, eval_func_name)(model, data_tr)
-            print('Evaluation on Test')
+            if verbose:
+                print('Evaluation on Test')
             metric_results_te = getattr(self, eval_func_name)(model, data_te)
             eval_metrics[eval_metric] = {'tr':metric_results_tr, 'te':metric_results_te}
-        diagnostics.eval_metrics = eval_metrics
+        if is_during_training:
+            diagnostics.cur_tracked_eval_metrics = eval_metrics
+        else:
+            diagnostics.eval_metrics = eval_metrics
 
 
     def evaluate_dynamic_metric(self, model, split_data, metric_name):
@@ -45,8 +56,9 @@ class ModelEvaluator:
                 dynamic_metrics[s, t], eff_n = eval_func(
                     model, split_data, start_time, time_delta
                 )
-                eff_ns_s.append(eff_n)    
-                print(dynamic_metrics[s, t], start_time, time_delta)
+                eff_ns_s.append(eff_n)
+                if self.verbose:
+                    print(dynamic_metrics[s, t], start_time, time_delta)
                 doesnt_use_time_delta = \
                     (metric_name == 'c_index_from_start_time') or \
                     (metric_name == 'c_index_from_most_recent_time') or\
@@ -118,7 +130,8 @@ class ModelEvaluator:
                         model, group, start_time, time_delta
                     )
                     eff_ns_s_g.append(eff_n)
-                    print(dynamic_metrics[s, g, t], start_time, upper_bin_boundary, time_delta)
+                    if self.verbose:
+                        print(dynamic_metrics[s, g, t], start_time, upper_bin_boundary, time_delta)
                 eff_ns_s.append(eff_ns_s_g)
             eff_ns.append(eff_ns_s)
 
@@ -353,8 +366,9 @@ class ModelEvaluator:
             # this should only happen for very large values of S
             # where either no one is included, or everyone in the
             # risk set is censored
-            print('No valid pairs for start time %d and delta %d' %(start_time, time_delta))
-            print('Risks:', risks)
+            if self.verbose:
+                print('No valid pairs for start time %d and delta %d' %(start_time, time_delta))
+                print('Risks:', risks)
             return 0, 0
         c_index = total_concordant_pairs/total_valid_pairs
         return c_index, total_valid_pairs
@@ -512,8 +526,9 @@ class ModelEvaluator:
 
         tot_valid_pairs = np.sum(is_valid)
         if tot_valid_pairs == 0:
-            print('No valid pairs for start time %d and delta %d' %(start_time, time_delta))
-            print('Risks:', risks)
+            if self.verbose:
+                print('No valid pairs for start time %d and delta %d' %(start_time, time_delta))
+                print('Risks:', risks)
             return 0, 0
         c_index = np.sum(is_valid * ordered_correct)/tot_valid_pairs
         return c_index, tot_valid_pairs 
@@ -549,7 +564,6 @@ class ModelEvaluator:
         if normalization == 0:
             return 0, 0
         c_index = num_ordered_correctly/normalization
-        print(normalization)
         return c_index, normalization
 
 
