@@ -6,7 +6,7 @@ SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'e
 
 
 
-class RNNDeltaIJWithEmbeddingModel(nn.Module):
+class RNNDeltaIJLinearTransformModel(nn.Module):
     def __init__(self, model_params, distribution_type):
         super().__init__()
         self.params = model_params

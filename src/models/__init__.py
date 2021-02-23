@@ -7,7 +7,7 @@ from models.LinearDeltaIJModel import LinearDeltaIJModel
 from models.LinearThetaIJModel import LinearThetaIJModel
 from models.LinearDeltaIJModelNumVisitsOnly import LinearDeltaIJModelNumVisitsOnly
 from models.DummyGlobalModel import DummyGlobalModel
-from models.RNNDeltaIJWithEmbedding import RNNDeltaIJWithEmbeddingModel
+from models.DeltaIJModelLinearTransform import DeltaIJLinearTransformModel
 from models.ConstantDeltaModelLinearRegression import ConstantDeltaModelLinearRegression
 from models.EmbeddingConstantDeltaModelLinearRegression import EmbeddingConstantDeltaModelLinearRegression
 
@@ -24,5 +24,5 @@ models_dict = \
         'linear_constant_delta': ConstantDeltaModelLinearRegression,
         'embedding_linear_constant_delta': EmbeddingConstantDeltaModelLinearRegression,
         'RNN_delta_per_step': DeltaIJModel,
-        'embedded_RNN_delta_per_step': RNNDeltaIJWithEmbeddingModel,
+        'RNN_delta_per_step_linear_transform': DeltaIJLinearTransformModel,
     }
