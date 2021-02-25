@@ -8,10 +8,11 @@ from loss.LossCalculator import LossCalculator
 import sys
 
 class BasicModelTrainer:
-    def __init__(self, train_params, model_type):
+    def __init__(self, train_params, model_type, metric_evaluator=None):
         self.params = train_params
         self.diagnostics = Diagnostics(train_params['diagnostic_params'])
         self.loss_calc = LossCalculator(train_params['loss_params'], model_type)
+        self.metric_evaluator = metric_evaluator
 
 #    @profile
     def train_model(self, model, data_input):
@@ -32,6 +33,8 @@ class BasicModelTrainer:
 
 
             if epoch % self.params['n_epoch_print'] == 0:
+                if self.metric_evaluator:
+                    self.compute_cur_tracked_metrics(model, data_input)
                 self.diagnostics.update(
                     total_loss, reg, logprob, epoch,
                     grad_mag
@@ -68,8 +71,7 @@ class BasicModelTrainer:
                 
             total_loss, reg, logprob =\
                 self.loss_calc.compute_batch_loss(
-                    model.get_global_param(),
-                    pred_params, hidden_states, 
+                    model, pred_params, hidden_states, 
                     step_ahead_cov_preds, batch
                 )
             total_loss.backward()            
@@ -101,6 +103,21 @@ class BasicModelTrainer:
         for param in model.parameters():
             grad_mag_sq += torch.sum(param**2)
         return grad_mag_sq ** (1/2)
+
+    def compute_cur_tracked_metrics(self, model, data_input):
+        device = next(model.parameters()).device
+        if next(model.parameters()).is_cuda:
+            model.to('cpu')
+            data_input.to_device('cpu')
+        model.eval()
+        self.metric_evaluator.evaluate_model(
+            model, data_input,
+            self.diagnostics, is_during_training=True
+        )
+        model.train()
+        if not device == 'cpu':
+            model.to(device)
+            data_input.to_device(device) 
 
 
 #    def combine_batch_results(self, 

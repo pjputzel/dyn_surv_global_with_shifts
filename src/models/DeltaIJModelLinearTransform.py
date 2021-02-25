@@ -5,32 +5,38 @@ import torch.nn as nn
 SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'chen2000':(2, [1, 1]), 'emwe':(4, [1,1,1,1])}
 
 
-class DeltaIJModelWithEmbedding(nn.Module):
+class DeltaIJLinearTransformModel(nn.Module):
     def __init__(self, model_params, distribution_type):
         super().__init__()
         self.params = model_params
         self.distribution_type = distribution_type
         # plus one is for the timestamp -> needs to be updated to 2 * covariate_dim + 1 to account for missing indicators
-        num_continous = self.params['cont_dynamic_cov_dim']
+#        num_continous = self.params['cont_dynamic_cov_dim']
+
         # embedding the categorical and static variables
         # * 2 to include the missing indicators for the categorical variables
         # also embedding the static covs here
-        self.embedding = nn.Linear(
-            2 * (self.params['dynamic_cov_dim'] - \
-            self.params['cont_dynamic_cov_dim']) +\
-            self.params['static_cov_dim'],
-            self.params['embedding_dim']
+#        self.embedding = nn.Linear(
+#            2 * (self.params['dynamic_cov_dim'] - \
+#            self.params['cont_dynamic_cov_dim']) +\
+#            self.params['static_cov_dim'],
+#            self.params['embedding_dim']
+#        )
+
+        self.linear_transform = nn.Sequential(
+            nn.Linear(
+                2 * self.params['dynamic_cov_dim'] + 1, 
+                self.params['transform_dim']
+            ),
+            nn.Sigmoid()
         )
-        # TODO add dropout back in!!
         self.RNN = nn.GRU(\
-            2 * self.params['cont_dynamic_cov_dim'] +\
-             self.params['embedding_dim'] + 1,
+            self.params['transform_dim'],
             self.params['hidden_dim'],
-            #dropout=self.params['dropout']
         )
 
         self.params_fc_layer = nn.Linear(
-            self.params['hidden_dim'],
+            self.params['hidden_dim'] + self.params['static_cov_dim'],
             1
         )
 
@@ -49,12 +55,22 @@ class DeltaIJModelWithEmbedding(nn.Module):
             torch.rand(1, 1, self.params['hidden_dim'])
         )
         self.deltas_fixed_to_zero = False
+
         
     def forward(self, batch):
         packed_sequence_batch = batch.packed_cov_trajs
         max_len = batch.max_seq_len_all_batches
+        batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
+        transformed_data = self.linear_transform(batch_covs_unpacked)
+        packed_sequence_batch = nn.utils.rnn.pack_padded_sequence(
+            transformed_data.permute(1, 0, 2),
+            batch.traj_lens,
+            enforce_sorted=False
+        )
         batch_size = packed_sequence_batch.batch_sizes[0]
 
+        # have to unpack, pass through hidden dim and then repack
+        # before passing through RNN
 
         # eventually may add attention by using the hidden_states/'output' of the GRU
         h_0 = self.init_hidden_state.repeat(1, batch_size, 1)
@@ -63,7 +79,15 @@ class DeltaIJModelWithEmbedding(nn.Module):
             hidden_states, max_len
         )
 
-        fc_output = self.params_fc_layer(unpacked_hidden_states)
+        static_covs = batch.static_covs
+        static_covs[torch.isnan(static_covs)] = -1 
+        shaped_static_covs = \
+            static_covs.unsqueeze(1).repeat(1, unpacked_hidden_states.shape[1], 1)
+        fc_output = self.params_fc_layer(
+            torch.cat([unpacked_hidden_states, shaped_static_covs], axis=2)
+        )
+
+#        fc_output = self.params_fc_layer(unpacked_hidden_states)
 
         #print(fc_output.shape, batch.cov_times.shape)
         if not self.deltas_fixed_to_zero:
@@ -73,7 +97,6 @@ class DeltaIJModelWithEmbedding(nn.Module):
         else:
             pred_deltas = torch.zeros(all_data.shape[0], 1)
 #        print(pred_deltas.shape)
-        batch_covs_unpacked, _ = self.unpack_and_permute(packed_sequence_batch, max_len)
 
 #        next_step_cov_preds = self.make_next_step_cov_preds(
 #            unpacked_hidden_states, 

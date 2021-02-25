@@ -3,6 +3,9 @@ sys.path.append('../data/')
 from main_types.BaseMain import BaseMain
 from utils.Diagnostics import Diagnostics
 import os
+import time
+from models.BasicModelTrainer import BasicModelTrainer
+from copy import deepcopy
 #from models.BasicModelOneTheta import BasicModelOneTheta
 from models import models_dict
 #from models.GlobalPlusEpsModel import GlobalPlusEpsModel
@@ -95,9 +98,19 @@ class BasicMain(BaseMain):
         return self.model
 
     def train_model(self, model, data_input):
+        # tracking a separate smaller set of evaluation metrics during training
+        eval_params_tracking = deepcopy(self.params['eval_params'])
+        eval_params_tracking['eval_metrics'] = self.params['eval_params']['tracked_eval_metrics']
+        evaluator_for_tracking = ModelEvaluator(
+            eval_params_tracking,
+            self.params['train_params']['loss_params'],
+            self.params['model_params']['model_type'],
+            verbose=False
+        ) 
         model_trainer = BasicModelTrainer(
             self.params['train_params'],
-            self.params['model_params']['model_type']
+            self.params['model_params']['model_type'],
+            metric_evaluator=evaluator_for_tracking
         )
         diagnostics = model_trainer.train_model(model, data_input)
         #diagnostics.unshuffle_results(data_input.unshuffled_idxs)
@@ -110,7 +123,8 @@ class BasicMain(BaseMain):
         self.model_evaluator = ModelEvaluator(
             self.params['eval_params'],
             self.params['train_params']['loss_params'],
-            self.params['model_params']['model_type']
+            self.params['model_params']['model_type'],
+            verbose=True
         )
         self.model_evaluator.evaluate_model(model, data_input, diagnostics)
         

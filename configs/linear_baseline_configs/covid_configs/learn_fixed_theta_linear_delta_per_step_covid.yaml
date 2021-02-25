@@ -1,10 +1,10 @@
 main_type: 'learn_fixed_theta_basic_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
-#device: 'cuda:5'
+device: 'cuda:5'
 
 data_input_params:
     dataset_name: 'covid'
-    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl'
+    saved_tr_te_idxs: '../data/COVID-19/severity_dev_val_idxs_covid.pkl'
     te_percent: 0.1
     cov_time_representation: 'absolute'
     data_loading_params:
@@ -14,10 +14,11 @@ data_input_params:
 model_params:
     model_type: 'linear_delta_per_step'
     dynamic_cov_dim: 345 #older data 248
-    static_cov_dim: 56 #11 # dummy static var for now that does nothing
+    static_cov_dim: 56 #4 #56 #11 # dummy static var for now that does nothing
 
 eval_params:
     eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S', 'auc', 'auc_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    tracked_eval_metrics: ['c_index', 'c_index_truncated_at_S']
 
     dynamic_metrics:
         start_times: [0, 3, 4, 7, 11] #[2, 6, 15, 35] # old data[6., 10., 15., 24.]
@@ -28,17 +29,18 @@ eval_params:
         #time_step: .25
 
 train_params:
-    learning_rate: .0001
-    batch_size: 500
+    learning_rate: .001
+    batch_size: 1000
     conv_thresh: .0000000000000000000000000000001
-    n_epoch_print: 50
-    max_iter: 5000
+    n_epoch_print: 500
+    max_iter: 10000
 
     diagnostic_params:
 
     loss_params:
         distribution_type: 'rayleigh'
         avg_per_seq: True
+        l1_reg: .001
         step_ahead_cov_reg: .0
         drift_reg: 0.
         global_diff_reg: 0.

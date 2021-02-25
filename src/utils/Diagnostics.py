@@ -36,6 +36,8 @@ class Diagnostics:
 
         #print([sys.getsizeof(self.hidden_states_per_step[i].storage()) for i in range(len(self.hidden_states_per_step))])
         #print([sys.getsizeof(self.pred_params_per_step[i].storage()) for i in range(len(self.pred_params_per_step))])
+        if hasattr(self, 'cur_tracked_eval_metrics'):
+            self.update_tracked_eval_metrics()
 
         self.total_loss_per_step.append(total_loss.cpu().detach().numpy())
         self.reg_per_step.append(0 if type(reg) is float else reg.cpu().detach().numpy())
@@ -52,6 +54,22 @@ class Diagnostics:
     def update_eval_results(self, updated_metrics_dict):
         pass
 
+    def update_tracked_eval_metrics(self):
+        metric_names = list(self.cur_tracked_eval_metrics.keys())
+        for metric_name in metric_names:
+            metric_res_name_tr = metric_name + '_tracking_tr'
+            metric_res_name_te = metric_name + '_tracking_te'
+            if not hasattr(self, metric_res_name_tr):
+                setattr(self, metric_res_name_tr, [])
+                setattr(self, metric_res_name_te, [])
+            tr_mean = np.mean(
+                self.cur_tracked_eval_metrics[metric_name]['tr']['values'].cpu().detach().numpy()
+            )
+            te_mean = np.mean(
+                self.cur_tracked_eval_metrics[metric_name]['te']['values'].cpu().detach().numpy()
+            )
+            self.__dict__[metric_res_name_tr].append(tr_mean)
+            self.__dict__[metric_res_name_te].append(te_mean)
 
     def print_loss_terms(self):
         str_key = (

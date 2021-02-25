@@ -41,11 +41,12 @@ class LearnFixedThetaBasicMain(BasicMain):
         self.model.set_and_freeze_global_param(
             self.dummy_global_model.get_global_param()
         )
-        model_trainer = BasicModelTrainer(
-            self.params['train_params'],
-            self.params['model_params']['model_type']
-        )
-        diagnostics = model_trainer.train_model(model, data_input)
+        diagnostics = super().train_model(model, data_input)
+#        model_trainer = BasicModelTrainer(
+#            self.params['train_params'],
+#            self.params['model_params']['model_type']
+#        )
+#        diagnostics = model_trainer.train_model(model, data_input)
         return diagnostics
     
     def train_global_model(self, data_input):
