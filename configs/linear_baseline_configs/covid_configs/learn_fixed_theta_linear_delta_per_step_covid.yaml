@@ -29,7 +29,7 @@ eval_params:
         #time_step: .25
 
 train_params:
-    learning_rate: .001
+    learning_rate: .01
     batch_size: 1000
     conv_thresh: .0000000000000000000000000000001
     n_epoch_print: 500

@@ -1,6 +1,6 @@
 main_type: 'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
-#device: 'cuda:4'
+device: 'cuda:3'
 
 data_input_params:
     dataset_name: 'covid'
@@ -14,9 +14,9 @@ data_input_params:
 model_params:
     model_type: 'RNN_delta_per_step_linear_transform'
     dynamic_cov_dim: 345 # older data:248 #103
-    hidden_dim: 128  # 128 was the winner 
+    hidden_dim: 32  # 128 was the winner 
     static_cov_dim: 56 # without one hot: 11 # dummy static var for now that does nothing
-    transform_dim: 32
+    transform_dim: 115 # rough guess, assuming that 1 in 3 are closely related
     dropout: .0 # .3 is default
 
 eval_params:
@@ -35,7 +35,7 @@ train_params:
     batch_size: 1000
     conv_thresh: .0000000000001
     n_epoch_print: 500
-    max_iter: 5000 #10000
+    max_iter: 10000 #10000
 
     diagnostic_params:
 
@@ -46,4 +46,4 @@ train_params:
         drift_reg: 0.
         global_diff_reg: 0.
         delta_reg: 0. #0.1 #.01
-        l1_reg: .1
+        l1_reg: 0.0
