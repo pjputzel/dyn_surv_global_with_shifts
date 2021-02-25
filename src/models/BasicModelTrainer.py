@@ -27,13 +27,14 @@ class BasicModelTrainer:
             data_input.make_randomized_tr_batches(self.params['batch_size'])
 
             #pred_params, hidden_states
-            total_loss, reg, logprob =\
+            total_loss, reg, logprob, grad_mag =\
                 self.step_params_over_all_batches(model, data_input)
 
 
             if epoch % self.params['n_epoch_print'] == 0:
                 self.diagnostics.update(
-                    total_loss, reg, logprob, epoch
+                    total_loss, reg, logprob, epoch,
+                    grad_mag
                     #pred_params, hidden_states, 
                 )
                 self.diagnostics.print_loss_terms()
@@ -77,12 +78,14 @@ class BasicModelTrainer:
 #            pred_params_per_batch.append(pred_params)
 #            hidden_states_per_batch.append(hidden_states)
             #step_ahead_cov_preds_per_batch.append(step_ahead_cov_preds)
+            grad_mag_per_batch.append(self.get_grad_magnitude(model))
             total_loss_per_batch.append(total_loss)
             reg_per_batch.append(reg)
             logprob_per_batch.append(logprob)
         total_loss_avg = torch.mean(torch.tensor(total_loss_per_batch))
         reg_avg = torch.mean(torch.tensor(reg_per_batch))
         logprob_avg = torch.mean(torch.tensor(logprob_per_batch))
+        grad_mag_avg = torch.mean(torch.tensor(grad_mag_per_batch))
         # combine and unshuffle to get *_all stuff
 #        pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg = \
 #            self.combine_batch_results(
@@ -91,7 +94,13 @@ class BasicModelTrainer:
 #                reg_per_batch, logprob_per_batch
 #            )        
 #        return pred_params_all, hidden_states_all, total_loss_avg, reg_avg, logprob_avg
-        return total_loss_avg, reg_avg, logprob_avg
+        return total_loss_avg, reg_avg, logprob_avg, grad_mag_avg
+
+    def get_grad_magnitude(self, model):
+        grad_mag_sq = 0
+        for param in model.parameters():
+            grad_mag_sq += torch.sum(param**2)
+        return grad_mag_sq ** (1/2)
 
 
 #    def combine_batch_results(self, 

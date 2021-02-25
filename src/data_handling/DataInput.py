@@ -106,6 +106,7 @@ class DataInput:
         std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
+        # note that this makes any missingness placeholders 0
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_dynamic_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
