@@ -31,7 +31,6 @@ class BasicModelTrainer:
             total_loss, reg, logprob, grad_mag =\
                 self.step_params_over_all_batches(model, data_input)
 
-
             if epoch % self.params['n_epoch_print'] == 0:
                 if self.metric_evaluator:
                     self.compute_cur_tracked_metrics(model, data_input)
@@ -48,7 +47,8 @@ class BasicModelTrainer:
 
         # update one last time
         self.diagnostics.update(
-            total_loss, reg, logprob, epoch
+            total_loss, reg, logprob, epoch,
+            grad_mag
             #pred_params, hidden_states, 
         )
         self.diagnostics.print_loss_terms()
@@ -63,7 +63,9 @@ class BasicModelTrainer:
 #    @profile
     def step_params_over_all_batches(self, model, data_input):
         pred_params_per_batch, hidden_states_per_batch, step_ahead_cov_preds_per_batch = [], [], []
+        grad_mag_per_batch = []
         total_loss_per_batch, reg_per_batch, logprob_per_batch = [], [], []
+#        print('len of data_input.tr_batches %d' %len([b for b in data_input.tr_batches]))
         for batch in data_input.tr_batches:
             self.optimizer.zero_grad()
 
@@ -101,7 +103,8 @@ class BasicModelTrainer:
     def get_grad_magnitude(self, model):
         grad_mag_sq = 0
         for param in model.parameters():
-            grad_mag_sq += torch.sum(param**2)
+            param_mag = torch.sum(param**2)
+            grad_mag_sq += param_mag
         return grad_mag_sq ** (1/2)
 
     def compute_cur_tracked_metrics(self, model, data_input):

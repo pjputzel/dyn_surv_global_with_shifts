@@ -370,6 +370,9 @@ class DataInput:
 #            num_batches = num_individuals_tr//batch_size + 1
         # Cutoff tiny batches to avoid taking super noisy steps
         num_batches = num_individuals_tr//batch_size 
+        if num_batches == 0:
+            # handle case of full batch descent if batch_size > num_individuals_tr
+            num_batches = 1
         for batch_idx in range(num_batches):
             batch = Batch(*self.get_tr_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
             #batches.append(batch) 

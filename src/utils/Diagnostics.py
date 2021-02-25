@@ -20,6 +20,7 @@ class Diagnostics:
         self.total_loss_per_step = []
         self.reg_per_step = []
         self.nll_per_step = []
+        self.grad_magnitude_per_step = []
 
         self.eval_metrics = {}
 
