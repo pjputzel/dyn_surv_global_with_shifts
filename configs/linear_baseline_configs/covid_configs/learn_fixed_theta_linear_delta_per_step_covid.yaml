@@ -1,6 +1,6 @@
 main_type: 'learn_fixed_theta_basic_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
-device: 'cuda:5'
+#device: 'cuda:5'
 
 data_input_params:
     dataset_name: 'covid'
@@ -30,7 +30,7 @@ eval_params:
 
 train_params:
     learning_rate: .01
-    batch_size: 1000
+    batch_size: 4000 #1000
     conv_thresh: .0000000000000000000000000000001
     n_epoch_print: 500
     max_iter: 10000
@@ -40,7 +40,7 @@ train_params:
     loss_params:
         distribution_type: 'rayleigh'
         avg_per_seq: True
-        l1_reg: .001
+        l1_reg: 0.001
         step_ahead_cov_reg: .0
         drift_reg: 0.
         global_diff_reg: 0.

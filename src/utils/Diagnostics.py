@@ -20,11 +20,13 @@ class Diagnostics:
         self.total_loss_per_step = []
         self.reg_per_step = []
         self.nll_per_step = []
+        self.grad_magnitude_per_step = []
 
         self.eval_metrics = {}
 
     def update(self,
-        total_loss, reg, logprob, epoch
+        total_loss, reg, logprob, epoch,
+        grad_mag
         #pred_params, hidden_states, total_loss,
     ):
 #        self.pred_params_per_step.append(pred_params.cpu().detach())
@@ -38,10 +40,11 @@ class Diagnostics:
         if hasattr(self, 'cur_tracked_eval_metrics'):
             self.update_tracked_eval_metrics()
 
-        self.total_loss_per_step.append(total_loss.cpu().detach())
-        self.reg_per_step.append(0 if type(reg) is float else reg.cpu().detach())
-        self.nll_per_step.append(-logprob.cpu().detach())
+        self.total_loss_per_step.append(total_loss.cpu().detach().numpy())
+        self.reg_per_step.append(0 if type(reg) is float else reg.cpu().detach().numpy())
+        self.nll_per_step.append(-logprob.cpu().detach().numpy())
         self.epochs.append(epoch)
+        self.grad_magnitude_per_step.append(grad_mag.cpu().detach().numpy())
 
     
     def set_eval_results(self, metrics_dict):

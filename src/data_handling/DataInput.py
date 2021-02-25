@@ -106,6 +106,7 @@ class DataInput:
         std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
+        # note that this makes any missingness placeholders 0
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_dynamic_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
@@ -369,6 +370,9 @@ class DataInput:
 #            num_batches = num_individuals_tr//batch_size + 1
         # Cutoff tiny batches to avoid taking super noisy steps
         num_batches = num_individuals_tr//batch_size 
+        if num_batches == 0:
+            # handle case of full batch descent if batch_size > num_individuals_tr
+            num_batches = 1
         for batch_idx in range(num_batches):
             batch = Batch(*self.get_tr_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
             #batches.append(batch) 
