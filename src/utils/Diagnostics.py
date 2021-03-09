@@ -37,14 +37,15 @@ class Diagnostics:
 
         #print([sys.getsizeof(self.hidden_states_per_step[i].storage()) for i in range(len(self.hidden_states_per_step))])
         #print([sys.getsizeof(self.pred_params_per_step[i].storage()) for i in range(len(self.pred_params_per_step))])
-        if hasattr(self, 'cur_tracked_eval_metrics'):
-            self.update_tracked_eval_metrics()
+#        if hasattr(self, 'cur_tracked_eval_metrics'):
+#            self.update_tracked_eval_metrics()
 
         self.total_loss_per_step.append(total_loss.cpu().detach().numpy())
         self.reg_per_step.append(0 if type(reg) is float else reg.cpu().detach().numpy())
         self.nll_per_step.append(-logprob.cpu().detach().numpy())
         self.epochs.append(epoch)
         self.grad_magnitude_per_step.append(grad_mag.cpu().detach().numpy())
+    
 
     
     def set_eval_results(self, metrics_dict):

@@ -12,7 +12,8 @@ DEFAULT_PARAMS =\
             'cov_time_representation': 'delta',
             'te_percent': .2,
             'data_loading_params': {
-                'paths': 'specify in config'
+                'paths': 'specify in config',
+                'one_hot_encode_static_vars': True,
             },
         },
 
@@ -25,8 +26,8 @@ DEFAULT_PARAMS =\
             'dropout': .3,
             'survival_distribution_type': 'Gamma',
             'embed_hidden_dim': 256,
-            'embed_output_dim': 32
-
+            'embed_output_dim': 32,
+            'use_rand_init_hidden_state': False,
         },
 
         'train_params': {
@@ -34,6 +35,8 @@ DEFAULT_PARAMS =\
             'batch_size': 20,
             'conv_thresh': .0001,
             'n_epoch_print': 1,
+            'optimizer': 'adam',
+            'track_c_indices': True,
             'pretraining': {\
                 'pretraining_max_iter': None,
                 'regular_training_max_iter': None, 
@@ -51,6 +54,7 @@ DEFAULT_PARAMS =\
                 'global_diff_reg': 0.,
                 'delta_reg': 0.,
                 'l1_reg':0.,
+                'l2_reg':0.,
             }
             
         },

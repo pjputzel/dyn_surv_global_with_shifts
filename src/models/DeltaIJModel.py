@@ -48,8 +48,14 @@ class DeltaIJModel(nn.Module):
         batch_size = packed_sequence_batch.batch_sizes[0]
 
 
-        # eventually may add attention by using the hidden_states/'output' of the GR
-        h_0 = self.init_hidden_state.repeat(1, batch_size, 1)
+        if self.params['use_rand_init_hidden_state']:
+            # this is not used by default
+            h_0 = torch.randn(
+                1, batch_size, self.params['hidden_dim']
+            ) 
+        else:
+            # used by default
+            h_0 = self.init_hidden_state.repeat(1, batch_size, 1)
         hidden_states, _ = self.RNN(packed_sequence_batch, h_0)
         unpacked_hidden_states, lengths = self.unpack_and_permute(
             hidden_states, max_len

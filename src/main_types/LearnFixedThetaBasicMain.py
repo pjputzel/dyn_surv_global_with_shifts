@@ -58,15 +58,31 @@ class LearnFixedThetaBasicMain(BasicMain):
             self.dummy_global_model.set_global_param(saved_global_theta)
             print('Loading pre-saved global theta with value:', saved_global_theta)
         else:
+            device = next(self.model.parameters()).device
+            if next(self.model.parameters()).is_cuda:
+                # note that self.model isn't being trained here
+                # just using it since it and datainput are put onto the
+                # appropriate device at the same time
+                self.dummy_global_model.to('cpu')
+                data_input.to_device('cpu')
+            # note: should probably just have a config file for global param
+            # training saved and just load it here based on the global param type
             config_for_global_param_training = copy.deepcopy(self.params)
             config_for_global_param_training['model_params']['model_type'] = 'dummy_global'
             config_for_global_param_training['train_params']['learning_rate'] = \
                 LR_THETA_RATIO  * self.params['train_params']['learning_rate']
+            config_for_global_param_training['train_params']['batch_size'] = 100000
+            config_for_global_param_training['train_params']['max_iter'] = 2500
+            config_for_global_param_training['train_params']['loss_params']['l1_reg'] = 0
+#            config_for_global_param_training['train_params']['loss_params']['l2_reg'] = 0
+            print('If any regularization is added besides l1, then global model training needs to be updated to turn off that regularization!')
             model_trainer = BasicModelTrainer(
                 config_for_global_param_training['train_params'],
                 config_for_global_param_training['model_params']['model_type']
             )
             _ = model_trainer.train_model(self.dummy_global_model, data_input)
+            if not device == 'cpu':
+                data_input.to_device(device) 
             with open(saved_theta_path, 'wb') as f:
                 pickle.dump(self.dummy_global_model.get_global_param(), f)
 

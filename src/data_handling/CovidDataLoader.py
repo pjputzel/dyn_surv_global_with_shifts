@@ -1,6 +1,5 @@
 import sys
 sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
-print(sys.path, 'in loading')
 #sys.path.append('../data/COVID-19/')
 #from preprocess_data import COVID19SevereOutcomePreprocessor
 #from data_handling.COVID19_Preprocessor import COVID19_Preprocessor
@@ -99,8 +98,9 @@ class CovidDataLoader(DataLoaderBase):
         ]
 
 #        print('not converting static disc vars to bit strings while testing removing them')
-        static_vars =\
-            self.convert_static_vars_to_bit_strings_with_missingness(static_vars)
+        if self.params['one_hot_encode_static_vars']:
+            static_vars =\
+                self.convert_static_vars_to_bit_strings_with_missingness(static_vars)
 
 #        print('Removing disc static covs to see what happens')
 #        static_vars = self.remove_disc_static_covs(static_vars)

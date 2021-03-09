@@ -36,10 +36,11 @@ class BasicMain(BaseMain):
         if params['model_params']['model_type'] == 'RNN_delta_per_step':
             self.params['savedir'] = os.path.join(\
                 params['savedir_pre'], 
-                '%s/%s_hdim%d' %(
+                '%s/%s_hdim%d_l2%.5f' %(
                         params['train_params']['loss_params']['distribution_type'],
                         params['model_params']['model_type'],
-                        params['model_params']['hidden_dim']
+                        params['model_params']['hidden_dim'],
+                        params['train_params']['loss_params']['l2_reg']
                 )
             )
         else:

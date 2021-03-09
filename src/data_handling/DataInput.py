@@ -62,6 +62,7 @@ class DataInput:
 
         self.format_data()
         self.normalize_data()
+#        print('WITHOUT NORMALIZATION, DELETE data_input.pkl AFTER DONE')
 #        self.replace_missingness_with_zeros() # Not needed, handled in normalize
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
@@ -103,9 +104,18 @@ class DataInput:
         cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1]
         
         mean_covs = np.nanmean(np.nanmean(cont_cov_trajs, axis=0), axis=0)
-        std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
+        #std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
+        std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]), axis=0)
+        #print('Before:')
+        #print(mean_covs, std_covs)
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
+        #mean_covs_2 = np.nanmean(np.nanmean(norm_covs, axis=0), axis=0)
+        #std_covs_2 = np.nanstd(norm_covs.reshape([norm_covs.shape[0] * norm_covs.shape[1], self.num_cont_dynamic_covs]), axis=0)
+        #print('After:')
+        #print(mean_covs_2, std_covs_2)
+        #raise RuntimeError('meow')
+        
         # note that this makes any missingness placeholders 0
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_dynamic_covs + 1] = \
@@ -362,12 +372,7 @@ class DataInput:
 #        self.tr_batches = batches
     
     def get_batch_generator(self, batch_size):
-#        num_individuals = self.covariate_trajectories.shape[0]
         num_individuals_tr = len(self.tr_idxs)
-#        if num_individuals_tr % batch_size == 0:
-#            num_batches = num_individuals_tr//batch_size
-#        else:
-#            num_batches = num_individuals_tr//batch_size + 1
         # Cutoff tiny batches to avoid taking super noisy steps
         num_batches = num_individuals_tr//batch_size 
         if num_batches == 0:
@@ -375,7 +380,6 @@ class DataInput:
             num_batches = 1
         for batch_idx in range(num_batches):
             batch = Batch(*self.get_tr_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
-            #batches.append(batch) 
             yield batch
 
     def shuffle_tr_idxs(self):
@@ -435,14 +439,14 @@ class DataInput:
         )
         batch_event_times = self.event_times_tr[batch_indices]
         batch_censoring_indicators = self.censoring_indicators_tr[batch_indices]
-        batch_unshuffle_idxs = self.unshuffled_tr_idxs[batch_indices]
+        batch_unshuffle_idxs = self.unshuffled_tr_idxs[batch_idx * batch_size : (batch_idx + 1) * batch_size]
         batch_cov_times = self.cov_times_tr[batch_indices]
         batch_static_covs = self.static_covs_tr[batch_indices]
         batch_missing_indicators = self.missing_indicators_tr[batch_indices]
         return \
             batch_packed_cov_trajs, batch_cov_times, batch_event_times,\
             batch_censoring_indicators, batch_traj_lengths, batch_unshuffle_idxs,\
-            batch_static_covs, batch_missing_indicators
+            batch_static_covs, batch_missing_indicators, batch_indices
             
 
     def get_tr_data_as_single_batch(self):
@@ -458,6 +462,7 @@ class DataInput:
             self.cov_times_tr, self.event_times_tr, self.censoring_indicators_tr, 
             self.traj_lens_tr, torch.arange(self.event_times_tr.shape[0]),
             self.static_covs_tr, self.missing_indicators_tr, 
+            torch.arange(self.event_times_tr.shape[0]),
             int(self.max_len_trajectory)
         )
         return tr_batch
@@ -475,6 +480,7 @@ class DataInput:
             self.cov_times_te, self.event_times_te, self.censoring_indicators_te, 
             self.traj_lens_te, torch.arange(self.event_times_te.shape[0]),
             self.static_covs_te, self.missing_indicators_te, 
+            torch.arange(self.event_times_te.shape[0]),
             int(self.max_len_trajectory)
         )
         return te_batch
@@ -546,7 +552,8 @@ class Batch:
     def __init__(self,
         batch_packed_cov_trajs, batch_cov_times, batch_event_times, 
         batch_censoring_indicators, batch_traj_lengths, batch_unshuffle_idxs,
-        batch_static_covs, batch_missing_indicators, max_seq_len_all_batches
+        batch_static_covs, batch_missing_indicators, batch_shuffle_idxs,
+        max_seq_len_all_batches
     ):
 
         self.packed_cov_trajs = batch_packed_cov_trajs
@@ -556,6 +563,7 @@ class Batch:
         self.traj_lens = batch_traj_lengths #torch.tensor(batch_traj_lengths, dtype=torch.float64)
         self.static_covs = batch_static_covs
         self.unshuffled_idxs = batch_unshuffle_idxs
+        self.shuffled_idxs = batch_shuffle_idxs
         self.max_seq_len_all_batches = max_seq_len_all_batches
         self.missing_indicators = batch_missing_indicators
 
@@ -586,34 +594,11 @@ class Batch:
         if start_time == 0:
             return [self], [1]
         _, idxs_most_recent_times = self.get_most_recent_times_and_idxs_before_start(start_time)
-        # get num_events per person before start time
-#        bool_events_before_start = self.cov_times <= start_time
-#        padding_indicators = \
-#            (self.cov_times == 0) &\
-#            torch.cat([\
-#                torch.zeros(self.cov_times.shape[0], 1), \
-#                torch.ones(
-#                    self.cov_times.shape[0], self.cov_times.shape[1] -1
-#                )
-#            ], dim=1).bool()
-#        bool_events_before_start = torch.where(
-#            padding_indicators,
-#            torch.zeros(bool_events_before_start.shape), bool_events_before_start.double()
-#        )
-
-        #bool_events_before_start = ~(idxs_most_recent_times == 0)
-
-        # plus one since the first event is zero
-        #print(bool_events_before_start)
-        #print(idxs_most_recent_times)
         num_events = idxs_most_recent_times + 1
-        #print(num_events[0:50])
-        #print(self.cov_times[0], start_time)
         bins_per_person = qcut(\
             num_events.cpu().detach().numpy(), num_bins,
             duplicates='drop'
         )
-        #print(bins_per_person.value_counts())
         bins_per_person = bins_per_person.to_list()
         bin_ends_per_person = [b.right for b in bins_per_person]
         bin_ends = np.unique(bin_ends_per_person)
@@ -643,23 +628,11 @@ class Batch:
             )
         else:
             bool_idxs_less_than_start = self.cov_times <= start_time
-        #    print(self.cov_times.dtype, 'cov_times')
-        #    print(torch.zeros(self.cov_times.shape).dtype, 'zeros')
-
-#            truncated_at_start = torch.where(
-#                bool_idxs_less_than_start,
-#                self.cov_times, torch.zeros(self.cov_times.shape)
-#            )
             truncated_at_start = bool_idxs_less_than_start * self.cov_times
             idxs_most_recent_times = torch.max(truncated_at_start, dim=1)[1]
             # handle edge cases where torch.max picks the last zero
             # instead of the first when t_ij = 0
 
-#            idxs_most_recent_times = torch.where(
-#                torch.sum(truncated_at_start, dim=1) == 0,
-#                torch.zeros(idxs_most_recent_times.shape, dtype=torch.int64),
-#                idxs_most_recent_times
-#            )
             idxs_most_recent_times =\
                 (~(torch.sum(truncated_at_start, dim=1) == 0)) *\
                 idxs_most_recent_times

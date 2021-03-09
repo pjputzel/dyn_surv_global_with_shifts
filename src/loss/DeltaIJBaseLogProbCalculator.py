@@ -9,6 +9,8 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
     def __init__(self, logprob_params):
         super().__init__()
         self.params = logprob_params
+        # for debugging
+        self.extreme_loss_counts = {}
 
     def forward(self, deltas, batch, global_theta):
         #print(torch.sum(torch.isnan(batch.censoring_indicators)))
@@ -41,7 +43,21 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
             # prevents long sequences from dominating
             # the loss
             logprob = logprob/batch.traj_lens.unsqueeze(1)
-        ret = torch.mean(logprob)
+        ret = torch.sum(logprob, dim=1)
+        
+        # for debugging individuals with extremely large loss
+        nll_mean, nll_std = torch.mean(ret), torch.std(ret)
+        std_thresh = 5
+#        idxs = torch.arange(len(ret))[((ret - nll_mean)**(2))**(1/2) > std_thresh * nll_std]
+        idxs_in_full_data = batch.shuffled_idxs[((ret - nll_mean)**(2))**(1/2) > std_thresh * nll_std]
+        for idx in idxs_in_full_data:
+            idx = int(idx.cpu().detach().numpy())
+            if not idx in list(self.extreme_loss_counts.keys()):
+                self.extreme_loss_counts[idx] = 0
+            self.extreme_loss_counts[idx] = self.extreme_loss_counts[idx] + 1
+
+        ret = ret.mean()
+#        ret = torch.mean(logprob)
         return ret
     
     def compute_shifted_times(self, deltas, batch):
