@@ -16,6 +16,7 @@ class LandmarkedCoxMain(BasicMain):
         )
         if not os.path.exists(self.params['savedir']):
             os.makedirs(self.params['savedir'])
+        self.device = torch.device(self.params['device'])
 
     def load_model(self):
         # model will have a series of cox models at each eval time

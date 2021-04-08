@@ -1,4 +1,5 @@
 import torch
+import gc
 import numpy as np
 from scipy.stats import rankdata
 from loss.LossCalculator import LossCalculator
@@ -12,6 +13,7 @@ class ModelEvaluator:
     def __init__(self, eval_params, loss_params, model_type, verbose=False):
         self.params = eval_params
         self.verbose = verbose
+        self.model_type = model_type
         if not model_type == 'landmarked_cox':
             self.loss_calculator = LossCalculator(loss_params, model_type)
 
@@ -21,19 +23,59 @@ class ModelEvaluator:
     ):
         eval_metrics = {}
         verbose = self.verbose
+        
+        # free memory since single batch data format used for the rest of code
+#        del data_input
+#        gc.collect()
+
         for eval_metric in self.params['eval_metrics']:
-            if verbose:
-                print('---------------Evaluating %s-----------------' %eval_metric)
-            eval_func_name = 'compute_' + eval_metric
-            data_tr = data_input.get_tr_data_as_single_batch() 
-            data_te = data_input.get_te_data_as_single_batch()
-            if verbose:
-                print('Evaluation on Train')
-            metric_results_tr = getattr(self, eval_func_name)(model, data_tr)
-            if verbose:
-                print('Evaluation on Test')
-            metric_results_te = getattr(self, eval_func_name)(model, data_te)
-            eval_metrics[eval_metric] = {'tr':metric_results_tr, 'te':metric_results_te}
+            eval_metrics[eval_metric] = {}
+            for split in ['tr', 'te']:
+#                print('just evaluating over test right now!!! change me back to [tr, te]')
+                if split == 'tr':
+                    if self.model_type == 'dummy_global_zero_deltas':
+                        # model free evaluations use unnormalized data here
+                        data = data_input.get_unnormalized_tr_data_as_single_batch() 
+                    else:
+                        data = data_input.get_tr_data_as_single_batch() 
+                else:
+                    if self.model_type == 'dummy_global_zero_deltas':
+                        # model free evaluations use unnormalized data here
+                        data = data_input.get_unnormalized_te_data_as_single_batch() 
+                    else:
+                        data = data_input.get_te_data_as_single_batch() 
+                    
+                
+                if verbose:
+                    print('---------------Evaluating %s-----------------' %eval_metric)
+                eval_func_name = 'compute_' + eval_metric 
+                if verbose:
+                    if split == 'tr':
+                        print('Evaluation on Train')
+                    else:
+                        print('Evaluation on Test')
+                        
+                metric_results = getattr(self, eval_func_name)(model, data)
+                eval_metrics[eval_metric][split] = metric_results 
+
+#        if self.model_type == 'dummy_global_zero_deltas':
+#            # model free evaluations use unnormalized data here
+#            data_tr = data_input.get_unnormalized_tr_data_as_single_batch() 
+#            data_te = data_input.get_unnormalized_te_data_as_single_batch()
+#        else:
+#            data_tr = data_input.get_tr_data_as_single_batch() 
+#            data_te = data_input.get_te_data_as_single_batch()
+#        for eval_metric in self.params['eval_metrics']:
+#            if verbose:
+#                print('---------------Evaluating %s-----------------' %eval_metric)
+#            eval_func_name = 'compute_' + eval_metric 
+#            if verbose:
+#                print('Evaluation on Train')
+#            metric_results_tr = getattr(self, eval_func_name)(model, data_tr)
+#            if verbose:
+#                print('Evaluation on Test')
+#            metric_results_te = getattr(self, eval_func_name)(model, data_te)
+#            eval_metrics[eval_metric] = {'tr':metric_results_tr, 'te':metric_results_te}
         if is_during_training:
             diagnostics.cur_tracked_eval_metrics = eval_metrics
         else:
@@ -592,7 +634,8 @@ class ModelEvaluator:
         if type(model) == str :
             # for model independent evaluation
             risks = self.compute_model_independent_risk(
-                model, data, start_time, time_delta, metric_name
+                model, data, start_time, time_delta, metric_name,
+                rep_for_truncated_c_index=self.params['rep_for_truncated_c_index']
             )
             return risks
         elif type(model).__name__ == 'LandmarkedCoxModel':
@@ -644,9 +687,14 @@ class ModelEvaluator:
                 # probs should just remove cov times ranking and just have this for
                 # num events ranking.. can always add back if needed
                 if model_name == 'cov_times_ranking':
-                    risks = most_recent_times
+                    risks = -most_recent_times
                 elif model_name == 'num_events_ranking':
                     risks = most_recent_idxs + 1
+                elif model_name == 'framingham':
+                    covs_at_time = data.get_unpacked_padded_cov_trajs()[torch.arange(data.event_times.shape[0]), most_recent_idxs, :]
+                    #covs_at_time = data.get_unpacked_padded_cov_trajs(most_recent_idxs)
+                    risks = self.compute_framingham_total_cvd_risks(data, covs_at_time)
+                
                 sorted_risks = risks[sort_idxs]
                 risks = sorted_risks.repeat([data.event_times.shape[0], 1])
                 
@@ -660,10 +708,15 @@ class ModelEvaluator:
             # probs should just remove cov times ranking and just have this for
             # num events ranking.. can always add back if needed
             if model_name == 'cov_times_ranking':
-                risks = most_recent_times
+                risks = -most_recent_times
             elif model_name == 'num_events_ranking':
                 risks = most_recent_idxs + 1
-            
+            elif model_name == 'framingham':
+                covs_at_time = data.get_unpacked_padded_cov_trajs()[torch.arange(data.event_times.shape[0]), most_recent_idxs, :]
+                #covs_at_time = data.get_unpacked_padded_cov_trajs(most_recent_idxs)
+                risks = self.compute_framingham_total_cvd_risks(data, covs_at_time)
+            else:
+                raise ValueError('model inpendent risks type %s not found' %model_name)
         return risks
 
     def compute_landmarked_cox_risks(self, model, data, start_time, metric_name):
@@ -706,13 +759,81 @@ class ModelEvaluator:
             sorted_event_times.shape[0], sorted_event_times.shape[0]
         )
         for t, time in enumerate(sorted_event_times):
+            if t % 100 == 0:
+                #print('...')
+                pass
             most_recent_times, most_recent_idxs = \
                 data.get_most_recent_times_and_idxs_before_start(time)
             if model_name == 'cov_times_ranking':
-                row = most_recent_times
+                row = -most_recent_times
             elif model_name == 'num_events_ranking':
                 row = most_recent_idxs + 1
+            elif model_name == 'framingham':
+                covs_at_time = data.get_unpacked_padded_cov_trajs()[torch.arange(data.event_times.shape[0]), most_recent_idxs, :]
+                row = self.compute_framingham_total_cvd_risks(data, covs_at_time)
             risks_ik[t, :] = row
         return risks_ik
 
-                
+    def compute_framingham_total_cvd_risks(self, data, covs_at_time):
+        non_meds_cutoff = 125
+        num_meds = 61
+        sys_bp_idx = 120
+        tc_idx =  44
+        hdl_idx = 42
+        age_idx = 124
+        static_covs = data.static_covs
+        age_onset_dm_cvd = data.get_unpacked_padded_cov_trajs()[:, 0, age_idx]
+        hypertensive_medicine_indicators =  torch.tensor([0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1], dtype=bool).repeat(covs_at_time.shape[0], 1)
+#        print(covs_at_time[non_meds_cutoff:non_meds_cutoff + num_meds].shape, 'hiss')
+        treated_for_hypertension = torch.sum(covs_at_time[:, non_meds_cutoff: non_meds_cutoff + num_meds].bool() & hypertensive_medicine_indicators, dim=1) > 0
+        treated_for_hypertension = treated_for_hypertension.int()
+        smoking = static_covs[:, 14]
+        is_male = static_covs[:, 1]
+#        print(covs_at_time[0:100, age_idx])
+#        print(covs_at_time[:, tc_idx])
+#        print(covs_at_time[0:100, hdl_idx])
+#        print(covs_at_time[:, sys_bp_idx])
+
+        # Risk for males
+        S10=0.88936
+        S5=(S10**(0.1))**5
+        Age=48.5
+        TC=212.5
+        HDL=44.9
+        SBP=129.7
+        Hypertension=0.1013
+        Smoker=0.3522
+        DM=0.065
+        m=3.06117*np.log(Age) + 1.12370*np.log(TC)-0.93263*np.log(HDL)+1.99881*np.log(SBP)*(Hypertension) + 1.93303*np.log(SBP)*(1-Hypertension) +0.65451*Smoker + 0.57367*DM
+#        print(age_onset_dm_cvd.shape, treated_for_hypertension.shape, smoking.shape, covs_at_time[:, hdl_idx].shape)
+        L = \
+            3.06117*torch.log(age_onset_dm_cvd) + \
+            1.12370*torch.log(covs_at_time[:, tc_idx]) - \
+            0.93263*torch.log(covs_at_time[:, hdl_idx]) + \
+            1.99881*torch.log(covs_at_time[:, sys_bp_idx]) * (treated_for_hypertension)+ \
+            1.93303*torch.log(covs_at_time[:, sys_bp_idx]) * (1 - treated_for_hypertension)+ \
+            0.65451 * smoking + 0.57367
+        Risk_male = (1-S5**(torch.exp(L-m))) 
+        
+        # Risk for females
+        S10=0.95012
+        S5=(S10**(0.1))**5
+        Age=49.1
+        TC=215.1
+        HDL=57.6
+        SBP=125.8
+        Hypertension=0.1176
+        Smoker=0.3423
+        DM=0.0376
+        m=2.32888*np.log(Age) + 1.20904*np.log(TC)-0.70833*np.log(HDL)+2.76157*np.log(SBP)*(Hypertension) + 2.82263*np.log(SBP)*(1-Hypertension) +0.52873*Smoker + 0.69154*DM
+        L = \
+            2.32888*torch.log(age_onset_dm_cvd) + \
+            1.20904*torch.log(covs_at_time[:, tc_idx]) - \
+            0.70833*torch.log(covs_at_time[:, hdl_idx]) + \
+            2.76157*torch.log(covs_at_time[:, sys_bp_idx])*(treated_for_hypertension) + \
+            2.82263*torch.log(covs_at_time[:, sys_bp_idx])*(1 - treated_for_hypertension) + \
+            0.52873 * smoking + 0.69154
+        Risk_female = (1-S5**(torch.exp(L-m))) 
+        Risks = is_male * Risk_male + (1 - is_male) * Risk_female
+        return Risks 
+       

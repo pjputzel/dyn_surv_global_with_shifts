@@ -85,6 +85,7 @@ class EvaluateCovTimesRankingMain(ModelFreeRankingMain):
         )
         # evaluate with cov_times_ranking
         self.model_evaluator.evaluate_model('cov_times_ranking', data_input, diagnostics)
+        print('evaluating!')
 
 class EvaluateNumEventsRankingMain(ModelFreeRankingMain):
 
@@ -97,3 +98,13 @@ class EvaluateNumEventsRankingMain(ModelFreeRankingMain):
         # evaluate with num_events_ranking
         self.model_evaluator.evaluate_model('num_events_ranking', data_input, diagnostics)
 
+class EvaluateFraminghamRankingMain(ModelFreeRankingMain):
+
+    def evaluate_model(self, model_type, data_input, diagnostics):
+        self.model_evaluator = ModelEvaluator(
+            self.params['eval_params'],
+            self.params['train_params']['loss_params'],
+            model_type, verbose=True
+        )
+        # evaluate with num_events_ranking
+        self.model_evaluator.evaluate_model('framingham', data_input, diagnostics)

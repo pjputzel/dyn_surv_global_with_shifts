@@ -11,6 +11,7 @@ import sys
 import tqdm
 sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
 import pickle
+from copy import deepcopy
 
 DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 #TODO: after dmcvd is processed put num_cont_covs here
 
@@ -52,6 +53,7 @@ class DataInput:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 
         self.event_times, self.censoring_indicators, self.missing_indicators, self.covariate_trajectories, self.static_covs = dataloader.load_data()
+        #self.dynamic_covs_order = dataloader.dynamic_covs_order
 #        if self.params['debug']:
 #            idxs = torch.tensor(np.random.permutation(np.arange(len(self.event_times)))[0:50])
 #            self.event_times = [self.event_times[i] for i in idxs]
@@ -86,6 +88,7 @@ class DataInput:
             Normalizes continous covariates only.
         '''
         print('Assuming data is processed with all continous features occuring first and all discrete/categorical occuring second!')
+        self.unnormalized_covariate_trajectories = deepcopy(self.covariate_trajectories)
         # only normalize the continous features
         # the + 1 is because the first entry is the timestamp
         cov_trajs = self.covariate_trajectories
@@ -335,6 +338,7 @@ class DataInput:
             self.tr_idxs, self.te_idxs = torch.tensor(self.tr_idxs), torch.tensor(self.te_idxs)
 
         self.covariate_trajectories_tr = self.covariate_trajectories[self.tr_idxs]
+        self.unnormalized_covariate_trajectories_tr = self.unnormalized_covariate_trajectories[self.tr_idxs]
         self.traj_lens_tr = self.traj_lens[self.tr_idxs]
         self.event_times_tr = self.event_times[self.tr_idxs]
         self.censoring_indicators_tr = self.censoring_indicators[self.tr_idxs]
@@ -344,6 +348,7 @@ class DataInput:
         self.static_covs_tr = self.static_covs[self.tr_idxs]
         
         self.covariate_trajectories_te = self.covariate_trajectories[self.te_idxs]
+        self.unnormalized_covariate_trajectories_te = self.unnormalized_covariate_trajectories[self.te_idxs]
         self.traj_lens_te = self.traj_lens[self.te_idxs]
         self.event_times_te = self.event_times[self.te_idxs]
         self.censoring_indicators_te = self.censoring_indicators[self.te_idxs]
@@ -467,6 +472,21 @@ class DataInput:
         )
         return tr_batch
 
+    def get_unnormalized_tr_data_as_single_batch(self):
+        tr_batch = Batch(
+            torch.nn.utils.rnn.pack_padded_sequence(
+                self.unnormalized_covariate_trajectories_tr.permute(1, 0, 2), 
+                self.traj_lens_tr,
+                enforce_sorted=False
+            ),
+            self.cov_times_tr, self.event_times_tr, self.censoring_indicators_tr, 
+            self.traj_lens_tr, torch.arange(self.event_times_tr.shape[0]),
+            self.static_covs_tr, self.missing_indicators_tr, 
+            torch.arange(self.event_times_tr.shape[0]),
+            int(self.max_len_trajectory)
+        )
+        return tr_batch
+
     def get_te_data_as_single_batch(self):
         # code uses batches of data
         # so just wrapping te data in a batch
@@ -474,6 +494,24 @@ class DataInput:
         te_batch = Batch(
             torch.nn.utils.rnn.pack_padded_sequence(
                 self.covariate_trajectories_te.permute(1, 0, 2), 
+                self.traj_lens_te,
+                enforce_sorted=False
+            ),
+            self.cov_times_te, self.event_times_te, self.censoring_indicators_te, 
+            self.traj_lens_te, torch.arange(self.event_times_te.shape[0]),
+            self.static_covs_te, self.missing_indicators_te, 
+            torch.arange(self.event_times_te.shape[0]),
+            int(self.max_len_trajectory)
+        )
+        return te_batch
+
+    def get_unnormalized_te_data_as_single_batch(self):
+        # code uses batches of data
+        # so just wrapping te data in a batch
+        # for use in evaluation
+        te_batch = Batch(
+            torch.nn.utils.rnn.pack_padded_sequence(
+                self.unnormalized_covariate_trajectories_te.permute(1, 0, 2), 
                 self.traj_lens_te,
                 enforce_sorted=False
             ),
@@ -574,12 +612,14 @@ class Batch:
             tot += sys.getsizeof(val)
         return tot
 
-    def get_unpacked_padded_cov_trajs(self):
+    def get_unpacked_padded_cov_trajs(self, measurement_idxs=None):
         batch_covs, lengths = torch.nn.utils.rnn.pad_packed_sequence(
             self.packed_cov_trajs, total_length=self.max_seq_len_all_batches
         )
 
         batch_covs = batch_covs.transpose(0,1)
+        if not measurement_idxs is None:
+            batch_covs = batch_covs[:, measurement_idxs, :]
         return batch_covs
 
     '''

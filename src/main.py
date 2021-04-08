@@ -49,6 +49,8 @@ def main(config):
         main = EvaluateCovTimesRankingMain(params)
     elif main_type == 'num_events_ranking_main':
         main = EvaluateNumEventsRankingMain(params)
+    elif main_type == 'framingham_ranking_main':
+        main = EvaluateFraminghamRankingMain(params)
     elif main_type == 'validate_RNN_hidden_dim_main':
         main = ValidateHiddenDimMain(params)
     elif main_type == 'parallel_validate_RNN_hidden_dim_main':

@@ -1,5 +1,5 @@
-main_type: 'learn_fixed_theta_basic_main'
-savedir_pre: '../output/dm_cvd/'
+main_type: 'framingham_ranking_main'
+savedir: '../output/dm_cvd/framingham'
 
 data_input_params:
     dataset_name: 'dm_cvd'
@@ -11,12 +11,12 @@ data_input_params:
         paths: '../data/dm_cvd/all_data.pkl'  #data_dev_filtered_by_events_after_183.pkl'
 
 model_params:
-    model_type: 'RNN_delta_per_step'
+    model_type: 'dummy_global_zero_deltas'
     dynamic_cov_dim: 185
-    hidden_dim: 64 #20
     static_cov_dim: 20 #4 
 
 eval_params:
+    rep_for_truncated_c_index: True
     eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
         start_times: [0, 3, 8, 16, 30] #[.5, 1., 1.5, 2.]
@@ -39,4 +39,3 @@ train_params:
         drift_reg: 0.
         global_diff_reg: 0.
         delta_reg: 0. #0.1 #.01
-        l2_reg: 0.001

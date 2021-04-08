@@ -54,11 +54,13 @@ if __name__ == '__main__':
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001_hdim200_preds_val.pkl'
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.00001_hdim200_preds_val.pkl'
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001000_hdim200_preds_val.pkl'
-    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.000010_hdim50_preds_te_winner.pkl'
+#    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.000010_hdim50_preds_te_winner.pkl'
+    path_to_deephit_preds = '../../Dynamic-DeepHit/dm_cvd_lr0.000100_hdim200_valFalse/preds_te.pkl'
     print('Loading preds from path %s' %path_to_deephit_preds)
 
     #params = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml' #just to get the data loaded properly
-    params = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml' #just to get the data loaded properly
+ #   params = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml' #just to get the data loaded properly
+    params = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
     # load data again
     # then get the full te batch to evaluate
     params = ParameterParser(params).parse_params()

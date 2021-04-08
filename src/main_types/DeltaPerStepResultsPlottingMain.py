@@ -1,4 +1,6 @@
 from main_types.BasicMain import BasicMain
+from matplotlib import cm
+import joypy
 import pandas as pd
 from scipy.stats import norm
 import tqdm
@@ -17,13 +19,17 @@ import torch
 #       }
 
 #matplotlib.rc('font', **font)
-sb.set_context('paper', rc={"font.size":14,"axes.labelsize":14, "axes.ticksize":8, 'axes.titlesize':14})
+#sb.set_context('paper', rc={"font.size":14,"axes.labelsize":14, "axes.ticksize":8, 'axes.titlesize':14, 'weight': 'bold'})
 
+sb.set_context('paper', rc={"font.size":12,"axes.labelsize":9, "axes.ticksize":4, 'axes.titlesize':12, 'fig.titlesize':9})
+#sb.set_context('paper', rc={"font.size":9,"axes.labelsize":6, "axes.ticksize":3, 'axes.titlesize':6, 'fig.titlesize':6})
+#plt.rcParams['font.weight'] = 'bold'
 class DeltaPerStepResultsPlottingMain:
     
     def __init__(self, params):
         self.params = params
         self.setup_main = BasicMain(params)
+        self.means = None
 
     def main(self):
         torch.random.manual_seed(self.params['random_seed'])
@@ -39,7 +45,8 @@ class DeltaPerStepResultsPlottingMain:
         self.make_tr_df_to_plot()
         self.make_example_plots()
         self.make_split_by_age_plot()
-        self.make_tr_plots()
+        # uncomment to make some training plots
+#        self.make_tr_plots()
 
         ### OLD ###
 #        self.setup_data_and_model()
@@ -52,8 +59,13 @@ class DeltaPerStepResultsPlottingMain:
         model = self.setup_main.load_model()
 
         self.data_input = data_input
+        self.dynamic_covs_order = data_input.dynamic_covs_order
         self.tr_data = data_input.get_tr_data_as_single_batch()
         self.te_data = data_input.get_te_data_as_single_batch()
+        self.unnormalized_tr_data = data_input.get_unnormalized_tr_data_as_single_batch()
+        self.unnormalized_te_data = data_input.get_unnormalized_te_data_as_single_batch()
+        print('modifying savedir for quick fix!!!!---------------------------------------------------------------------------------------------------------------------------------- undo before doing plots with non-covid linear model!!')
+        self.setup_main.params['savedir'] = '../output/covid/rayleigh/linear_delta_per_step/'
         self.savedir = os.path.join(self.setup_main.params['savedir'], 'plots')
         model_path = os.path.join(self.setup_main.params['savedir'], 'model.pkl')
         with open(model_path, 'rb') as f:
@@ -62,6 +74,7 @@ class DeltaPerStepResultsPlottingMain:
         model.eval()
         self.model = model
         print(torch.exp(-self.model.global_param_logspace))
+        self.global_theta = torch.exp(-self.model.global_param_logspace).cpu().detach().numpy()**(1/2)
         #print([param for param in model.parameters()])
         #print(torch.sum(model.linear.weight))
 
@@ -71,27 +84,35 @@ class DeltaPerStepResultsPlottingMain:
         tr_deltas = self.tr_deltas.detach().numpy()
         static_idxs = np.array([0, -4, 1, 2])
         static_cov_names = ['Age', 'BMI', 'Sex', 'Race']
-        static_covs = self.tr_data.static_covs[:, static_idxs].detach().numpy()
-        
-        cont_cov_names = ['icu', 'o2', 'sys_bp', 'dia_bp', 'temp']
-        cont_cov_idxs = {'icu':248, 'o2':247, 'sys_bp':112, 'dia_bp':113, 'temp':114}
-        cont_covs = self.tr_data.get_unpacked_padded_cov_trajs()
-
+        static_covs = self.unnormalized_tr_data.static_covs[:, static_idxs].detach().numpy()
+        # for covid hosp synch data
+        #cont_cov_names = ['icu', 'o2', 'sys_bp', 'dia_bp', 'temp']
+        cont_cov_names = ['sys_bp', 'dia_bp', 'temp', 'LYMPHOCYTES %']
+#        cont_cov_idxs = {cov:self.dynamic_covs_order.index(cov) for cov in cont_cov_names}
+        # for hosp synch data
+#        cont_cov_idxs = {'icu':248, 'o2':247, 'sys_bp':112, 'dia_bp':113, 'temp':114}
+        cont_cov_idxs = {'LYMPHOCYTES %':72, 'sys_bp':210, 'dia_bp':211, 'temp':212}
+        cont_covs = self.unnormalized_tr_data.get_unpacked_padded_cov_trajs()
+        #print(cont_covs[0][0], self.tr_data.get_unpacked_padded_cov_trajs()[0][0])
         col_names = [
             'ind_idx', 'delta', 'mean_tte_rem', 
             'mean_tte', 'hazard', 'shifted_time', 'day'
         ]
         col_names = col_names + static_cov_names + cont_cov_names
         df_all = pd.DataFrame(columns=col_names)
-        
+
+        cov_times = self.tr_data.cov_times.detach().numpy()       
         for ind_idx in range(tr_deltas.shape[0]):
             traj_len = int(self.tr_data.traj_lens[ind_idx].detach().numpy())
+            days = cov_times[ind_idx][0:traj_len]
             deltas_i = tr_deltas[ind_idx][0:traj_len]
             mean_tte_rem_i = self.get_mean_tte_remaining(deltas_i)
-            hazard_i = self.get_hazards_i(deltas_i)
+            hazard_i = self.get_hazards_i(deltas_i, days)
             mean_tte_i = self.get_mean_ttes(deltas_i)
             shifted_times_i = np.array([delta + day for day, delta in enumerate(deltas_i)])
-            days = np.arange(deltas_i.shape[0]) + 1
+            # for hosp synch data
+#            days = np.arange(deltas_i.shape[0]) + 1
+#            days = self.tr_data.cov_times.detach().numpy()
 
             age_i = np.tile(static_covs[ind_idx][0], traj_len)
             bmi_i = np.tile(static_covs[ind_idx][1], traj_len)
@@ -121,18 +142,100 @@ class DeltaPerStepResultsPlottingMain:
             df_all = pd.concat([df_all, df_i])
         df_all['sys_bp'] = df_all['sys_bp'].apply(lambda x: x if not x == -1 else np.nan)
         df_all['dia_bp'] = df_all['dia_bp'].apply(lambda x: x if not x == -1 else np.nan)
-        df_all['icu_name'] = df_all['icu'].apply(lambda x: 'In ICU' if x == 1 else 'Not in ICU')
+        # uncomment for hosp synch data
+#        df_all['icu_name'] = df_all['icu'].apply(lambda x: 'In ICU' if x == 1 else 'Not in ICU')
         self.df_to_plot = df_all
-        o2_enu_to_name = self.data_input.o2_enu_to_name
-        self.df_to_plot['o2_name'] = self.df_to_plot['o2'].apply(
-            lambda x: o2_enu_to_name[x] if not x == 3 else o2_enu_to_name[0]
-        )
+        #self.df_to_plot.to_csv('plotting_data.csv')
+#        with open('plot_data.pkl', 'wb') as f:
+#            pickle.dump(self.df_to_plot, f)
+        # uncomment for hosp synch data
+#        o2_enu_to_name = self.data_input.o2_enu_to_name
+#        self.df_to_plot['o2_name'] = self.df_to_plot['o2'].apply(
+#            lambda x: o2_enu_to_name[x] if not x == 3 else o2_enu_to_name[0]
+#        )
 
 
+    def make_example_plots_old(self):
+        # for hosp synch data
+#        order_for_o2 = ['None (Room air)', 'ETT', 'Trached-to-vent', 'Trach mask', 'Nasal cannula']
+#        self.make_seaborn_cov_plot_i(8, figsize=1, oxygen_label_order=order_for_o2)
+#        self.make_seaborn_cov_plot_i(22, figsize=1, oxygen_label_order=order_for_o2)
+        axis_ylimits = [[0, 0.03], [100, 155], [55, 90], [96, 102]]
+        size = 1.75
+        fig, axes = self.make_seaborn_cov_plot_i(5, figsize=size, axis_ylimits=axis_ylimits)
+        days = [i + 1 for i in range(10)]
+        mean_hazards = []
+        for day in days:
+            mean_hazards.append(np.mean(self.df_to_plot[self.df_to_plot['day'] == day].values))
+            
+        axes[0].plot(days, mean_hazards, marker='X')
+        axes[0].lines[1].set_linestyle('--')
+        fig.savefig('covs_with_hazard_5.png')
+        plt.clf()
+        fig, axes = self.make_seaborn_cov_plot_i(80, figsize=size, axis_ylimits=axis_ylimits)  
+        fig.savefig('covs_with_hazard_80.png')
+            
     def make_example_plots(self):
-        order_for_o2 = ['None (Room air)', 'ETT', 'Trached-to-vent', 'Trach mask', 'Nasal cannula']
-        self.make_seaborn_cov_plot_i(8, figsize=1, oxygen_label_order=order_for_o2)
-        self.make_seaborn_cov_plot_i(22, figsize=1, oxygen_label_order=order_for_o2)
+#        fig, axes = self.make_plt_cov_plot_i(79, figsize=size, axis_ylimits=axis_ylimits, n_days=8)
+#        fig, axes = self.make_plt_cov_plot_i(80, figsize=size, axis_ylimits=axis_ylimits, n_days=11)  
+        axis_ylimits = [[0, 0.035], [30, 110], [96, 102]]
+        fig, axes = plt.subplots(3, 2, sharex=True, figsize=(5, 6))
+        self.plt_cov_plot_i_single_figure_col(79, axes[:, 0], axis_ylimits=axis_ylimits, n_days=8, col_title='Patient A', suppress_axis_labels=False) 
+        self.plt_cov_plot_i_single_figure_col(80, axes[:, 1], axis_ylimits=axis_ylimits, n_days=11, col_title='Patient B', suppress_axis_labels=True) 
+        axes[2, 1].legend()
+        fig.tight_layout()
+
+        bbox = axes[0][0].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        width, height = bbox.width, bbox.height
+
+        plt.savefig('testing.png')
+        plt.clf()
+
+        figsize = (2.5, 3) 
+        title = 'Densities per Day Patient A'
+        self.make_ridgeline_plot_i(79, n_days=8, figsize=figsize, title=title)
+        title = 'Densities per Day Patient B'
+        self.make_ridgeline_plot_i(80, n_days=11, figsize=figsize, title=title)
+
+    def make_ridgeline_plot_i(self, ind_idx, n_days=8, samples_per_day=100000, figsize=(5, 3), title='name me!'):
+        days = [i for i in range(n_days + 1)]
+        ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
+        sampled_densities = []
+        days_for_df = []
+        for day in days:
+            delta = ind_df_to_plot[ind_df_to_plot['day'] == day]['delta'].values[0]
+            sampled_densities.extend(list(self.sample_trunc_distribution(delta, day, samples_per_day)))
+            days_for_df.extend([day + 1 for i in range(samples_per_day)])
+        df_to_plot = pd.DataFrame({'Day': days_for_df, 'Sampled Trunc-Densities': sampled_densities})
+        labels = ['Day ' + str(day) for day in days]
+        fig, axes = joypy.joyplot(
+            df_to_plot, by='Day', column='Sampled Trunc-Densities',
+            labels=labels, range_style='own', 
+            grid='y', linewidth=1, legend=False, figsize=(figsize[0], figsize[1]),
+            title='',
+            colormap=cm.autumn_r,
+            x_range=[-1, 13],
+            bw_method=0.05,
+            ylabelsize=6,
+            xlabelsize=6
+#            kind='normalized_counts', bins=1000,
+        )
+        fig.suptitle(title, weight='bold', fontsize=10)
+        axes[-1].set_xlabel('Days Since Hospitalization', weight='bold', fontsize=8)
+        plt.savefig('ridgeline_plot%d.png' %ind_idx)
+
+        
+    def sample_trunc_distribution(self, delta, truncation_time, n_samples):
+        CDF = np.random.uniform(size=n_samples)
+        discriminant = \
+            4 * delta**2 +\
+            4 * (2 * delta * truncation_time + truncation_time**2 + \
+            2*self.global_theta * np.log(1/(1 - CDF)))
+        sample = (-2 * delta + discriminant**(1/2))/2
+
+        return sample
+
+        
 
     def make_split_by_age_plot(self, day_cutoff=5):
 #        self.df_to_plot['age_thresh_75'] = self.df_to_plot['Age'].apply(
@@ -153,6 +256,7 @@ class DeltaPerStepResultsPlottingMain:
         handles, labels = boxplot.get_legend_handles_labels()
 #        boxplot.legend(handles, labels, loc='upper left', title='Age', fontsize=12, title_fontsize=12)
 #        boxplot.get_legend().get_title().set_fontsize('10')
+        
         boxplot.get_figure().tight_layout()
         boxplot.get_figure().savefig(
             self.get_savepath('%s_boxplot_split_by_age>75_vert.png' %'mean_tte_rem')
@@ -160,7 +264,8 @@ class DeltaPerStepResultsPlottingMain:
         boxplot.get_figure().clf()
         
 
-    def make_tr_plots(self, day_cutoff=40, skip_days_for_plot=5):
+    # cutoff 40 and skip 5 for the hosp synch data
+    def make_tr_plots(self, day_cutoff=24, skip_days_for_plot=3):
         def make_hoz_boxplot(
             col_name, hue=None, day_cutoff=day_cutoff,
             skip_days_for_plot=skip_days_for_plot
@@ -241,44 +346,200 @@ class DeltaPerStepResultsPlottingMain:
         boxplot.get_figure().clf()
 
         ### Make covariate plots with seaborn instead of plt
-        to_plot = 40
+        to_plot = 200
         for ind_idx in range(to_plot):
-            self.make_seaborn_cov_plot_i(ind_idx)
+    #        self.make_seaborn_cov_plot_i(ind_idx)
+            self.make_plt_cov_plot_i(ind_idx)
+
+    def plt_cov_plot_i_single_figure_col(self, ind_idx, axes_col, oxygen_label_order=None, axis_ylimits=None, n_days=9, col_title='meow', suppress_axis_labels=True):
+        days = [i for i in range(n_days + 1)]
+        mean_vals = pd.read_csv('mean_vals.csv')
+        mean_hazards = mean_vals['hazard'].values[0:n_days + 1]
+        mean_sys_bp = mean_vals['sys_bp'].values[0:n_days + 1]
+        mean_dia_bp = mean_vals['dia_bp'].values[0:n_days + 1]
+        mean_temps = mean_vals['temp'].values[0:n_days + 1]
+
+        ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
+#        fig, axes = plt.subplots(4, 1, sharex=True, figsize=(5*figsize, 3*figsize))
+        if axis_ylimits:
+            axes_col[0].set_ylim(axis_ylimits[0][0], axis_ylimits[0][1])
+            axes_col[0].set(ylim=tuple(axis_ylimits[0]))
+        axes_col[0].plot(ind_df_to_plot['day'], ind_df_to_plot['hazard'], 'ro-')
+#        axes_col[0].lines[0].set_linestyle('--')
+        if not suppress_axis_labels:
+            axes_col[0].set_ylabel('Hazard', weight='bold')
+        axes_col[0].set_title(col_title, weight='bold')
+
+        axes_col[0].plot(days, mean_hazards, 'r--')
+
+
+        bp_df = ind_df_to_plot[['day', 'sys_bp', 'dia_bp']]
+        axes_col[1].plot(ind_df_to_plot['day'], ind_df_to_plot['sys_bp'] - ind_df_to_plot['dia_bp'], 'bo-')
+        if not suppress_axis_labels:
+            axes_col[1].set_ylabel('Delta BP', weight='bold')
+        if axis_ylimits:
+            axes_col[1].set_ylim(axis_ylimits[1][0], axis_ylimits[1][1])
+
+        axes_col[1].plot(days, mean_sys_bp - mean_dia_bp, 'b--')
+
+        axes_col[2].plot(ind_df_to_plot['day'], ind_df_to_plot['temp'], 'ko-', label='Individual')
+#        axes_col[2].lines[0].set_linestyle('--')
+#        axes_col[2].set_title('Temperature')
+        if not suppress_axis_labels:
+            axes_col[2].set_ylabel('Temperature', weight='bold')
+        if axis_ylimits:
+            axes_col[2].set_ylim(axis_ylimits[2][0], axis_ylimits[2][1])
+
+        axes_col[2].plot(days, mean_temps, 'k--', label='Average')
+#        axes_col[2].lines[1].set_linestyle('--')
+
+        axes_col[2].set_xlabel('Days Since Hospitalization', weight='bold')
+#        axes_col[2].legend()
+
+
+    def make_plt_cov_plot_i(self, ind_idx, figsize=1, oxygen_label_order=None, axis_ylimits=None, n_days=9):
+        days = [i for i in range(n_days + 1)]
+        mean_hazards = []
+        mean_sys_bp = []
+        mean_dia_bp = []
+        mean_temp = []
+        def get_mean_at_day(value, day):
+            vals = self.df_to_plot[self.df_to_plot['day'] == day][value].values
+            vals = vals[vals > 1e-10]
+            return np.nanmean(vals)
+        for day in days:
+            mean_hazards.append(get_mean_at_day('hazard', day))
+            mean_sys_bp.append(get_mean_at_day('sys_bp', day))
+            mean_dia_bp.append(get_mean_at_day('dia_bp', day))
+            mean_temp.append(get_mean_at_day('temp', day))
+        self.means = {
+            'hazard':mean_hazards, 'sys_bp':mean_sys_bp,
+            'dia_bp':mean_dia_bp, 'temp':mean_temp
+        }
+        pd.DataFrame(self.means).to_csv('mean_vals.csv')    
+        ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
+        fig, axes = plt.subplots(4, 1, sharex=True, figsize=(5*figsize, 3*figsize))
+        if axis_ylimits:
+            axes[0].set_ylim(axis_ylimits[0][0], axis_ylimits[0][1])
+            axes[0].set(ylim=tuple(axis_ylimits[0]))
+        axes[0].plot(ind_df_to_plot['day'], ind_df_to_plot['hazard'], marker='o')
+        axes[0].lines[0].set_linestyle('--')
+        axes[0].set_title('Hazard')
+        axes[0].set_ylabel('')
+
+        axes[0].plot(days, self.means['hazard'], 'ro--')
+#        axes[0].lines[1].set_linestyle('--')
+
+
+        bp_df = ind_df_to_plot[['day', 'sys_bp', 'dia_bp']]
+        axes[1].plot(ind_df_to_plot['day'], ind_df_to_plot['sys_bp'], marker='o')
+        axes[1].set_title('Systolic Blood Pressure')
+        axes[1].set_ylabel('')
+        axes[1].lines[0].set_linestyle('--')
+        if axis_ylimits:
+            axes[1].set_ylim(axis_ylimits[1][0], axis_ylimits[1][1])
+
+        axes[1].plot(days, self.means['sys_bp'], 'ro--')
+#        axes[1].lines[1].set_linestyle('--')
+        axes[2].plot(ind_df_to_plot['day'], ind_df_to_plot['dia_bp'], marker='o')
+
+        axes[2].set_title('Diastolic Blood Pressure')
+        axes[2].set_ylabel('')
+        axes[2].set_xlabel('')
+        if axis_ylimits:
+            axes[2].set_ylim(axis_ylimits[2][0], axis_ylimits[2][1])
+
+        axes[2].plot(days, self.means['dia_bp'], 'ro')
+        axes[2].lines[0].set_linestyle('--')
+        axes[2].lines[1].set_linestyle('--')
+
+
+        axes[3].plot(ind_df_to_plot['day'], ind_df_to_plot['temp'], marker='o', label='Individual')
+        axes[3].lines[0].set_linestyle('--')
+        axes[3].set_title('Temperature')
+        axes[3].set_ylabel('')
+        if axis_ylimits:
+            axes[3].set_ylim(axis_ylimits[3][0], axis_ylimits[3][1])
+
+        axes[3].plot(days, self.means['temp'], 'ro--', label='Average')
+#        axes[3].lines[1].set_linestyle('--')
+
+        axes[3].set_xlabel('Days Since Covid-19 Diagnosis')
+        axes[3].legend()
+
+        fig.tight_layout()
+        plt.savefig(self.get_savepath('covs_with_hazard_%d' %(ind_idx)))
+        return fig, axes
 
     # TODO update this plot to have the oxygen labels be constant across both of the versions
     # and also make the fonts larger so the images can be shrunk more
-    def make_seaborn_cov_plot_i(self, ind_idx, figsize=1, oxygen_label_order=None):
+    def make_seaborn_cov_plot_i(self, ind_idx, figsize=1, oxygen_label_order=None, axis_ylimits=None):
         ind_df_to_plot = self.df_to_plot[self.df_to_plot['ind_idx'] == ind_idx]
-        fig, axes = plt.subplots(4, 1, sharex=True)
+        fig, axes = plt.subplots(4, 1, sharex=True, figsize=(4*figsize, 4*figsize))
+        if axis_ylimits:
+            axes[0].set_ylim(axis_ylimits[0][0], axis_ylimits[0][1])
+            axes[0].set(ylim=tuple(axis_ylimits[0]))
         # toggle comments to switch between mean_tte_rem and hazards
         #sb.lineplot(ax=axes[0], x='day', y='mean_tte_rem', data=ind_df_to_plot, marker='o')
-        sb.lineplot(ax=axes[0], x='day', y='hazard', data=ind_df_to_plot, marker='o')
+        plot = sb.lineplot(ax=axes[0], x='day', y='hazard', data=ind_df_to_plot, marker='o')
         axes[0].lines[0].set_linestyle('--')
         #axes[0].set_title('Mean Time to Event Remaining')
         axes[0].set_title('Hazard')
         axes[0].set_ylabel('')
-        
-        plot = sb.scatterplot(ax=axes[1], x='day', y='icu_name', data=ind_df_to_plot, hue='icu_name')
-        axes[1].set_title('ICU Status')
-        axes[1].set_ylabel('')
-        plot.legend().set_visible(False)
+        mean_hazards = []
+        days = [i +1 for i in range(9)]
+        for day in days:
+            mean_hazards.append(np.mean(self.df_to_plot[self.df_to_plot['day'] == day].values))
+            
+        plot.plot(days, mean_hazards, marker='X')
+        axes[0].lines[1].set_linestyle('--')
+#        if axis_ylimits:
+#            axes[0].set_ylim(axis_ylimits[0][0], axis_ylimits[0][1])
+        # uncomment for hosp synch data       
+#        plot = sb.scatterplot(ax=axes[1], x='day', y='icu_name', data=ind_df_to_plot, hue='icu_name')
+#        plot = sb.scatterplot(ax=axes[1], x='day', y='LYMPHOCYTES %', data=ind_df_to_plot)
 
-        sb.stripplot(x='day', y='o2_name', 
-            order=oxygen_label_order, data=ind_df_to_plot, ax=axes[2],
-            jitter=False
-        )
+#        data_lymph = ind_df_to_plot[ind_df_to_plot['LYMPHOCYTES %'] > 0]
+#        sb.scatterplot(ax=axes[1], x='day', y='LYMPHOCYTES %', data=data_lymph, marker='o')
+#        axes[1].set_title('Lymphocytes %')
+#        axes[1].set_ylabel('')
+        #plot.legend().set_visible(False)
+
+        bp_df = ind_df_to_plot[['day', 'sys_bp', 'dia_bp']]
+        sb.lineplot(ax=axes[1], x='day', y='sys_bp', data=bp_df, marker='o')
+        axes[1].set_title('Systolic Blood Pressure')
+        axes[1].set_ylabel('')
+        axes[1].lines[0].set_linestyle('--')
+        if axis_ylimits:
+            axes[1].set_ylim(axis_ylimits[1][0], axis_ylimits[1][1])
+
+        sb.lineplot(ax=axes[2], x='day', y='dia_bp', data=bp_df, marker='o')
+#        sb.lineplot(ax=axes[2], x='day', y='dia_bp', data=bp_df, marker='o', label='diastolic_blood_pressure')
+#        sb.lineplot(ax=axes[2], x='day',  data=ind_df_to_plot, marker='o')
+        #uncomment for hosp synch data
+#        sb.stripplot(x='day', y='o2_name', 
+#            order=oxygen_label_order, data=ind_df_to_plot, ax=axes[2],
+#            jitter=False
+#        )
+
 #        plot = sb.scatterplot(ax=axes[2], x='day', y='o2_name', data=ind_df_to_plot, hue='o2_name', hue_order=oxygen_label_order)
-        axes[2].set_title('Oxygen Type')
+        axes[2].set_title('Diastolic Blood Pressure')
         axes[2].set_ylabel('')
         axes[2].set_xlabel('')
+        axes[2].lines[0].set_linestyle('--')
+        if axis_ylimits:
+            axes[2].set_ylim(axis_ylimits[2][0], axis_ylimits[2][1])
 #        plot.legend().set_visible(False)
 
         sb.lineplot(ax=axes[3], x='day', y='temp', data=ind_df_to_plot, marker='o')
         axes[3].lines[0].set_linestyle('--')
         axes[3].set_title('Temperature')
         axes[3].set_ylabel('')
+        if axis_ylimits:
+            axes[3].set_ylim(axis_ylimits[3][0], axis_ylimits[3][1])
 
-        axes[3].set_xlabel('Days Since Hospitalization')
+#        axes[3].set_xlabel('Days Since Hospitalization')
+        axes[3].set_xlabel('Days Since Covid-19 Diagnosis')
 
 #        sb.lineplot(ax=axes[4], x='day', y='sys_bp', data=ind_df_to_plot, marker='x')
 #        sb.lineplot(ax=axes[4], x='day', y='dia_bp', data=ind_df_to_plot, marker='x')
@@ -287,7 +548,7 @@ class DeltaPerStepResultsPlottingMain:
 #        axes[4].set_ylabel('Blood Pressure')
         fig.tight_layout()
         plt.savefig(self.get_savepath('covs_with_mean_tte_rem_%d' %(ind_idx)))
-        plt.clf()
+        return fig, axes
     def get_savepath(self, filename):
         savepath = os.path.join(self.savedir, filename)
         return savepath
@@ -334,10 +595,12 @@ class DeltaPerStepResultsPlottingMain:
             (1 - norm.cdf((cov_times + deltas)/scale**(1/2)))
         return mean_ttes 
 
-    def get_hazards_i(self, deltas_i):
+    def get_hazards_i(self, deltas_i, days):
         scale = torch.exp(-self.model.global_param_logspace).detach().numpy()
-        cov_times = np.arange(len(deltas_i))
-        hazards_i = (cov_times + deltas_i ) * (1./scale)
+#        cov_times = np.arange(len(deltas_i))
+#        print('assuming plotting training data in get_hazards_i')
+#        cov_times = self.tr_data.cov_times.detach().numpy()
+        hazards_i = (days + deltas_i ) * (1./scale)
         return hazards_i
 
 #    def get_hazards(self, deltas_all):

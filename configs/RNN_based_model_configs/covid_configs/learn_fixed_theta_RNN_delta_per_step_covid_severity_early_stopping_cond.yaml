@@ -4,7 +4,7 @@ savedir_pre: '../output/covid/'
 
 data_input_params:
     dataset_name: 'covid'
-    saved_tr_te_idxs: '../data/COVID-19/severity_dev_val_idxs_covid.pkl' #'../data/COVID-19/severity_train_test_idxs_covid.pkl' #'../data/COVID-19/severity_dev_val_idxs_covid.pkl'
+    saved_tr_te_idxs: '../data/COVID-19/severity_train_test_idxs_covid.pkl' #'../data/COVID-19/severity_train_test_idxs_covid.pkl' #'../data/COVID-19/severity_dev_val_idxs_covid.pkl'
     te_percent: 0.1 #not used if saved_tr_te_idxs are given unless debugging
     cov_time_representation: 'absolute'
     data_loading_params:
@@ -32,11 +32,12 @@ eval_params:
         #time_step: .25
 
 train_params:
-    learning_rate: .0001 #old: .01
+    learning_rate: .01 #old: .01
     batch_size: 10000
     conv_thresh: .000000001
     n_epoch_print: 500
     max_iter: 2000 #10000
+    track_c_indices: False
 
     diagnostic_params:
 

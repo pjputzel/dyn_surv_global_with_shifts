@@ -32,15 +32,26 @@ class BasicMain(BaseMain):
     
     def __init__(self, params):
         self.params = params
-
+        
         if params['model_params']['model_type'] == 'RNN_delta_per_step':
             self.params['savedir'] = os.path.join(\
                 params['savedir_pre'], 
-                '%s/%s_hdim%d_l2%.5f' %(
+                '%s/%s_hdim%d_l2%.5f_max_iter%d' %(
                         params['train_params']['loss_params']['distribution_type'],
                         params['model_params']['model_type'],
                         params['model_params']['hidden_dim'],
-                        params['train_params']['loss_params']['l2_reg']
+                        params['train_params']['loss_params']['l2_reg'],
+                        params['train_params']['max_iter']
+                )
+            )
+        elif params['model_params']['model_type'] == 'linear_delta_per_step':
+            self.params['savedir'] = os.path.join(\
+                params['savedir_pre'], 
+                '%s/%s_l1%.5f_max_iter%d' %(
+                        params['train_params']['loss_params']['distribution_type'],
+                        params['model_params']['model_type'],
+                        params['train_params']['loss_params']['l1_reg'],
+                        params['train_params']['max_iter']
                 )
             )
         else:
@@ -54,7 +65,7 @@ class BasicMain(BaseMain):
             
         if not os.path.exists(self.params['savedir']):
             os.makedirs(self.params['savedir'])
-        
+        print('Saving Results in %s' %self.params['savedir']) 
         self.device = torch.device(self.params['device'])
         
 

@@ -3,29 +3,31 @@ savedir: '../output/dm_cvd/num_events_ranking_only'
 
 data_input_params:
     dataset_name: 'dm_cvd'
-    te_percent: .20
+    saved_tr_te_idxs: '../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #'../data/dm_cvd/dev_val_idxs_dm_cvd.pkl' #../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #dev_val_idxs_dm_cvd.pkl' #train_test_idxs_dm_cvd.pkl'
+    te_percent: -1. # not used if saved idxs are given unless debugging
+    cov_time_representation: 'absolute'
     data_loading_params:
-        paths: '../data/dm_cvd/data_dev_filtered_by_events_after_183.pkl'
-
+        #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
+        paths: '../data/dm_cvd/all_data.pkl'  #data_dev_filtered_by_events_after_183.pkl'
 
 model_params:
-    model_type: 'dummy_global_zero_deltas'
+    model_type: 'dummy_model_zero_deltas'
+    dynamic_cov_dim: 185
+    static_cov_dim: 20 #4 
 
 eval_params:
-    eval_metrics: ['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
-        start_times: [.5, 1., 1.5, 2.]
-        window_length: 3.
-        time_step: .25
-        
-    
+        start_times: [0, 3, 8, 16, 30] #[.5, 1., 1.5, 2.]
+        window_length: 28
+        time_step: 7
 
 train_params:
-    learning_rate: .1
-    batch_size: 10000
+    learning_rate: .01
+    batch_size: 20000
     conv_thresh: .00000001
-    n_epoch_print: 50
-    max_iter: 300
+    n_epoch_print: 500
+    max_iter: 2000
 
     diagnostic_params:
 
@@ -35,4 +37,5 @@ train_params:
         step_ahead_cov_reg: .0
         drift_reg: 0.
         global_diff_reg: 0.
-        delta_reg: 0.0 #.1 #.01
+        delta_reg: 0. #0.1 #.01
+
