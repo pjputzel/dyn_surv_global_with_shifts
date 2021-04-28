@@ -574,6 +574,11 @@ class DataInput:
         self.cov_times_te = self.cov_times_te.to(device) 
         self.padding_indicators_te = self.padding_indicators_te.to(device) 
         self.static_covs_te = self.static_covs_te.to(device) 
+
+    def switch_censoring_indicators(self):
+        self.censoring_indicators_tr = (~self.censoring_indicators_tr.bool()).int()
+        self.censoring_indicators_te = (~self.censoring_indicators_te.bool()).int()
+        
         
         
                 

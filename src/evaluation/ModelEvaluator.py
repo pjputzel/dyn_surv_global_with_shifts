@@ -137,6 +137,8 @@ class ModelEvaluator:
             func = self.compute_standard_c_index_truncated_at_S_over_window
         elif metric_name == 'brier_score':
             func = self.compute_brier_score
+        elif metric_name == 'd_calibration':
+            func = self.compute_d_calibration_with_ind_cens
         else:
             raise ValueError('dynamic metric %s not recognized' %metric_name)
         return func
@@ -221,6 +223,9 @@ class ModelEvaluator:
 
     def compute_c_index_from_most_recent_time(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'c_index_from_most_recent_time')
+
+    def compute_d_calibration(self, model, split_data):
+        return self.evaluate_dynamic_metric(model, split_data, 'd_calibration')
 
     def compute_auc_truncated_at_S_from_S_to_delta_S(self,
         model, data, start_time, time_delta
@@ -383,12 +388,64 @@ class ModelEvaluator:
         c_index = total_concordant_pairs/total_valid_pairs
         return c_index, total_valid_pairs
 
-####### NOTE: there was a bug that I fixed for this function, but haven't fixed 
-####### for the other evaluation types. This needs to be updated for other functions
-####### so that when computing c-index with upper boundary at event time i the 
-####### correct pairs are evaluated over (the old compute_risks func returned
-######  a num_uncesnored_ and_at_risk by N array which destroyed the ordering
-###### I assume in the compute_c_index_upper_boundary_at_event_time_i function
+    def compute_d_calibration_with_ind_cens(self,
+        model, data, start_time, time_delta=None,
+        num_bins=10
+    ):
+        surv_probs = \
+            self.get_surv_probs_at_end_of_seq(model, data, start_time)
+
+        # compute d-calibration over only the risk set, this is at least the
+        # most obvious and intuitive way to do so, although an argument could
+        # be made to include all censored individuals, in the risk set or not
+        #surv_probs = surv_probs[at_risk_idxs]
+
+        # construct bins
+        bin_counts = torch.zeros(num_bins, 1)
+
+        # Evaluate the surv probs on the true uncensored times and add to the counts of dociles of observed times
+        at_risk_unc_idxs = \
+            (batch.event_times > start_time) & (batch.censoring_indicators == 0)
+        surv_probs_unc = surv_probs[at_risk_unc_idxs]
+        bin_idxs_unc = torch.floor(surv_probs_unc * (num_bins))
+        for b in num_bins:
+            bin_counts[b] = bin_counts[b] + torch.sum(bin_idxs_unc == b)
+
+        # Using the survival probs, evaluate the contributions to each bin from the censored observations
+        at_risk_cens_idxs = \
+            (batch.event_times > start_time) & (batch.censoring_indicators == 1)
+        surv_probs_cens = surv_probs[at_risk_cens_idxs]
+        # need bin idxs even here since the bin it falls in is treated 
+        # differently
+        bin_idxs_cens = torch.floor(surv_probs_unc * (num_bins))
+        # now compute the 'smoothed' contributions of these censored idxs
+        for b in num_bins:
+            contr_in_bin = torch.sum(
+                1. - (b/num_bins)/surv_probs_cens[bin_idxs_cens == b]
+            )
+            # CHECK THIS LINE!
+            contr_outside_bin = torch.sum(
+                1./(num_bins * surv_probs_cens[surv_probs_cens < (b/num_bins)])
+            )
+        
+
+    def get_surv_probs_at_end_of_seq(self, model, data, start_time):
+       
+        # get cdf per individual predicted at the given start time
+        # (conditioned of course on survival to time t_ij)
+        # time delta in this case is a tensor (since deltas are tensors)
+        # of the difference tau_i - start time per individual so that the
+        # most recent cdf is being computed at the correct times
+        deltas, _, _ = model(data)
+        eos_minus_start_times = batch.event_times - start_time
+
+        surv_probs = 1. - self.logprob_calculator.compute_most_recent_CDF(\
+            deltas, data, model.get_global_param(), 
+            start_time, eos_minus_start_times
+        )
+
+        return surv_probs 
+
     def compute_c_index_from_start_time_to_event_time_i(self,
         model, data, start_time, time_delta=None
     ):

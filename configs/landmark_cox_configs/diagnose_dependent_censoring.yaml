@@ -1,5 +1,5 @@
-main_type: 'landmarked_cox_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
-savedir_pre: '../output/covid/'
+main_type: 'diagnose_dependent_censoring' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
+savedir_pre: '../output/covid_dependent_cens_dx/'
 
 data_input_params:
     dataset_name: 'covid'
@@ -16,10 +16,10 @@ model_params:
     static_cov_dim: 11 
 
 eval_params:
-    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S', 'auc', 'auc_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
 
     dynamic_metrics:
-        start_times: [0, 3, 4, 7, 11] #[2, 6, 15, 35] # old data[6., 10., 15., 24.]
+        start_times: [0] #[2, 6, 15, 35] # old data[6., 10., 15., 24.]
         window_length: 12
         time_step: 3
         #start_times: [.5, 1., 1.5, 2.]
@@ -27,7 +27,7 @@ eval_params:
         #time_step: .25
 
 train_params:
-    learning_rate: .005
+    learning_rate: 0.01 # .001 for severity
     batch_size: 15000
     conv_thresh: .01
     n_epoch_print: 50

@@ -12,6 +12,7 @@ from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
 from main_types.ValidateHiddenDimMain import ParallelValidateHiddenDimMain
 from main_types.SaveLearnedStandardRisksMain import SaveLearnedStandardRisksMain
 from main_types.LandmarkedCoxMain import LandmarkedCoxMain
+from main_types.DiagnoseDependentCensoringMain import DiagnoseDependentCensoringMain
 #from main_types import *
 from utils.ParameterParser import ParameterParser
 #from data_handling.COVIDSevereOutcomePreprocessor import *
@@ -25,7 +26,7 @@ sys.path.append('../data/COVID-19/')
 #sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
 import preprocess_data
 from preprocess_data import COVID19SevereOutcomePreprocessor
-#from preprocess_data_old import COVID19_Preprocessor
+from preprocess_data_old import COVID19_Preprocessor
 #from data_handling.COVIDSevereOutcomePreprocessor import COVID19SevereOutcomePreprocessor
 
 @click.command()
@@ -61,6 +62,8 @@ def main(config):
         main = SaveLearnedStandardRisksMain(params)
     elif main_type == 'landmarked_cox_main':
         main = LandmarkedCoxMain(params)
+    elif main_type == 'diagnose_dependent_censoring':
+        main = DiagnoseDependentCensoringMain(params)
     else:
         raise ValueError('Main type %s not defined' %str(main_type))    
 
