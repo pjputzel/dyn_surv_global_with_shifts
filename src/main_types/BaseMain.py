@@ -20,7 +20,7 @@ class BaseMain:
         # include evaluation metrics
         self.evaluate_model(model, data_input, results_tracker)
         self.save_results(results_tracker)
-        self.plot_results(model, data_input, results_tracker)
+#        self.plot_results(model, data_input, results_tracker)
 
     def load_data(self):
         # TODO: should be the same for almost all runs so just make this function defined here

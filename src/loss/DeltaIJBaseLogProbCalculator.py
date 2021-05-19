@@ -4,6 +4,14 @@ import torch.nn as nn
 def print_num_nans(x):
     print(torch.sum(torch.isnan(x) | ~torch.isfinite(x)))
 
+def print_nan_idxs_in_timestep(x):
+    time = 8
+    print('idxs with nans:')
+    idxs = torch.isnan(x)[:, time, 0] | ~torch.isfinite(x)[:, time, 0]
+    print(torch.arange(x.shape[0])[idxs])
+    print('grads with nans at time index %d' %time)
+    print(x[idxs])
+
 class DeltaIJBaseLogProbCalculator(nn.Module):
     
     def __init__(self, logprob_params):
@@ -15,7 +23,7 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
     def forward(self, deltas, batch, global_theta):
         #print(torch.sum(torch.isnan(batch.censoring_indicators)))
         #print(torch.sum(torch.isnan(batch.event_times)))
-#        deltas.register_hook(print_grad)        
+        #deltas.register_hook(print_nan_idxs_in_timestep)        
         shifted_event_times, shifted_cov_times = self.compute_shifted_times(deltas, batch)
         logpdf = self.compute_logpdf(shifted_event_times, global_theta)
         logsurv = self.compute_logsurv(shifted_event_times, global_theta)
@@ -432,4 +440,4 @@ class DeltaIJBaseLogProbCalculator(nn.Module):
 #
 
 def print_grad(grad):
-    print(torch.isnan(grad).nonzero())
+    print(grad)

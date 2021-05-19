@@ -5,6 +5,7 @@ DEFAULT_PARAMS =\
         'random_seed': 0,
         'metrics_to_track': ['dummy_test_function'],
         'device': 'cpu',
+        'path_to_saved_model': None,
 
         'data_input_params': {
             'saved_tr_te_idxs': None,
@@ -14,6 +15,7 @@ DEFAULT_PARAMS =\
             'data_loading_params': {
                 'paths': 'specify in config',
                 'one_hot_encode_static_vars': True,
+                'one_hot_encode_dynamic_disc_vars': False,
             },
         },
 
@@ -21,6 +23,7 @@ DEFAULT_PARAMS =\
             'model_type': 'basic',
             'dynamic_cov_dim': 'specify in config since data-dependent',
             'static_cov_dim': 'specify in config since data-dependent',
+            'total_dynamic_cov_dim': None, # specify for one-hot encoded discrete dynamic covs
             'hidden_dim': 5,
             #'n_layers_rnn': 3,
             'dropout': .3,
@@ -28,6 +31,7 @@ DEFAULT_PARAMS =\
             'embed_hidden_dim': 256,
             'embed_output_dim': 32,
             'use_rand_init_hidden_state': False,
+            'param_init_scales': None,
         },
 
         'train_params': {

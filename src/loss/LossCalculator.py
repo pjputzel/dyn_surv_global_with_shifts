@@ -13,6 +13,7 @@ from loss.WeibullLogProbCalculatorConstantDelta import WeibullLogProbCalculatorC
 from loss.RegularizationCalculatorConstantDelta import RegularizationCalculatorConstantDelta
 from loss.RegularizationCalculatorDeltaIJ import RegularizationCalculatorDeltaIJ
 from loss.GompertzLogProbCalculatorDeltaIJ import GompertzLogProbCalculatorDeltaIJ
+from loss.FoldedNormalLogProbCalculatorDeltaIJ import FoldedNormalLogProbCalculatorDeltaIJ
 import torch.nn as nn
 
 class LossCalculator:
@@ -42,6 +43,8 @@ class LossCalculator:
 
             elif dist_type == 'gompertz':
                 self.logprob_calculator = GompertzLogProbCalculatorDeltaIJ(self.params)
+            elif dist_type == 'folded_normal':
+                self.logprob_calculator = FoldedNormalLogProbCalculatorDeltaIJ(self.params)
             else:
                 raise ValueError('Distribution type %s not recognized' %dist_type)
             self.reg_calculator = RegularizationCalculatorDeltaIJ(self.params)
@@ -68,6 +71,12 @@ class LossCalculator:
                 self.logprob_calculator = RayleighLogProbCalculatorGlobalParam(self.params)
             elif dist_type == 'gompertz':
                 self.logprob_calculator = GompertzLogProbCalculatorDeltaIJ(self.params)
+            elif dist_type == 'chen2000':
+                self.logprob_calculator = Chen2000LogProbCalculatorDeltaIJ(self.params)
+            elif dist_type == 'weibull':
+                self.logprob_calculator = WeibullLogProbCalculatorDeltaIJ(self.params)
+            elif dist_type == 'folded_normal':
+                self.logprob_calculator = FoldedNormalLogProbCalculatorDeltaIJ(self.params)
             else:
                 raise NotImplementedError('Distribution type %s not yet implemented with dummy global model' %dist_type)
             # in this case this is just fed zeros

@@ -24,7 +24,7 @@ class Chen2000LogProbCalculatorDeltaIJ(DeltaIJBaseLogProbCalculator):
         return shifted_event_times, shifted_cov_times
 
     def compute_logpdf(self, shifted_event_times, global_theta):
-        global_theta.register_hook(print_grad)
+#        global_theta.register_hook(print_grad)
 #        print(global_theta, 'global theta')
         scale = global_theta[0]
         beta = global_theta[1]

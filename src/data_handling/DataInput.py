@@ -2,6 +2,7 @@ from data_handling.SyntheticDataLoader import SyntheticDataLoader
 from data_handling.SyntheticDataLoader import SimpleSyntheticDataLoader
 from data_handling.CovidDataLoader import CovidDataLoader
 from data_handling.MimicDataLoader import MimicDataLoader
+from data_handling.PBC2DataLoader import PBC2DataLoader
 from pandas import qcut
 from sklearn.model_selection import train_test_split
 from data_handling.DmCvdDataLoader import DmCvdDataLoader
@@ -13,8 +14,7 @@ sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
 import pickle
 from copy import deepcopy
 
-DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 #TODO: after dmcvd is processed put num_cont_covs here
-
+DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 
 # there should only be one data-input (don't subclass) but one dataloader per new dataset
 # DataInput is agnostic to tr/te split, but the made batches which are used by the rest of the model will use the corresponding training/testing idxs
 ### DataInput loads the data, and prepares the data for input into different parts of the pipeline
@@ -25,6 +25,8 @@ if DEBUG:
     COVID_NUM_CONT_DYNAMIC_COVS = 50 # old 114
 else:
     COVID_NUM_CONT_DYNAMIC_COVS = 212 # old 114
+PBC2_NUM_CONT_DYNAMIC_COVS = 7
+
 class DataInput:
 
     def __init__(self, data_input_params):
@@ -49,6 +51,9 @@ class DataInput:
             self.o2_enu_to_name = dataloader.o2_enu_to_name
         elif self.params['dataset_name'] == 'mimic':
             dataloader = MimicDataLoader(self.params['data_loading_params'])
+        elif self.params['dataset_name'] == 'pbc2':
+            dataloader = PBC2DataLoader(self.params['data_loading_params'])
+            self.num_cont_dynamic_covs = PBC2_NUM_CONT_DYNAMIC_COVS
         else:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 
@@ -64,6 +69,7 @@ class DataInput:
 
         self.format_data()
         self.normalize_data()
+#        print(torch.sum(torch.isnan(self.covariate_trajectories)), '----------------------')
 #        print('WITHOUT NORMALIZATION, DELETE data_input.pkl AFTER DONE')
 #        self.replace_missingness_with_zeros() # Not needed, handled in normalize
         self.split_data()
@@ -133,6 +139,7 @@ class DataInput:
         '''
         # at this point cov trajs are already concatenated with missingness
         # first entry of each covariate trajectory is the time so add one as well
+        print('WARNING, THIS FUNCTION (replace_missingness_with_zeros in DataInput.py) HAS NOT BEEN UPDATED IN A LONG TIME')
         end_of_covs = int((self.covariate_trajectories.shape[-1] - 1)/2) + 1
         self.covariate_trajectories[:, :, 1:end_of_covs] = torch.where(
             self.missing_indicators == 1,
@@ -149,7 +156,14 @@ class DataInput:
         # self.format_cov_trajs_missingness()
         # ended up doing this in preprocessing
 
-        self.pad_cov_trajs_with_zeros()
+        if self.params['dataset_name'] == 'pbc2':
+            # in this case we have dynamic discrete covariates with more
+            # than two possible values, so the missing indicator size
+            # will not match the size of the covariates themselves
+            # so have to specify it separately
+            self.pad_cov_trajs_with_zeros(self.params['missing_ind_dim'])
+        else:
+            self.pad_cov_trajs_with_zeros()
         print('converting to tensors...')
         self.convert_data_to_tensors()
         #print('example covs before normalization')
@@ -211,7 +225,7 @@ class DataInput:
             message = 'Time representation %s not defined' %cov_time_rep
             raise ValueError(message)
 
-    def pad_cov_trajs_with_zeros(self): 
+    def pad_cov_trajs_with_zeros(self, missing_ind_dim=None): 
         max_len_trajectory = np.max([len(traj) for traj in self.covariate_trajectories])
         padded_trajectories = []
         traj_lens = []
@@ -226,11 +240,18 @@ class DataInput:
                         [0 for i in range(len(traj[0]))] 
                         for i in range(max_len_trajectory - len(traj))
                     ]
-                padded_missing_indicator = self.missing_indicators[i] +\
-                    [
-                        [0 for i in range(len(traj[0]) - 1)] 
-                        for i in range(max_len_trajectory - len(traj))
-                    ]
+                if missing_ind_dim:
+                    padded_missing_indicator = self.missing_indicators[i] +\
+                        [
+                            [0 for i in range(missing_ind_dim)] 
+                            for i in range(max_len_trajectory - len(traj))
+                        ]
+                else:
+                    padded_missing_indicator = self.missing_indicators[i] +\
+                        [
+                            [0 for i in range(len(traj[0]) - 1)] 
+                            for i in range(max_len_trajectory - len(traj))
+                        ]
                 padding_indicators_traj.extend(
                     [1 for i in range(max_len_trajectory - len(traj))]
                 )

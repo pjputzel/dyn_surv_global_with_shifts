@@ -17,15 +17,16 @@ class EvalSavedResultsMain:
 
         data_input = self.basic_main.load_data()
         self.basic_main.preprocess_data(data_input)
-        model = self.load_model()
+        model = self.basic_main.load_model()
         model.eval()
         self.basic_main.evaluate_model(model, data_input, {})
 
-    def load_model(self):
-        model_path = os.path.join(
-            self.basic_main.params['savedir'],
-            'model.pkl'
-        )
-        with open(model_path, 'rb') as f:
-            model = pickle.load(f)
-        return model
+#    def load_model(self):
+#        print(self.basic_main.params['savedir'])
+#        model_path = os.path.join(
+#            self.basic_main.params['savedir'],
+#            'model.pkl'
+#        )
+#        with open(model_path, 'rb') as f:
+#            model = pickle.load(f)
+#        return model

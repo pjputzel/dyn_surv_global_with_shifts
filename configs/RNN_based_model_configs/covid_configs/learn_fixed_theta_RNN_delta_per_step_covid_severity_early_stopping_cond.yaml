@@ -1,4 +1,5 @@
-main_type: 'learn_fixed_theta_basic_main'
+main_type: 'learn_fixed_theta_basic_main' #eval_saved_results_main #'learn_fixed_theta_basic_main'
+#path_to_saved_model: '../output/covid/rayleigh/RNN_delta_per_step_hdim64_l20.00010/model.pkl' #for use to load a pre-saved model to evaluate, plot results etc
 savedir_pre: '../output/covid/'
 #device: 'cuda:4'
 
@@ -21,7 +22,7 @@ model_params:
     dropout: .0 # .3 is default
 
 eval_params:
-    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['brier_score', 'c_index', 'c_index_truncated_at_S'] #['d_calibration'] #['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
     tracked_eval_metrics: ['c_index', 'c_index_truncated_at_S']
     dynamic_metrics:
         start_times: [0, 3, 4, 7, 11] #old: [6, 10., 15., 24.]
@@ -49,4 +50,4 @@ train_params:
         global_diff_reg: 0.
         delta_reg: 0. #0.1 #.01
         l1_reg: 0.000
-        l2_reg: 0.001 #0.0001
+        l2_reg: 0.0001 #0.0001

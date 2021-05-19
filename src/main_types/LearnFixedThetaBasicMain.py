@@ -18,7 +18,7 @@ import copy
 # we can take bigger steps in the descent than training the RNN
 # global model generally converges, and this doesn't seem to affect the optimum
 # just the speed of the global training.
-LR_THETA_RATIO = 100
+LR_THETA_RATIO = 1. # 100 # for rayleigh
 
 class LearnFixedThetaBasicMain(BasicMain):
     
@@ -72,10 +72,10 @@ class LearnFixedThetaBasicMain(BasicMain):
             config_for_global_param_training['train_params']['learning_rate'] = \
                 LR_THETA_RATIO  * self.params['train_params']['learning_rate']
             config_for_global_param_training['train_params']['batch_size'] = 100000
-            config_for_global_param_training['train_params']['max_iter'] = 2500
+            config_for_global_param_training['train_params']['max_iter'] = 10000
             config_for_global_param_training['train_params']['loss_params']['l1_reg'] = 0
-#            config_for_global_param_training['train_params']['loss_params']['l2_reg'] = 0
-            print('If any regularization is added besides l1, then global model training needs to be updated to turn off that regularization!')
+            config_for_global_param_training['train_params']['loss_params']['l2_reg'] = 0
+ #           print('If any regularization is added besides l1, then global model training needs to be updated to turn off that regularization!')
             model_trainer = BasicModelTrainer(
                 config_for_global_param_training['train_params'],
                 config_for_global_param_training['model_params']['model_type']

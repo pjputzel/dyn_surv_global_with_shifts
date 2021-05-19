@@ -7,14 +7,24 @@ SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'e
 
 
 class DeltaIJModel(nn.Module):
-    def __init__(self, model_params, distribution_type):
+    def __init__(self, 
+        model_params, distribution_type, 
+        total_dynamic_cov_dim=None
+    ):
         super().__init__()
         self.params = model_params
         self.distribution_type = distribution_type
-        # plus one is for the timestamp -> needs to be updated to 2 * covariate_dim + 1 to account for missing indicators
-        # TODO add dropout back in!!
+        if total_dynamic_cov_dim:
+            # case where we have discrete dynamic covs, and 
+            # the length of the dynamic cov vector (due to one-hot) is larger than
+            # length of the missingness vector
+            # plus one is for including the time
+            dynamic_cov_dim = total_dynamic_cov_dim + 1
+        else:
+            dynamic_cov_dim = 2 * self.params['dynamic_cov_dim'] + 1
+
         self.RNN = nn.GRU(
-            2 * self.params['dynamic_cov_dim'] + 1, self.params['hidden_dim'],
+            dynamic_cov_dim, self.params['hidden_dim'],
             dropout=self.params['dropout']
         )
 

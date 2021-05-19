@@ -2,6 +2,7 @@ import torch
 import gc
 import numpy as np
 from scipy.stats import rankdata
+from scipy.stats import chisquare
 from loss.LossCalculator import LossCalculator
 
 
@@ -136,7 +137,7 @@ class ModelEvaluator:
         elif metric_name == 'standard_c_index_truncated_at_S':
             func = self.compute_standard_c_index_truncated_at_S_over_window
         elif metric_name == 'brier_score':
-            func = self.compute_brier_score
+            func = self.compute_brier_score_with_ind_cens
         elif metric_name == 'd_calibration':
             func = self.compute_d_calibration_with_ind_cens
         else:
@@ -226,6 +227,9 @@ class ModelEvaluator:
 
     def compute_d_calibration(self, model, split_data):
         return self.evaluate_dynamic_metric(model, split_data, 'd_calibration')
+
+    def compute_brier_score(self, model, split_data):
+        return self.evaluate_dynamic_metric(model, split_data, 'brier_score')
 
     def compute_auc_truncated_at_S_from_S_to_delta_S(self,
         model, data, start_time, time_delta
@@ -390,7 +394,7 @@ class ModelEvaluator:
 
     def compute_d_calibration_with_ind_cens(self,
         model, data, start_time, time_delta=None,
-        num_bins=10
+        num_bins=10, eps=1e-10
     ):
         surv_probs = \
             self.get_surv_probs_at_end_of_seq(model, data, start_time)
@@ -405,29 +409,69 @@ class ModelEvaluator:
 
         # Evaluate the surv probs on the true uncensored times and add to the counts of dociles of observed times
         at_risk_unc_idxs = \
-            (batch.event_times > start_time) & (batch.censoring_indicators == 0)
+            (data.event_times >= start_time) & (data.censoring_indicators == 0)
         surv_probs_unc = surv_probs[at_risk_unc_idxs]
-        bin_idxs_unc = torch.floor(surv_probs_unc * (num_bins))
-        for b in num_bins:
+        bin_idxs_unc = torch.floor(surv_probs_unc * (num_bins) - eps)
+        for b in range(num_bins):
             bin_counts[b] = bin_counts[b] + torch.sum(bin_idxs_unc == b)
-
         # Using the survival probs, evaluate the contributions to each bin from the censored observations
         at_risk_cens_idxs = \
-            (batch.event_times > start_time) & (batch.censoring_indicators == 1)
+            (data.event_times >= start_time) & (data.censoring_indicators == 1)
         surv_probs_cens = surv_probs[at_risk_cens_idxs]
         # need bin idxs even here since the bin it falls in is treated 
         # differently
-        bin_idxs_cens = torch.floor(surv_probs_unc * (num_bins))
+        bin_idxs_cens = torch.floor(surv_probs_cens * (num_bins) - eps)
         # now compute the 'smoothed' contributions of these censored idxs
-        for b in num_bins:
+        for b in range(num_bins):
             contr_in_bin = torch.sum(
                 1. - (b/num_bins)/surv_probs_cens[bin_idxs_cens == b]
             )
-            # CHECK THIS LINE!
             contr_outside_bin = torch.sum(
-                1./(num_bins * surv_probs_cens[surv_probs_cens < (b/num_bins)])
+                1./(num_bins * surv_probs_cens[bin_idxs_cens > b]) #surv_probs_cens < (b/num_bins)])
             )
-        
+            bin_counts[b] = bin_counts[b] + contr_in_bin + contr_outside_bin
+        n_at_risk = surv_probs[data.event_times >= start_time].shape[0]
+        bin_freqs = bin_counts/n_at_risk 
+        #exp_freq = np.ones((num_bins, 1)) * n_at_risk/num_bins
+        test_stat, p_val = chisquare(bin_counts.cpu().detach().numpy())
+        return torch.tensor(p_val, dtype=torch.double), (test_stat, bin_freqs.cpu().detach().numpy())
+
+    def compute_brier_score_with_ind_cens_and_given_probs(self,
+        pred_probs, data, start_time, time_delta=None
+    ):
+        most_recent_times, _ = \
+            data.get_most_recent_times_and_idxs_before_start(start_time)
+        true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta)).int()
+        at_risk_idxs = data.event_times >= start_time
+        brier_score = torch.mean(
+            (true_labels[at_risk_idxs] - pred_probs[at_risk_idxs])**2
+        )
+        eff_n = torch.sum(at_risk_idxs)
+        return brier_score, eff_n
+
+    def compute_brier_score_with_ind_cens(self,
+        model, data, start_time, time_delta=None,
+    ):
+        if time_delta is None:
+            raise ValueError('Brier score called without providing a time delta!')
+        # just using the same time-dependent definition as dynamic deephit
+        deltas, _, _ = model(data)
+        pred_probs = self.loss_calculator.logprob_calculator.compute_most_recent_CDF(\
+            deltas, data, model.get_global_param(),
+            start_time, time_delta
+        )
+            
+        # label of 1 if an outcome event occurs between t_ij and t + \delta t
+        # label of 0 otherwise
+        most_recent_times, _ = \
+            data.get_most_recent_times_and_idxs_before_start(start_time)
+        true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta)).int()
+        at_risk_idxs = data.event_times >= start_time
+        brier_score = torch.mean(
+            (true_labels[at_risk_idxs] - pred_probs[at_risk_idxs])**2
+        )
+        eff_n = torch.sum(at_risk_idxs)
+        return brier_score, eff_n
 
     def get_surv_probs_at_end_of_seq(self, model, data, start_time):
        
@@ -437,13 +481,12 @@ class ModelEvaluator:
         # of the difference tau_i - start time per individual so that the
         # most recent cdf is being computed at the correct times
         deltas, _, _ = model(data)
-        eos_minus_start_times = batch.event_times - start_time
+        eos_minus_start_times = data.event_times - start_time
 
-        surv_probs = 1. - self.logprob_calculator.compute_most_recent_CDF(\
+        surv_probs = 1. - self.loss_calculator.logprob_calculator.compute_most_recent_CDF(\
             deltas, data, model.get_global_param(), 
             start_time, eos_minus_start_times
         )
-
         return surv_probs 
 
     def compute_c_index_from_start_time_to_event_time_i(self,

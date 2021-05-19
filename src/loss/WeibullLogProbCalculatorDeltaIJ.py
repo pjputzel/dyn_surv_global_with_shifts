@@ -6,7 +6,7 @@ class WeibullLogProbCalculatorDeltaIJ(DeltaIJBaseLogProbCalculator):
     
     def compute_shifted_times(self, deltas, batch, eps=1e-20):
         #deltas.register_hook(print_grad)
-        deltas.register_hook(clamp_grad)
+#        deltas.register_hook(clamp_grad)
         shifted_event_times = batch.event_times.unsqueeze(1) + deltas.squeeze(2)
 
         shifted_cov_times = batch.cov_times + deltas.squeeze(2)
@@ -24,7 +24,7 @@ class WeibullLogProbCalculatorDeltaIJ(DeltaIJBaseLogProbCalculator):
     def compute_logpdf(self, shifted_event_times, global_theta):
 #        global_theta.register_hook(print_grad)
 #        print(global_theta, 'global theta')
-        global_theta.register_hook(clamp_grad)
+#        global_theta.register_hook(clamp_grad)
         scale = global_theta[0]
         shape = global_theta[1]
         logpdf = \
@@ -35,7 +35,7 @@ class WeibullLogProbCalculatorDeltaIJ(DeltaIJBaseLogProbCalculator):
         
 
     def compute_logsurv(self, shifted_event_times, global_theta):
-        global_theta.register_hook(clamp_grad)
+        #global_theta.register_hook(clamp_grad)
         scale = global_theta[0]
         shape = global_theta[1]
         return -(shifted_event_times/scale)**shape

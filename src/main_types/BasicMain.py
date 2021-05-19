@@ -44,6 +44,7 @@ class BasicMain(BaseMain):
                         params['train_params']['max_iter']
                 )
             )
+            
         elif params['model_params']['model_type'] == 'linear_delta_per_step':
             self.params['savedir'] = os.path.join(\
                 params['savedir_pre'], 
@@ -98,11 +99,18 @@ class BasicMain(BaseMain):
         print('no data preprocessing in the basic main') 
 
     def load_model(self):
+        if self.params['path_to_saved_model']:
+            with open(self.params['path_to_saved_model'], 'rb') as f:
+                model = pickle.load(f)
+            model.to(self.device)
+            return model
+
         model_type = self.params['model_params']['model_type']
         try:
             self.model = models_dict[model_type](
                 self.params['model_params'],
-                self.params['train_params']['loss_params']['distribution_type']
+                self.params['train_params']['loss_params']['distribution_type'],
+                total_dynamic_cov_dim = self.params['model_params']['total_dynamic_cov_dim']
             )
         except:
             raise ValueError('Model type %s not recognized' %(model_type))
@@ -145,6 +153,7 @@ class BasicMain(BaseMain):
         plotter = DynamicMetricsPlotter(
             self.params['plot_params'], self.params['savedir']
         )
+
         plotter.make_and_save_dynamic_eval_metrics_plots(diagnostics.eval_metrics)
         if self.params['data_input_params']['dataset_name'] == 'simple_synth':
             plotter = ResultsPlotterSynth(model, self.params['plot_params'])

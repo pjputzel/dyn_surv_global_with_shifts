@@ -1,4 +1,5 @@
-main_type: 'learn_fixed_theta_basic_main'
+main_type: 'eval_saved_results_main' #'learn_fixed_theta_basic_main'
+path_to_saved_model: '../output/dm_cvd/rayleigh/linear_delta_per_step_l10.01000_max_iter2000/model.pkl'
 savedir_pre: '../output/dm_cvd/'
 
 data_input_params:
@@ -15,7 +16,7 @@ model_params:
     static_cov_dim: 20 
 
 eval_params:
-    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['brier_score', 'c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
     dynamic_metrics:
         start_times: [0, 3, 8, 16, 30] #[.5, 1., 1.5, 2.]
         window_length: 28

@@ -1,8 +1,9 @@
 import torch
+import numpy as np
 from torch.autograd import Variable
 import torch.nn as nn
 
-SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'gompertz':(2, [1,1])}
+SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'gompertz':(2, [1,1]), 'chen2000':(2, [1, 1]), 'folded_normal':(2, [1, 1])}
 
 
 def print_nans(tensor):
@@ -15,7 +16,17 @@ class DummyGlobalModel(nn.Module):
         self.distribution_type = distribution_type
 
 
-        self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
+        if self.params['param_init_scales']:
+            num_params = SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
+            assert len(self.params['param_init_scales']) == num_params
+            params = []
+            for param in range(num_params):
+                params.append(-np.log(torch.rand(1) * self.params['param_init_scales'][param]))
+            self.global_param_logspace = nn.Parameter(torch.tensor(params, dtype=torch.float32))
+#            print(self.global_param_logspace, torch.exp(-self.global_param_logspace))
+        else:
+            self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
+#        self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
         self.deltas_fixed_to_zero = False
         
     def forward(self, batch):

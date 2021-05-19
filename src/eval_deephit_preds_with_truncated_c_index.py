@@ -55,12 +55,15 @@ if __name__ == '__main__':
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.00001_hdim200_preds_val.pkl'
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.001000_hdim200_preds_val.pkl'
 #    path_to_deephit_preds = '../output/covid/severity_deephit_preds/lr0.000010_hdim50_preds_te_winner.pkl'
-    path_to_deephit_preds = '../../Dynamic-DeepHit/dm_cvd_lr0.000100_hdim200_valFalse/preds_te.pkl'
+    # for saved winner of dm_cvd on server
+#    path_to_deephit_preds = '../../Dynamic-DeepHit/dm_cvd_lr0.000100_hdim200_valFalse/preds_te.pkl'
+    # for saved winner of covid on server
+    path_to_deephit_preds = '../../Dynamic-DeepHit/covid_severe_outcome_lr0.000010_hdim50_valFalse/preds_te.pkl'
     print('Loading preds from path %s' %path_to_deephit_preds)
 
     #params = '../configs/linear_baseline_configs/covid_configs/linear_delta_per_step_covid.yaml' #just to get the data loaded properly
- #   params = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml' #just to get the data loaded properly
-    params = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
+    params = '../configs/RNN_based_model_configs/covid_configs/learn_fixed_theta_RNN_delta_per_step_covid.yaml' #just to get the data loaded properly
+#    params = '../configs/RNN_based_model_configs/dm_cvd_configs/learn_fixed_theta_RNN_delta_per_step_dm_cvd.yaml'
     # load data again
     # then get the full te batch to evaluate
     params = ParameterParser(params).parse_params()
@@ -88,6 +91,7 @@ if __name__ == '__main__':
     trunc_c_indices = []
     standard_trunc_c_indices = []
     standard_c_indices = []
+    brier_scores = []
     for p, preds in enumerate(preds_all):
         # Truncated C-index computation
         risks = compute_trunc_deephit_risks_ik(int(pred_times[p]), preds, data)
@@ -123,19 +127,34 @@ if __name__ == '__main__':
                 risks, data, int(pred_times[p]), window
             )
             avg_at_pred_time += c_index
-#            print('standard c index at time %d, window %d is %.4f' %(int(pred_times[p]), window, c_index))
         standard_c_index = avg_at_pred_time/len(windows)
         standard_c_indices.append(standard_c_index)
+
+        # Brier Score computation
+        avg_at_pred_time = 0.
+        for window in windows:
+            risks = compute_standard_deephit_risks(
+                int(pred_times[p]), window, preds, data
+            )
+            brier_score, _ = evaluator.compute_brier_score_with_ind_cens_and_given_probs(
+                risks, data, int(pred_times[p]), window
+            )
+            avg_at_pred_time += brier_score
+        brier_score = avg_at_pred_time/len(windows)
+        brier_scores.append(brier_score)
+#            print('standard c index at time %d, window %d is %.4f' %(int(pred_times[p]), window, c_index))
 
         print('-------Pred Time %d Days-------' %int(pred_times[p]))
         print('Truncated C-index for pred time %d is %.3f' %(int(pred_times[p]), trunc_c_index))
         print('Standard Truncated C-index for pred time %d is %.3f' %(int(pred_times[p]), standard_trunc_c_index))
         print('Standard C-index for pred time %d is %.3f' %(int(pred_times[p]), standard_c_index))
+        print('Brier score for pred time %d is %.3f' %(int(pred_times[p]), brier_score))
         print('-------------------------------')
 
     print('Average at-risk c-index is %.4f' %np.mean(np.array(trunc_c_indices)))
     print('Average standard truncated c-index is %.4f' %np.mean(np.array(standard_trunc_c_indices)))
     print('Average standard c-index is %.4f' %np.mean(np.array(standard_c_indices)))
+    print('Average Brier score is %.4f' %np.mean(np.array(brier_scores)))
 
     
      

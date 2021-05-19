@@ -10,6 +10,7 @@ class RayleighLogProbCalculatorGlobalParam(GlobalParamBaseLogProbCalculator):
     def __init__(self, logprob_params):
         super().__init__(logprob_params)
         self.rayleigh = RayleighLogProbCalculatorDeltaIJ(logprob_params)
+        self.extreme_loss_counts = {}
 
     def compute_logpdf(self, times, global_theta):
         return self.rayleigh.compute_logpdf(times, global_theta) 

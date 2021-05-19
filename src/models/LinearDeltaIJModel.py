@@ -3,32 +3,44 @@ import numpy as np
 from torch.autograd import Variable
 import torch.nn as nn
 
-SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'chen2000': (2, [1, 1]), 'emwe':(4, [1,1,1,1]), 'gompertz': (2, [1, 1])}
+SURVIVAL_DISTRIBUTION_CONFIGS = {'ggd': (3, [1, 1, 1]), 'gamma': (2, [1, 1]), 'exponential': (1, [1]), 'lnormal':(2, [1, 1]), 'weibull':(2, [1, 1]), 'rayleigh':(1, [1]), 'chen2000': (2, [1, 1]), 'emwe':(4, [1,1,1,1]), 'gompertz': (2, [1, 1]), 'folded_normal':(2, [1,1])}
 
 
 def print_nans(tensor):
     print(tensor[torch.isnan(tensor)])
 
 class LinearDeltaIJModel(nn.Module):
-    def __init__(self, model_params, distribution_type):
+    def __init__(self,
+        model_params, distribution_type,
+        total_dynamic_cov_dim=None
+    ):
         super().__init__()
         self.params = model_params
         self.distribution_type = distribution_type
 
-        # eventually multiply dynamic cov dim by two for the missing indicators
-        # no plus one since not using time here since with time its giving weird solutions
-        # (just using negative of the time it seems)
-        self.linear = nn.Linear(
-            int(2 * self.params['dynamic_cov_dim'] + self.params['static_cov_dim'] + 1),
-            1
-        )
+        if total_dynamic_cov_dim:
+            # case where we have discrete dynamic covs, and 
+            # the length of the dynamic cov vector (due to one-hot) is larger than
+            # length of the missingness vector
+            # plus one for the time
+            dynamic_cov_dim = total_dynamic_cov_dim + self.params['static_cov_dim'] + 1
+        else:
+            dynamic_cov_dim = int(2 * self.params['dynamic_cov_dim'] + self.params['static_cov_dim'] + 1)
+        self.linear = nn.Linear(dynamic_cov_dim, 1)
         # weights for the linear layer are set to around one in order to
         # get a random initialization with most deltas around zero
 #        self.linear.weight.data.normal_(0., 1./(np.sqrt(self.linear.in_features)))
 #        self.linear.bias.data.normal_(0., 1./(np.sqrt(self.linear.in_features)))
 #        self.linear.bias.data.fill_(1., 2.)
-
-        self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
+        if self.params['param_init_scales']:
+            num_params = SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]
+            assert len(self.params['param_init_scales']) == num_params
+            params = []
+            for param in range(num_params):
+                params.append(torch.rand(1) * self.params['param_init_scales'][param])
+            self.global_param_logspace = nn.Parameter(torch.tensor(params, dtype=torch.float32))
+        else:
+            self.global_param_logspace = nn.Parameter(torch.rand(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
 #        self.global_param_logspace = nn.Parameter(torch.zeros(SURVIVAL_DISTRIBUTION_CONFIGS[distribution_type][0]))
         self.deltas_fixed_to_zero = False
         
