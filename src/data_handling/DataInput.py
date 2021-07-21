@@ -58,7 +58,7 @@ class DataInput:
             raise ValueError('Dataset name %s not recognized' %self.params['dataset_name'])
 
         self.event_times, self.censoring_indicators, self.missing_indicators, self.covariate_trajectories, self.static_covs = dataloader.load_data()
-        #self.dynamic_covs_order = dataloader.dynamic_covs_order
+        self.dynamic_covs_order = dataloader.dynamic_covs_order
 #        if self.params['debug']:
 #            idxs = torch.tensor(np.random.permutation(np.arange(len(self.event_times)))[0:50])
 #            self.event_times = [self.event_times[i] for i in idxs]

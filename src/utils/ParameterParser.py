@@ -32,6 +32,7 @@ DEFAULT_PARAMS =\
             'embed_output_dim': 32,
             'use_rand_init_hidden_state': False,
             'param_init_scales': None,
+            'RF_num_trees': 10 #this is the default in pysurvival
         },
 
         'train_params': {
@@ -65,6 +66,7 @@ DEFAULT_PARAMS =\
 
         'eval_params': {
             'eval_metrics': ['c_index'],
+            'rep_for_truncated_c_index': False,
             'tracked_eval_metrics': ['c_index', 'c_index_truncated_at_S'],
             'dynamic_metrics': {
                 'start_times': [0, 365, 2*365, 3*365],

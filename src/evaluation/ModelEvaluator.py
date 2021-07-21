@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats import rankdata
 from scipy.stats import chisquare
 from loss.LossCalculator import LossCalculator
-
+from pysurvival.models.non_parametric import KaplanMeierModel
 
 # Note if you have another complicated metric like c-index then you should
 # create separate objects for each evaluation type, just update their function
@@ -15,7 +15,7 @@ class ModelEvaluator:
         self.params = eval_params
         self.verbose = verbose
         self.model_type = model_type
-        if not model_type == 'landmarked_cox':
+        if not (model_type == 'landmarked_cox' or model_type == 'landmarked_RF'):
             self.loss_calculator = LossCalculator(loss_params, model_type)
 
     def evaluate_model(self,
@@ -25,10 +25,6 @@ class ModelEvaluator:
         eval_metrics = {}
         verbose = self.verbose
         
-        # free memory since single batch data format used for the rest of code
-#        del data_input
-#        gc.collect()
-
         for eval_metric in self.params['eval_metrics']:
             eval_metrics[eval_metric] = {}
             for split in ['tr', 'te']:
@@ -36,7 +32,7 @@ class ModelEvaluator:
                 if split == 'tr':
                     if self.model_type == 'dummy_global_zero_deltas':
                         # model free evaluations use unnormalized data here
-                        data = data_input.get_unnormalized_tr_data_as_single_batch() 
+                        data = data_input.get_unnormalized_tr_data_as_single_batch()
                     else:
                         data = data_input.get_tr_data_as_single_batch() 
                 else:
@@ -113,6 +109,8 @@ class ModelEvaluator:
                         eff_ns_s.append(eff_n)
                     break
             eff_ns.append(eff_ns_s)
+        if self.verbose:
+            print('Mean across all times: %.3f' %torch.mean(dynamic_metrics))
         ret = {\
             'start_times': start_times, 
             'time_deltas': time_deltas, 
@@ -137,7 +135,8 @@ class ModelEvaluator:
         elif metric_name == 'standard_c_index_truncated_at_S':
             func = self.compute_standard_c_index_truncated_at_S_over_window
         elif metric_name == 'brier_score':
-            func = self.compute_brier_score_with_ind_cens
+#            func = self.compute_brier_score_with_ind_cens
+            func = self.compute_brier_score_with_dep_cens
         elif metric_name == 'd_calibration':
             func = self.compute_d_calibration_with_ind_cens
         else:
@@ -331,10 +330,9 @@ class ModelEvaluator:
                 continue
             time_i = data.event_times[i]
             risk_i = risks[i]        
-    
             valid_idxs = np.where(data.event_times > time_i)
             is_valid[i, valid_idxs] = 1
-            
+
             ordered_correct_idxs = np.where(risk_i > risks)
             ordered_correct[i, ordered_correct_idxs] = 1
 
@@ -436,13 +434,114 @@ class ModelEvaluator:
         test_stat, p_val = chisquare(bin_counts.cpu().detach().numpy())
         return torch.tensor(p_val, dtype=torch.double), (test_stat, bin_freqs.cpu().detach().numpy())
 
+    def compute_brier_score_with_dep_cens_given_probs(self,
+        pred_probs, data, start_time, time_delta=None
+    ):
+        true_labels = ((data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int().detach().numpy()
+        at_risk_idxs = (data.event_times >= start_time).detach().numpy()
+        if torch.is_tensor(pred_probs):
+            pred_probs = pred_probs.detach().numpy()
+
+        cens_km = KaplanMeierModel()
+        cens_labels = (data.censoring_indicators == 1).numpy().astype(int)
+        cens_km.fit(data.event_times.detach().numpy(), cens_labels)
+        cens_surv_probs = np.array([cens_km.predict_survival(t) for t in  data.event_times.detach().numpy()])
+        cens_prob_at_time = cens_km.predict_survival(start_time + time_delta)
+
+        brier_label_one = np.sum(
+            (1. - pred_probs[(true_labels == 1) & at_risk_idxs])**2 / cens_surv_probs[(true_labels == 1) & at_risk_idxs]
+        )
+        brier_label_zero = np.sum(
+            pred_probs[(true_labels == 0) & at_risk_idxs]**2 / cens_prob_at_time
+        )
+        brier_score = (brier_label_one + brier_label_zero)/(len(at_risk_idxs))
+        eff_n = np.sum(at_risk_idxs)
+        return brier_score, eff_n
+
+    def compute_brier_score_with_dep_cens(self,
+        model, data, start_time, time_delta=None
+    ):
+        if time_delta is None:
+            raise ValueError('Brier score called without providing a time delta!')
+        # just using the same time-dependent definition as dynamic deephit
+        is_landmarked = lambda x: type(x).__name__[0:10] == 'landmarked'
+        most_recent_times, most_recent_idxs = \
+            data.get_most_recent_times_and_idxs_before_start(start_time)
+        if is_landmarked(model):
+            covs = data.get_unpacked_padded_cov_trajs()
+            covs = \
+                covs[torch.arange(covs.shape[0]), most_recent_idxs, :]
+            covs = covs.cpu().detach().numpy()
+            pred_probs = 1 - torch.tensor(
+                model.models[start_time].predict_survival(covs, t=start_time + time_delta),
+                dtype=torch.float64
+            )
+        elif model == 'brier_base_rate':
+#            n_unc = torch.sum(
+#                (data.censoring_indicators == 0) &\
+#                (data.event_times >= most_recent_times) &\
+#                (data.event_times <= start_time + time_delta)
+#            )
+#            tot = torch.sum(data.event_times >= most_recent_times)
+            print('make sure to update met to match code below!! brier score func in evaluation')
+            n_unc = torch.sum(
+                (data.censoring_indicators == 0) &\
+                (data.event_times >= start_time) &\
+                (data.event_times <= start_time + time_delta)
+            )
+            tot = torch.sum(data.event_times >= start_time)
+            percent_unc = n_unc.float()/tot
+            pred_probs = torch.ones(len(data.event_times)) if percent_unc > 0.5 else torch.zeros(len(data.event_times))
+            #pred_probs= torch.ones(len(data.event_times)) * percent_unc
+            #percent_cens = 1 - percent_unc
+            #majority_percent = percent_unc if percent_unc > percent_cens else percent_cens
+            #pred_probs = torch.ones(len(data.event_times)) * majority_percent
+        else:    
+            deltas, _, _ = model(data)
+            pred_probs = self.loss_calculator.logprob_calculator.compute_most_recent_CDF(\
+                deltas, data, model.get_global_param(),
+                start_time, time_delta
+            )
+#            pred_probs = self.loss_calculator.logprob_calculator.compute_cond_probs_truncated_at_S_over_window(\
+#                deltas, data, model.get_global_param(),
+#                start_time, time_delta
+#            )
+            
+        # label of 1 if an outcome event occurs between t_ij and t + \delta t
+        # label of 0 otherwise
+        #true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        #true_labels = ((data.event_times >= start_time) & (data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        true_labels = ((data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int().detach().numpy()
+        at_risk_idxs = (data.event_times >= start_time).detach().numpy()
+        pred_probs = pred_probs.detach().numpy()
+
+        cens_km = KaplanMeierModel()
+        cens_labels = (data.censoring_indicators == 1).numpy().astype(int)
+        cens_km.fit(data.event_times.detach().numpy(), cens_labels)
+        cens_surv_probs = np.array([cens_km.predict_survival(t) for t in  data.event_times.detach().numpy()])
+        cens_prob_at_time = cens_km.predict_survival(start_time + time_delta)
+
+        brier_label_one = np.sum(
+            (1. - pred_probs[(true_labels == 1) & at_risk_idxs])**2 / cens_surv_probs[(true_labels == 1) & at_risk_idxs]
+        )
+        brier_label_zero = np.sum(
+            pred_probs[(true_labels == 0) & at_risk_idxs]**2 / cens_prob_at_time
+        )
+        brier_score = (brier_label_one + brier_label_zero)/(len(at_risk_idxs))
+        eff_n = np.sum(at_risk_idxs)
+        return brier_score, eff_n
+
     def compute_brier_score_with_ind_cens_and_given_probs(self,
         pred_probs, data, start_time, time_delta=None
     ):
+        print('UPDATE if changes made to brier score without probs given')
         most_recent_times, _ = \
             data.get_most_recent_times_and_idxs_before_start(start_time)
-        true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta)).int()
-        at_risk_idxs = data.event_times >= start_time
+        true_labels = ((data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        at_risk_idxs = (data.event_times >= start_time)
+        #at_risk_idxs = (data.event_times >= 0) # all idxs matching deephit's version
+        #true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        #at_risk_idxs = data.event_times >= start_time
         brier_score = torch.mean(
             (true_labels[at_risk_idxs] - pred_probs[at_risk_idxs])**2
         )
@@ -455,18 +554,55 @@ class ModelEvaluator:
         if time_delta is None:
             raise ValueError('Brier score called without providing a time delta!')
         # just using the same time-dependent definition as dynamic deephit
-        deltas, _, _ = model(data)
-        pred_probs = self.loss_calculator.logprob_calculator.compute_most_recent_CDF(\
-            deltas, data, model.get_global_param(),
-            start_time, time_delta
-        )
+        is_landmarked = lambda x: type(x).__name__[0:10] == 'landmarked'
+        most_recent_times, most_recent_idxs = \
+            data.get_most_recent_times_and_idxs_before_start(start_time)
+        if is_landmarked(model):
+            covs = data.get_unpacked_padded_cov_trajs()
+            covs = \
+                covs[torch.arange(covs.shape[0]), most_recent_idxs, :]
+            covs = covs.cpu().detach().numpy()
+            pred_probs = 1 - torch.tensor(
+                model.models[start_time].predict_survival(covs, t=start_time + time_delta),
+                dtype=torch.float64
+            )
+        elif model == 'brier_base_rate':
+#            n_unc = torch.sum(
+#                (data.censoring_indicators == 0) &\
+#                (data.event_times >= most_recent_times) &\
+#                (data.event_times <= start_time + time_delta)
+#            )
+#            tot = torch.sum(data.event_times >= most_recent_times)
+            n_unc = torch.sum(
+                (data.censoring_indicators == 0) &\
+                (data.event_times >= start_time) &\
+                (data.event_times <= start_time + time_delta)
+            )
+            tot = torch.sum(data.event_times >= start_time)
+            percent_unc = n_unc.float()/tot
+            pred_probs = torch.ones(len(data.event_times)) if percent_unc > 0.5 else torch.zeros(len(data.event_times))
+            #pred_probs= torch.ones(len(data.event_times)) * percent_unc
+            #percent_cens = 1 - percent_unc
+            #majority_percent = percent_unc if percent_unc > percent_cens else percent_cens
+            #pred_probs = torch.ones(len(data.event_times)) * majority_percent
+        else:    
+            deltas, _, _ = model(data)
+#            pred_probs = self.loss_calculator.logprob_calculator.compute_cond_probs_truncated_at_S_over_window(\
+#                deltas, data, model.get_global_param(),
+#                start_time, time_delta
+#            )
+            pred_probs = self.loss_calculator.logprob_calculator.compute_most_recent_CDF(\
+                deltas, data, model.get_global_param(),
+                start_time, time_delta
+            )
             
         # label of 1 if an outcome event occurs between t_ij and t + \delta t
         # label of 0 otherwise
-        most_recent_times, _ = \
-            data.get_most_recent_times_and_idxs_before_start(start_time)
-        true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta)).int()
-        at_risk_idxs = data.event_times >= start_time
+        #true_labels = ((data.event_times >= most_recent_times) & (data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        #true_labels = ((data.event_times >= start_time) & (data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        true_labels = ((data.event_times <= start_time + time_delta) & (data.censoring_indicators == 0)).int()
+        #at_risk_idxs = (data.event_times >= start_time)
+        at_risk_idxs = (data.event_times >= 0) # all idxs matching deephit
         brier_score = torch.mean(
             (true_labels[at_risk_idxs] - pred_probs[at_risk_idxs])**2
         )
@@ -660,10 +796,14 @@ class ModelEvaluator:
             is_valid[i, valid_idxs] = 1
             
             ordered_correct_idxs = np.where(risk_i > risks)
+            #if len(ordered_correct_idxs) > 1:
+            #    ordered_correct_idxs = ordered_correct_idxs[1]
             ordered_correct[i, ordered_correct_idxs] = 1
 
             # ties counts as 1/2
             tied_idxs = np.where(risk_i == risks)
+            if len(tied_idxs) > 1:
+                tied_idxs = tied_idxs[1]
             ordered_correct[i, tied_idxs] = 1/2
 
         tot_valid_pairs = np.sum(is_valid)
@@ -738,7 +878,7 @@ class ModelEvaluator:
                 rep_for_truncated_c_index=self.params['rep_for_truncated_c_index']
             )
             return risks
-        elif type(model).__name__ == 'LandmarkedCoxModel':
+        elif (type(model).__name__ == 'LandmarkedCoxModel' or type(model).__name__ == 'LandmarkedRFModel'):
             risks = self.compute_landmarked_cox_risks(
                 model, data, start_time, metric_name
             )
@@ -873,6 +1013,7 @@ class ModelEvaluator:
                 row = self.compute_framingham_total_cvd_risks(data, covs_at_time)
             risks_ik[t, :] = row
         return risks_ik
+
 
     def compute_framingham_total_cvd_risks(self, data, covs_at_time):
         non_meds_cutoff = 125

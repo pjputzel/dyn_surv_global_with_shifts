@@ -1,7 +1,5 @@
-main_type: 'eval_saved_results_main' #'learn_fixed_theta_basic_main' #'learn_fixed_theta_basic_main' #'eval_save_results_main'
-#path_to_saved_model: '../output/dm_cvd/rayleigh/RNN_delta_per_step_hdim64_l20.00100_max_iter2000/model.pkl'
+main_type: 'landmarking_main' #'landmarking_main' 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/dm_cvd/'
-path_to_saved_model: '../output/dm_cvd/rayleigh/RNN_delta_per_step_hdim64_l20.00100_max_iter2000/model.pkl'
 
 data_input_params:
     dataset_name: 'dm_cvd'
@@ -13,10 +11,10 @@ data_input_params:
         paths: '../data/dm_cvd/all_data.pkl'  #data_dev_filtered_by_events_after_183.pkl'
 
 model_params:
-    model_type: 'RNN_delta_per_step'
+    model_type: 'landmarked_RF'
+    RF_num_trees: 250
     dynamic_cov_dim: 185
-    hidden_dim: 64 #20
-    static_cov_dim: 20 #4 
+    static_cov_dim: 20
 
 eval_params:
     eval_metrics: ['brier_score', 'c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
@@ -26,19 +24,22 @@ eval_params:
         time_step: 7
 
 train_params:
-    learning_rate: .01
-    batch_size: 20000
-    conv_thresh: .00000001
-    n_epoch_print: 500
-    max_iter: 2000
+    learning_rate: .001
+    batch_size: 10000
+    conv_thresh: .0000000000000000000000000000001
+    n_epoch_print: 2000
+    max_iter: 20000
+    track_c_indices: False
+    optimizer: 'adam'
 
     diagnostic_params:
 
     loss_params:
         distribution_type: 'rayleigh'
         avg_per_seq: True
+        l1_reg: 0.00
+        l2_reg: 0. #0.001
         step_ahead_cov_reg: .0
         drift_reg: 0.
         global_diff_reg: 0.
         delta_reg: 0. #0.1 #.01
-        l2_reg: 0.001

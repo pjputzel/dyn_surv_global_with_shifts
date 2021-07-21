@@ -1,0 +1,43 @@
+main_type: 'eval_saved_results_main' #'landmarking_main' # 'eval_saved_results_main' #'landmarked_cox_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
+savedir_pre: '../output/dm_cvd/'
+path_to_saved_model: '../output/dm_cvd/landmarked_cox/model.pkl'
+
+data_input_params:
+    dataset_name: 'dm_cvd'
+    saved_tr_te_idxs: '../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #'../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #'../data/COVID-19/severity_train_test_idxs_covid.pkl'
+    te_percent: 0.1
+    cov_time_representation: 'absolute'
+    data_loading_params:
+        #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
+        paths: '../data/dm_cvd/all_data.pkl' #'../data/COVID-19/severity_processed_covid_data.pkl'
+
+model_params:
+    model_type: 'landmarked_cox'
+    dynamic_cov_dim: 185 #345 #cur 345 #older data 248 #debug:85 or 102?
+    static_cov_dim: 20 
+
+
+eval_params:
+    eval_metrics: ['brier_score', 'c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    dynamic_metrics:
+        start_times: [0, 3, 8, 16, 30] #[.5, 1., 1.5, 2.]
+        window_length: 28
+        time_step: 7
+
+train_params:
+    learning_rate: .0001 #pysurv default is 0.0001 #0.0005
+    batch_size: 20000
+    conv_thresh: .01
+    n_epoch_print: 50
+    max_iter: 1000 #pysurv default is 100
+
+    diagnostic_params:
+
+    loss_params:
+        distribution_type: 'rayleigh'
+        avg_per_seq: True
+        step_ahead_cov_reg: .0
+        drift_reg: 0.
+        global_diff_reg: 0.
+        delta_reg: 0. #0.1 #.01
+        cox_l2_reg: 1.

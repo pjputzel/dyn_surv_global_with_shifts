@@ -63,11 +63,22 @@ class BasicMain(BaseMain):
                         params['model_params']['model_type'],
                 )
             )
+        if self.params['data_input_params']['dataset_name'] == 'pbc2':
+            timescale = self.params['data_input_params']['data_loading_params']['timescale']
+            self.params['eval_params']['dynamic_metrics']['start_times'] = [\
+                time/timescale
+                for time in self.params['eval_params']['dynamic_metrics']['start_times']
+            ]
+            
+            self.params['eval_params']['dynamic_metrics']['time_step'] = self.params['eval_params']['dynamic_metrics']['time_step']/timescale
+            self.params['eval_params']['dynamic_metrics']['window_length'] = self.params['eval_params']['dynamic_metrics']['window_length']/timescale
+            self.params['savedir'] = self.params['savedir'] + '_timescale%d' %timescale
             
         if not os.path.exists(self.params['savedir']):
             os.makedirs(self.params['savedir'])
         print('Saving Results in %s' %self.params['savedir']) 
         self.device = torch.device(self.params['device'])
+
         
 
     def load_data(self):
@@ -102,7 +113,10 @@ class BasicMain(BaseMain):
         if self.params['path_to_saved_model']:
             with open(self.params['path_to_saved_model'], 'rb') as f:
                 model = pickle.load(f)
-            model.to(self.device)
+            try:
+                model.to(self.device)
+            except:
+                print('Cannot send model type %s to device %s' %(type(model), self.device))
             return model
 
         model_type = self.params['model_params']['model_type']
@@ -138,8 +152,12 @@ class BasicMain(BaseMain):
 
     def evaluate_model(self, model, data_input, diagnostics):
         data_input.to_device('cpu')
-        model.to('cpu')
-        model.eval()
+        try:
+            model.to('cpu')
+            model.eval()
+        except:
+            # non pytorch models shouldn't give issues here
+            pass
         self.model_evaluator = ModelEvaluator(
             self.params['eval_params'],
             self.params['train_params']['loss_params'],
@@ -147,6 +165,7 @@ class BasicMain(BaseMain):
             verbose=True
         )
         self.model_evaluator.evaluate_model(model, data_input, diagnostics)
+        return diagnostics
         
     def plot_results(self, model, data_input, diagnostics):
         metrics_evaluated = self.params['eval_params']['eval_metrics']

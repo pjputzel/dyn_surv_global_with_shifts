@@ -1,0 +1,44 @@
+main_type: 'eval_brier_base_rates_main'
+savedir: '../output/pbc2/brier_base_rate'
+
+data_input_params:
+    dataset_name: 'pbc2'
+    saved_tr_te_idxs: '../data/PBC2/train_test_idxs_pbc2.pkl' #'../data/COVID-19/severity_dev_val_idxs_covid.pkl'
+    te_percent: 0.1
+    cov_time_representation: 'absolute'
+    missing_ind_dim: 12
+    data_loading_params:
+        paths: '../data/PBC2/PBC2_cleaned_deephit.csv'
+        one_hot_encode_dynamic_disc_vars: True
+        timescale: 30
+
+
+model_params:
+    model_type: 'dummy_global_zero_deltas'
+
+        
+eval_params:
+    eval_metrics: ['brier_score'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+
+    dynamic_metrics:
+        start_times: [0, 118, 219, 300, 376] #[0., 1.657, 4.03, 5.67, 8.0] #[0, 3.933, 7.3, 10., 12.53] #[0, .353, .656, .899, 1.13] #[0, 3.933, 7.3, 10., 12.53] #logscale: [1, 4.779, 5.3936, 5.7071, 5.9322] #days scale [0, 118, 219, 300, 376] 
+        window_length: 219 #10 #5.707 #300
+        time_step: 54.75  #2.5 #150
+    
+
+train_params:
+    learning_rate: .1
+    batch_size: 10000
+    conv_thresh: .00000001
+    n_epoch_print: 50
+    max_iter: 300
+
+    diagnostic_params:
+
+    loss_params:
+        distribution_type: 'rayleigh'
+        avg_per_seq: True
+        step_ahead_cov_reg: .0
+        drift_reg: 0.
+        global_diff_reg: 0.
+        delta_reg: 0.0 #.1 #.01

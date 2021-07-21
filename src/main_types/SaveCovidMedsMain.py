@@ -3,9 +3,8 @@ from main_types.BasicMain import BasicMain
 import pickle
 import torch
 import numpy as np
-from utils.Diagnostics import Diagnostics
 
-class EvalSavedResultsMain:
+class SaveCovidMedsMain:
 
     def __init__(self, params):
         self.basic_main = BasicMain(params)
@@ -18,15 +17,8 @@ class EvalSavedResultsMain:
 
         data_input = self.basic_main.load_data()
         self.basic_main.preprocess_data(data_input)
-        model = self.basic_main.load_model()
-        try:
-            # only will work for pytorch defined models
-            model.eval()
-        except:
-            pass
-        diagnostics = self.basic_main.evaluate_model(model, data_input, Diagnostics({}))
-        with open(os.path.join(self.basic_main.params['savedir'], 'tracker_updated.pkl'), 'wb') as f:
-           pickle.dump(diagnostics, f) 
+        meds = data_input.covariate_trajectories[0:10, 0, data_input.num_cont_dynamic_covs:data_input.num_cont_dynamic_covs + 100]
+        np.savetxt('example_meds.csv', meds.detach().numpy(), delimiter=',')
 
 #    def load_model(self):
 #        print(self.basic_main.params['savedir'])

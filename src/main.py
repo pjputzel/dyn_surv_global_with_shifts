@@ -11,7 +11,9 @@ from main_types.ModelFreeRankingMain import *
 from main_types.ValidateHiddenDimMain import ValidateHiddenDimMain
 from main_types.ValidateHiddenDimMain import ParallelValidateHiddenDimMain
 from main_types.SaveLearnedStandardRisksMain import SaveLearnedStandardRisksMain
-from main_types.LandmarkedCoxMain import LandmarkedCoxMain
+from main_types.SaveCovidMedsMain import SaveCovidMedsMain
+#from main_types.LandmarkedCoxMain import LandmarkedCoxMain
+from main_types.LandmarkingMain import LandmarkingMain
 from main_types.DiagnoseDependentCensoringMain import DiagnoseDependentCensoringMain
 #from main_types import *
 from utils.ParameterParser import ParameterParser
@@ -60,10 +62,14 @@ def main(config):
         main = EvalSavedResultsMain(params)
     elif main_type == 'save_learned_risks_standard_c_index_main':
         main = SaveLearnedStandardRisksMain(params)
-    elif main_type == 'landmarked_cox_main':
-        main = LandmarkedCoxMain(params)
+    elif main_type == 'landmarking_main':
+        main = LandmarkingMain(params)
     elif main_type == 'diagnose_dependent_censoring':
         main = DiagnoseDependentCensoringMain(params)
+    elif main_type == 'save_covid_meds_main':
+        main = SaveCovidMedsMain(params)
+    elif main_type == 'eval_brier_base_rates_main':
+        main = EvaluateBrierScoreBaseRatesMain(params)
     else:
         raise ValueError('Main type %s not defined' %str(main_type))    
 

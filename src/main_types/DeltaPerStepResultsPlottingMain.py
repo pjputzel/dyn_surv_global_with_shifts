@@ -21,7 +21,7 @@ import torch
 #matplotlib.rc('font', **font)
 #sb.set_context('paper', rc={"font.size":14,"axes.labelsize":14, "axes.ticksize":8, 'axes.titlesize':14, 'weight': 'bold'})
 
-sb.set_context('paper', rc={"font.size":12,"axes.labelsize":9, "axes.ticksize":4, 'axes.titlesize':12, 'fig.titlesize':9})
+sb.set_context('paper', rc={"font.size":12,"axes.labelsize":14, "axes.ticksize":4, 'axes.titlesize':12, 'fig.titlesize':9})
 #sb.set_context('paper', rc={"font.size":9,"axes.labelsize":6, "axes.ticksize":3, 'axes.titlesize':6, 'fig.titlesize':6})
 #plt.rcParams['font.weight'] = 'bold'
 class DeltaPerStepResultsPlottingMain:
@@ -43,8 +43,9 @@ class DeltaPerStepResultsPlottingMain:
         # for easy plotting
         # currently just plotting over train data
         self.make_tr_df_to_plot()
-        self.make_example_plots()
-        self.make_split_by_age_plot()
+        #self.make_example_plots()
+#        self.make_split_by_age_plot()
+        self.make_subdivided_box_plots()
         # uncomment to make some training plots
 #        self.make_tr_plots()
 
@@ -82,7 +83,8 @@ class DeltaPerStepResultsPlottingMain:
     def make_tr_df_to_plot(self): 
         self.get_deltas()
         tr_deltas = self.tr_deltas.detach().numpy()
-        static_idxs = np.array([0, -4, 1, 2])
+        #static_idxs = np.array([0, -4, 1, 2]) # THESE IDXS MUST CHANGE FOR NEW SEVERITY RESULTS WITH ONE HOT ENCODINGS!!
+        static_idxs = np.array([0, -25, 1, 2]) 
         static_cov_names = ['Age', 'BMI', 'Sex', 'Race']
         static_covs = self.unnormalized_tr_data.static_covs[:, static_idxs].detach().numpy()
         # for covid hosp synch data
@@ -236,33 +238,136 @@ class DeltaPerStepResultsPlottingMain:
         return sample
 
         
-
-    def make_split_by_age_plot(self, day_cutoff=5):
-#        self.df_to_plot['age_thresh_75'] = self.df_to_plot['Age'].apply(
+#    def make_split_by_age_plot(self, day_cutoff=5):
+#        means = self.df_to_plot[['ind_idx', 'mean_tte_rem', 'Age']].groupby('ind_idx').mean().reset_index()
+#        means['Age'] = means['Age'].apply(
 #            lambda x: '>=75' if x>=75 else '<75'
 #        )
-        #trunc_df_to_plot = self.df_to_plot[self.df_to_plot['day'] < day_cutoff]
-        means = self.df_to_plot[['ind_idx', 'mean_tte_rem', 'Age']].groupby('ind_idx').mean().reset_index()
-        means['Age'] = means['Age'].apply(
+#        boxplot = sb.histplot(
+#            x='mean_tte_rem', hue='Age',
+#            data=means
+#        )
+#
+#        boxplot.set_xlabel('Predicted %s' %'Mean Time to Event Remaining')        
+##        boxplot.get_figure().legend(loc='lower left')
+#        handles, labels = boxplot.get_legend_handles_labels()
+##        boxplot.legend(handles, labels, loc='upper left', title='Age', fontsize=12, title_fontsize=12)
+##        boxplot.get_legend().get_title().set_fontsize('10')
+#        
+#        boxplot.get_figure().tight_layout()
+#        boxplot.get_figure().savefig(
+#            self.get_savepath('%s_boxplot_split_by_age>75_vert.png' %'mean_tte_rem')
+#        )
+#        boxplot.get_figure().clf()
+
+    def make_subdivided_box_plots(self, day_cutoff=5):
+        def make_hoz_boxplot(
+            col_name, hue=None, day_cutoff=day_cutoff,
+            skip_days_for_plot=1
+        ):
+            trunc_df_to_plot = self.df_to_plot[self.df_to_plot['day'] < day_cutoff]
+            boxplot = sb.boxplot(
+                x=col_name, y='day', orient='h',
+                data=trunc_df_to_plot, hue=hue
+            )
+            unique_days = np.arange(day_cutoff)
+    #        delta_boxplot.get_yaxis().set(ticks=unique_days[0::skip_days_for_plot].astype(int))
+            y_labels = [i if i%skip_days_for_plot == 0 else '' for i in range(day_cutoff)]
+            boxplot.set_yticklabels(y_labels)
+            boxplot.set_ylabel('Days Since Admission')
+            return boxplot
+        # Boxplot split by age
+        self.df_to_plot['age_thresh_75'] = self.df_to_plot['Age'].apply(
             lambda x: '>=75' if x>=75 else '<75'
         )
-        boxplot = sb.histplot(
-            x='mean_tte_rem', hue='Age',
-            data=means
+        boxplot = make_hoz_boxplot(
+            'hazard', hue='age_thresh_75', day_cutoff=10,
+             skip_days_for_plot=1
         )
-
-        boxplot.set_xlabel('Predicted %s' %'Mean Time to Event Remaining')        
+        boxplot.set_xlabel('Predicted %s' %'Hazard')        
 #        boxplot.get_figure().legend(loc='lower left')
         handles, labels = boxplot.get_legend_handles_labels()
-#        boxplot.legend(handles, labels, loc='upper left', title='Age', fontsize=12, title_fontsize=12)
+        boxplot.legend(handles, labels, loc='lower right', title='Age', fontsize=12, title_fontsize=12)
 #        boxplot.get_legend().get_title().set_fontsize('10')
-        
         boxplot.get_figure().tight_layout()
         boxplot.get_figure().savefig(
-            self.get_savepath('%s_boxplot_split_by_age>75_vert.png' %'mean_tte_rem')
+            self.get_savepath('%s_boxplot_split_by_age>75.png' %'hazard')
+        )
+        boxplot.get_figure().clf()
+
+        ### Boxplot Split by gender
+        self.df_to_plot['sex_enu'] = self.df_to_plot['Sex'].apply(
+            lambda x: 'Male' if x==1 else 'Female'
+        )
+        boxplot = make_hoz_boxplot(
+            'hazard', hue='sex_enu', day_cutoff=10,
+             skip_days_for_plot=1
+        )
+        boxplot.set_xlabel('Predicted %s' %'Hazard')        
+#        boxplot.get_figure().legend(loc='lower left')
+        handles, labels = boxplot.get_legend_handles_labels()
+        boxplot.legend(handles, labels, loc='lower right', title='Sex')
+        boxplot.get_figure().savefig(
+            self.get_savepath('%s_boxplot_split_by_sex.png' %'hazard')
         )
         boxplot.get_figure().clf()
         
+        ### Boxplot split by obesity
+        print(self.df_to_plot['BMI'].values)
+        self.df_to_plot['obs_thresh_40'] = self.df_to_plot['BMI'].apply(
+            lambda x: '>=40' if x>=40 else '<40'
+        )
+        boxplot = make_hoz_boxplot(
+            'hazard', hue='obs_thresh_40', day_cutoff=20,
+             skip_days_for_plot=2
+        )
+        boxplot.set_xlabel('Predicted %s' %'Hazard')        
+#        boxplot.get_figure().legend(loc='lower left')
+        handles, labels = boxplot.get_legend_handles_labels()
+        boxplot.legend(handles, labels, loc='lower left', title='BMI')
+        boxplot.get_figure().savefig(
+            self.get_savepath('%s_boxplot_split_by_bmi>30.png' %'hazard')
+        )
+        boxplot.get_figure().clf()
+
+
+    def make_split_by_age_plot(self, day_cutoff=5):
+        def make_hoz_boxplot(
+            col_name, hue=None, day_cutoff=day_cutoff,
+            skip_days_for_plot=1
+        ):
+            trunc_df_to_plot = self.df_to_plot[self.df_to_plot['day'] < day_cutoff]
+            boxplot = sb.boxplot(
+                x=col_name, y='day', orient='h',
+                data=trunc_df_to_plot, hue=hue
+            )
+            unique_days = np.arange(day_cutoff)
+    #        delta_boxplot.get_yaxis().set(ticks=unique_days[0::skip_days_for_plot].astype(int))
+            y_labels = [i if i%skip_days_for_plot == 0 else '' for i in range(day_cutoff)]
+            boxplot.set_yticklabels(y_labels)
+            boxplot.set_ylabel('Days Since Admission')
+            return boxplot
+
+        # Boxplot split by age
+        self.df_to_plot['age_thresh_75'] = self.df_to_plot['Age'].apply(
+            lambda x: '>=75' if x>=75 else '<75'
+        )
+        boxplot = make_hoz_boxplot(
+            'mean_tte_rem', hue='age_thresh_75', day_cutoff=10,
+             skip_days_for_plot=1
+        )
+        boxplot.set_xlabel('Predicted %s' %'Mean Time to Event Remaining')        
+#        boxplot.get_figure().legend(loc='lower left')
+        handles, labels = boxplot.get_legend_handles_labels()
+        boxplot.legend(handles, labels, loc='lower left', title='Age', fontsize=12, title_fontsize=12)
+#        boxplot.get_legend().get_title().set_fontsize('10')
+        boxplot.get_figure().tight_layout()
+        boxplot.get_figure().savefig(
+            self.get_savepath('%s_boxplot_split_by_age>75.png' %'mean_tte_rem')
+        )
+        boxplot.get_figure().clf()
+
+
 
     # cutoff 40 and skip 5 for the hosp synch data
     def make_tr_plots(self, day_cutoff=24, skip_days_for_plot=3):

@@ -4,46 +4,44 @@
 
 main_type: 'eval_saved_results_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/pbc2/'
-path_to_saved_model: '../output/pbc2/rayleigh/linear_delta_per_step_l10.10000_max_iter20000_timescale30/model.pkl'
-#device: 'cuda:3'
+path_to_saved_model: '../output/pbc2/rayleigh/RNN_delta_per_step_hdim128_l20.01000_max_iter2000_timescale30/model.pkl'
+
 
 data_input_params:
     dataset_name: 'pbc2'
-    saved_tr_te_idxs: '../data/PBC2/train_test_idxs_pbc2.pkl' #'../data/COVID-19/severity_dev_val_idxs_covid.pkl'
-    te_percent: 0.1
+    saved_tr_te_idxs: '../data/PBC2/train_test_idxs_pbc2.pkl' #'../data/PBC2/train_test_idxs_pbc2.pkl' 
+    te_percent: 0.1 # not used if saved_tr_te_idxs are given unless debugging
     cov_time_representation: 'absolute'
     missing_ind_dim: 12
     data_loading_params:
         paths: '../data/PBC2/PBC2_cleaned_deephit.csv'
         one_hot_encode_dynamic_disc_vars: True
-        timescale: 30 # 30 for our models #1 for deephit
+        timescale: 30 # 1 to evaluate deephit results #30
         
 
 model_params:
-    model_type: 'linear_delta_per_step'
+    model_type: 'RNN_delta_per_step'
+    hidden_dim: 128
     dynamic_cov_dim: 20 
     static_cov_dim: 7 
     total_dynamic_cov_dim: 32 # dynamic missing ind dim plus dynamic cov dim
-#    param_init_scales: [300, 100]
+    dropout: 0
 
 eval_params:
-    eval_metrics: ['brier_score', 'c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['brier_score', 'c_index', 'c_index_truncated_at_S'] 
     tracked_eval_metrics: ['c_index', 'c_index_truncated_at_S']
 
     dynamic_metrics:
-        start_times: [0, 118, 219, 300, 376] #[0., 1.657, 4.03, 5.67, 8.0] #[0, 3.933, 7.3, 10., 12.53] #[0, .353, .656, .899, 1.13] #[0, 3.933, 7.3, 10., 12.53] #logscale: [1, 4.779, 5.3936, 5.7071, 5.9322] #days scale [0, 118, 219, 300, 376] 
-        window_length: 219 #10 #5.707 #300
-        time_step: 54.75  #2.5 #150
-        #start_times: [.5, 1., 1.5, 2.]
-        #window_length: 3.
-        #time_step: .25
+        start_times: [0, 118, 219, 300, 376]
+        window_length: 219 
+        time_step: 54.75  
 
 train_params:
     learning_rate: 0.1 #0.01 #.001
     batch_size: 10000
     conv_thresh: .0000000000000000000000000000001
     n_epoch_print: 2000
-    max_iter: 20000
+    max_iter: 2000
     track_c_indices: False
     optimizer: 'adam'
 
@@ -52,9 +50,9 @@ train_params:
     loss_params:
         distribution_type: 'rayleigh'
         avg_per_seq: True
-        l1_reg: .1 #1
-        l2_reg: 0. #0.001
+        l1_reg: 0. 
+        l2_reg: 0.01
         step_ahead_cov_reg: .0
         drift_reg: 0.
         global_diff_reg: 0.
-        delta_reg: 0. #0.1 #.01
+        delta_reg: 0.

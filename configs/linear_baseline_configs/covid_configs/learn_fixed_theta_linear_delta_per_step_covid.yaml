@@ -1,5 +1,6 @@
-main_type: 'learn_fixed_theta_basic_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
+main_type: 'eval_saved_results_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
 savedir_pre: '../output/covid/'
+path_to_saved_model: '../output/covid/rayleigh/linear_delta_per_step/model.pkl'
 #device: 'cuda:3'
 
 data_input_params:
@@ -17,7 +18,7 @@ model_params:
     static_cov_dim: 56 #4 #56 #11 # dummy static var for now that does nothing
 
 eval_params:
-    eval_metrics: ['standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['brier_score', 'standard_c_index_truncated_at_S', 'c_index', 'c_index_truncated_at_S'] #['auc_truncated_at_S', 'c_index_truncated_at_S'] #['auc', 'c_index']
     tracked_eval_metrics: ['c_index', 'c_index_truncated_at_S']
 
     dynamic_metrics:

@@ -72,7 +72,7 @@ class LearnFixedThetaBasicMain(BasicMain):
             config_for_global_param_training['train_params']['learning_rate'] = \
                 LR_THETA_RATIO  * self.params['train_params']['learning_rate']
             config_for_global_param_training['train_params']['batch_size'] = 100000
-            config_for_global_param_training['train_params']['max_iter'] = 10000
+            config_for_global_param_training['train_params']['max_iter'] = 20000 #10000
             config_for_global_param_training['train_params']['loss_params']['l1_reg'] = 0
             config_for_global_param_training['train_params']['loss_params']['l2_reg'] = 0
  #           print('If any regularization is added besides l1, then global model training needs to be updated to turn off that regularization!')

@@ -1,33 +1,32 @@
-main_type: 'landmarked_cox_main' # 'eval_saved_results_main'# #'learn_fixed_theta_basic_main'
-savedir_pre: '../output/dm_cvd/'
+main_type: 'eval_brier_base_rates_main'
+savedir: '../output/dm_cvd/brier_base_rates_main'
 
 data_input_params:
     dataset_name: 'dm_cvd'
-    saved_tr_te_idxs: '../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #'../data/COVID-19/severity_train_test_idxs_covid.pkl'
-    te_percent: 0.1
+    saved_tr_te_idxs: '../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #'../data/dm_cvd/dev_val_idxs_dm_cvd.pkl' #../data/dm_cvd/train_test_idxs_dm_cvd.pkl' #dev_val_idxs_dm_cvd.pkl' #train_test_idxs_dm_cvd.pkl'
+    te_percent: -1. # not used if saved idxs are given unless debugging
     cov_time_representation: 'absolute'
     data_loading_params:
         #paths: ['../data/synth/trajectories.pkl', '../data/synth/censoring_indicators.pkl', '../data/synth/censored_survival_times.pkl'] #, '../data/synth/static_covs.pkl']
-        paths: '../data/dm_cvd/all_data.pkl' #'../data/COVID-19/severity_processed_covid_data.pkl'
+        paths: '../data/dm_cvd/all_data.pkl'  #data_dev_filtered_by_events_after_183.pkl'
 
 model_params:
-    model_type: 'landmarked_cox'
-    dynamic_cov_dim: 185 #345 #cur 345 #older data 248 #debug:85 or 102?
-    static_cov_dim: 20 
-
+    model_type: 'dummy_model_zero_deltas'
+    dynamic_cov_dim: 185
+    static_cov_dim: 20 #4 
 
 eval_params:
-    eval_metrics: ['c_index', 'c_index_truncated_at_S'] #['auc', 'c_index']
+    eval_metrics: ['brier_score'] #['auc', 'c_index']
     dynamic_metrics:
         start_times: [0, 3, 8, 16, 30] #[.5, 1., 1.5, 2.]
         window_length: 28
         time_step: 7
 
 train_params:
-    learning_rate: .0005
+    learning_rate: .01
     batch_size: 20000
-    conv_thresh: .01
-    n_epoch_print: 50
+    conv_thresh: .00000001
+    n_epoch_print: 500
     max_iter: 2000
 
     diagnostic_params:
@@ -39,4 +38,4 @@ train_params:
         drift_reg: 0.
         global_diff_reg: 0.
         delta_reg: 0. #0.1 #.01
-        cox_l2_reg: 1.
+

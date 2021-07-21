@@ -2,6 +2,7 @@
 /data/dm_cvd/
 /data/COVID-19/
 /data/mimic/
+/data/PBC2/
 /output
 *.swp
 *.pyc

@@ -84,7 +84,7 @@ class CovidDataLoader(DataLoaderBase):
         missing_indicators = data.missing_indicators
         static_vars = data.static_covs
         meas_times = data.meas_times
-        #self.dynamic_covs_order = data.dynamic_covs_order
+        self.dynamic_covs_order = data.dynamic_covs_order
         if DEBUG:
             idxs = np.random.permutation(np.arange(len(event_times)))[0:50]
             event_times = [event_times[i] for i in idxs]
@@ -98,7 +98,6 @@ class CovidDataLoader(DataLoaderBase):
             list(static_vars_i[0]) for static_vars_i in static_vars
         ]
 
-#        print('not converting static disc vars to bit strings while testing removing them')
         if self.params['one_hot_encode_static_vars']:
             static_vars =\
                 self.convert_static_vars_to_bit_strings_with_missingness(static_vars)

@@ -20,6 +20,18 @@ class ModelFreeRankingMain(BaseMain):
         for i in range(len(split) - 1):
             data_dir += split[i] + '/'
         self.data_dir = data_dir        
+        if self.params['data_input_params']['dataset_name'] == 'pbc2':
+            # as mentioned in our paper we tuned a scale hyperparameter for this
+            # dataset so the evaluation times also need to be rescaled
+            timescale = self.params['data_input_params']['data_loading_params']['timescale']
+            self.params['eval_params']['dynamic_metrics']['start_times'] = [\
+                time/timescale
+                for time in self.params['eval_params']['dynamic_metrics']['start_times']
+            ]
+            
+            self.params['eval_params']['dynamic_metrics']['time_step'] = self.params['eval_params']['dynamic_metrics']['time_step']/timescale
+            self.params['eval_params']['dynamic_metrics']['window_length'] = self.params['eval_params']['dynamic_metrics']['window_length']/timescale
+            self.params['savedir'] = self.params['savedir'] + '_timescale%d' %timescale
 
         data_path = os.path.join(data_dir, 'data_input.pkl')
         if 'data_input.pkl' in os.listdir(data_dir):
@@ -71,6 +83,9 @@ class ModelFreeRankingMain(BaseMain):
 
         with open(os.path.join(self.params['savedir'], 'tracker.pkl'), 'wb') as f:
             pickle.dump(results_tracker, f)
+        print(results_tracker.eval_metrics['brier_score']['te']['values'])
+        print(results_tracker.eval_metrics['c_index']['te']['values'])
+        print(results_tracker.eval_metrics['c_index_truncated_at_S']['te']['values'])
         
         with open(os.path.join(self.params['savedir'], 'params.pkl'), 'wb') as f:
             pickle.dump(self.params, f) 
@@ -108,3 +123,14 @@ class EvaluateFraminghamRankingMain(ModelFreeRankingMain):
         )
         # evaluate with num_events_ranking
         self.model_evaluator.evaluate_model('framingham', data_input, diagnostics)
+
+class EvaluateBrierScoreBaseRatesMain(ModelFreeRankingMain):
+
+    def evaluate_model(self, model_type, data_input, diagnostics):
+        self.model_evaluator = ModelEvaluator(
+            self.params['eval_params'],
+            self.params['train_params']['loss_params'],
+            model_type
+        )
+        self.model_evaluator.evaluate_model('brier_base_rate', data_input, diagnostics)
+    
