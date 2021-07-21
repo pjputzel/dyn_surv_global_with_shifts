@@ -1,2 +1,1 @@
-# DDGGD
-Deep Dynamic Generalized Gamma Distributions for Survival Analysis
+Personalized Dynamic Survival with Parametric Distributions
