@@ -2,7 +2,9 @@
 /data/dm_cvd/
 /data/COVID-19/
 /data/mimic/
-/data/PBC2/
+/data/PBC2/data_input.pkl
+/data/PBC2/make_splits.py
+/data/PBC2/global*
 /output
 *.swp
 *.pyc
