@@ -59,22 +59,9 @@ class DmCvdDataLoader(DataLoaderBase):
             static_vars =\
                 self.convert_static_vars_to_bit_strings_with_missingness(static_vars)
         
-        #print([len(m) for m in missing_indicators])
         print('Length of dynamic covs: %s, length of static covs: %s' %(len(trajs[0][0][1]), len(static_vars[0])))
         missing_indicators = [[[float(entry) for entry in m] for m in missingness_i] for missingness_i in missing_indicators]
         
-        # lets try masking out values to zero
-        # TODO: make this an option-either masking to zero or use averages
-#        trajs = [
-#            [   
-#                [traj_t[0]/365., [cov_value * (1 - missing_indicators[i][t][c]) for c, cov_value in enumerate(traj_t[1])]]
-#                for t, traj_t in enumerate(traj)
-#            ] 
-#            for i, traj in enumerate(trajs)
-#        ]
-        max_event_time = np.max(np.array(event_times))
-#        norm = max_event_time
-#        norm = 365
         norm = 1
         trajs = [
             [   

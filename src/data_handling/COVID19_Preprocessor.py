@@ -29,17 +29,6 @@ PATH_DICT = \
         'NYU_preprocessed': os.path.join(PATH_PRE, 'covid20200726.csv')
     }
 
-### Variables I wish to use and put together into a single dataframe
-### o2 level (nan/-1 if not measured)
-### ICU status 0/1 as dynamic value 
-### all dynamic measurements from ventilators if on ventilator (-1 if not on ventilator
-### temp
-### diagnoses at start of the study as a static variable from NRU preprocessed
-### demographics as static variables
-### blood pressure
-### all numeric lab tests
-### meds as dynamic categorical variable (same kind of processing as before)
-### any other dynamic values from the icu stay data
 
 
 def convert_cat_vals_to_enumeration_multiple_columns(data_frame, column_names, replace_nans_with=-1):
@@ -87,13 +76,6 @@ def main():
         with open('processed_covid_data_debug.pkl', 'wb') as f:
             pickle.dump(data_pre, f)
         
-#    data_pre.load_unlinked_dfs()
-#    data_pre.link_dfs_by_patient_id()
-#    data_pre.filter_data_by_hospitalization_status()
-#    data_pre.convert_categorical_covariates_to_enumeration()
-#    data_pre.combine_all_measurements_per_encounter()
-#    data_pre.align_times_by_hospitalization_event()
-#    data_pre.split_data()
 
 class COVID19_Preprocessor:
 
@@ -114,7 +96,6 @@ class COVID19_Preprocessor:
         self.time_res_in_days = time_res_in_days
         self.labtest_missingness_thresh = labtest_missingness_thresh
         self.debug = debug
-        #self.load_unlinked_dfs()
 
 
     def preprocess_data(self):
@@ -223,51 +204,11 @@ class COVID19_Preprocessor:
         ]
 
     def compute_enumeration_of_dynamic_categorical_covs(self):
-        ### TODO: compute union of all dynamic covs and medications 
-        ### Note that categorical values are represented as a vector of
-        ### ones and zeros of length equal to the number of categories and
-        ### one representing the presence of that category at a given encounter
-        ### ordering is arbitrary, but needs to be fixed of course.
-
-        # get union of all desired dynamic covs
-        # these are as follows:
-        ### o2 device used (nan/-1 if not measured, categorical for which type of
-        ###     device was used)
-        ### ICU status 0/1 as dynamic value - compute in per pat traj func
-        ### all dynamic measurements from ventilators if on ventilator (-1 if not on ventilator
-        ### temp not categorical
-        ### diagnoses at start of the study as a static variable from NRU preprocessed handled in the staic cov function
-        ### demographics as static variables (handled in static covariate function)
-        ### blood pressure (handled in per pat traj func)
-        ### all numeric lab tests 
-        ### meds as dynamic categorical variable (same kind of processing as before)
-        ### any other dynamic values from the icu stay data
-         ### based on nyu preprocessed df:
-         ### before/after dialyis treatment
-         ### before/after stroke
-
-        ### Other stuff
-        ### 1. handle missingness for medications in the same way as before (in pat traj loop)
-        ### 2. before/after dialysis as a variable  (in pat traj loop)
-        ### 3. before/after stroke (in pat traj loop)
         ##### O2 #####
         self.o2_device_types_df, self.o2_enu_to_name = \
             self.replace_o2_device_names_with_enumeration()
         
 
-        ##### For now ignoring mech vent features  #####
-        ##### because there's a lot of missingness #####
-        
-        #### For diagnoses I'm thinking of just treating these as a static ####
-        #### variable for now-ie what diagnosis is present at covid startup. ####
-#        self.diagnosis_df, self.diagnosis_enu_to_name = \
-#            convert_categorical_values_to_enumeration(\
-#                self.diagnosis_df.set_index('PAT_ID')[
-#                    self.cohort_idxs
-#                ].reset_index(),
-#                'DX_NAME'
-#            )
-        
         #### Note I had to delete a single line (855564) out of the medications ###
         #### csv file that was corrupted somehow ####
         self.meds_enu_to_name = \
@@ -288,8 +229,6 @@ class COVID19_Preprocessor:
             ['PAT_ID', 'RESULT_DATE', 'COMPONENT_NAME', 'ORD_VALUE', 'ORD_NUM_VALUE']
         ]
 
-        #self.ordered_dynamic_measurements = ordered_dynamic_measurements
-        
 
     def replace_o2_device_names_with_enumeration(self):
         cohort_o2 = self.o2_df.set_index('PAT_ID').loc[
@@ -310,13 +249,6 @@ class COVID19_Preprocessor:
     def preprocess_encounters_patient_i(self, 
         i
     ):
-        # to do this then get the csn's from the encounters file for an individual
-        # note the encounter file start_date is at the resolution of days
-        # while the actual hours/minutes for each different type of measurement
-        # will be correctly listed in a separate file for that measurement
-        # note at this point that the encounters should already be correctly 
-        # processed so that any 'categorical varibales' (read 'strings') are already
-        # filtered
         patient_idx = self.cohort_idxs[i]
         hosp_time = self.hosp_times[i]
         obs_event_time = self.death_times[i]
@@ -430,19 +362,6 @@ class COVID19_Preprocessor:
         self.icu_stay_df['DATE'] = pd.to_datetime(
             self.icu_stay_df['DATE'], format=FMT_STR2
         ).astype(np.datetime64)
-#        encs_o2 = self.o2_device_types_df[
-#            (self.o2_device_types_df['PAT_ID'] == patient_idx) &\
-#            (self.o2_device_types_df['RECORDED_TIME'].astype(np.datetime64) \
-#                <= hosp_time
-#            )
-#        ][['EPT_CSN', 'RECORDED_TIME']]
-#    
-#        encs_icu = self.icu_stay_df[
-#            self.icu_stay_df['PAT_ID'] == patient_idx
-#            (self.icu_stay_df['DATE'].astype(np.datetime64) \
-#                <= hosp_time
-#            )
-#        ][['PAT_ENC_CSN_ID', 'DATE']]
 
     ### NOTE: using negative ones for missingness currently
     def collapse_all_measurements_for_patient_i(self, measurements_i, idx):
@@ -471,9 +390,6 @@ class COVID19_Preprocessor:
         )
         end_day = self.get_end_date(measurements_i)
         num_bins = timebinning(end_day) + 1
-        # TODO group rows by bins and collect into a matrix of num_bins by 
-        # num total dynamic measurements
-        # also create missingness indicators
         collapsed_measurements = []
         missing_indicators = []
         meas_times = []
@@ -498,25 +414,11 @@ class COVID19_Preprocessor:
                 for val in sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str)))
             ]
             meds_missingness = [0 for _ in self.meds_enu_to_name.values()]
-#            if len(meds_at_time) >=1 :
-#                print(meds_at_time, meds_list_at_time)
-#                print(sorted(list(np.array(list(self.meds_enu_to_name.values())).astype(str))))
-#                print(sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str))))
-            
             ### LABS ###
-#            labs_df = measurements_i['labs']
-#            labs_at_time = labs_df[labs_df['TIME_BIN'] == time_bin]
             # Handling edge case where there are no labtests at a given time
             if time_bin in labs_df.index:
                 labs_at_time = labs_df.loc[time_bin]
-
-#                labs_at_time = labs_at_time.pivot_table(
-#                    index='TIME_BIN', columns='COMPONENT_NAME',
-#                    values='ORD_NUM_VALUE', aggfunc='mean'
-#                )
                 included_labs = labs_at_time.index
-#                included_labs = labs_at_time['COMPONENT_NAME'].unique()
-                # sliced from [1:] to exclude labtests with nan as their comp name
                 labs_list_at_time = [
                     labs_at_time[val] if val in included_labs else -1
                     for val in sorted(list(self.labs_enu_to_name.keys()))[1:]
@@ -532,7 +434,6 @@ class COVID19_Preprocessor:
                     -1 for val in list(self.labs_enu_to_name.keys())[1:]
                 ]
                 labs_missingness =  [1 for key in list(self.labs_enu_to_name.keys())[1:]]
-            # TODO do the same for each of the other df's
             ### O2 ###
             o2 = measurements_i['o2']
             o2_at_time = o2[o2['TIME_BIN'] == time_bin]
@@ -542,7 +443,6 @@ class COVID19_Preprocessor:
                 missing_o2 = [1]
             else:
                 o2_at_time = [o2_at_time['MEAS_VALUE'].value_counts().argmax()]
-#                print(o2_at_time)
                 missing_o2 = [0]
     
             ### ICU Times ###
@@ -577,7 +477,6 @@ class COVID19_Preprocessor:
                 temp_at_time = [np.nanmean(temps_at_time)]
                 missing_temp = [0]
             # combine and append
-#            print(type(labs_list_at_time), type(meds_list_at_time), type(o2), type(icu_at_time), type(bp_at_time), type(temp_at_time))
             meas_t = \
                     labs_list_at_time + meds_list_at_time +\
                     o2_at_time + icu_at_time + bp_at_time + temp_at_time
@@ -610,11 +509,9 @@ class COVID19_Preprocessor:
             time = self.death_times[p]
             if np.isnat(time):
                 time = self.end_times[p]
-#            print(type(time), type(self.hosp_times[p]))
             time_relative_to_hosp = \
                 (time - self.hosp_times[p]).item()
             synched_death_times.append(time_relative_to_hosp)
-#            self.death_times[p] = time_relative_to_hosp
         self.censored_event_times = synched_death_times
             
     
@@ -644,7 +541,6 @@ class COVID19_Preprocessor:
         static_covs = []
         for p, pat in enumerate(self.cohort_idxs):
             demos_p = demos[demos['PAT_ID'] == pat]
-#            print(type(self.hosp_times[p]), demos_p['BIRTH_DATE'].values, 'meow')
             demos_p['AGE'] = (self.hosp_times[p] - demos_p['BIRTH_DATE'].values[0]).item()/(10**9 * 3600 * 24 * 365)
             static_covs.append(demos_p[
                 [
@@ -654,32 +550,6 @@ class COVID19_Preprocessor:
                 ]
             ].values)
         self.static_covs = static_covs
-#### Old Comments
-    ### Old comments for collapse function
-        # here we collapse with the time resolution we decide on 
-        # so we take the df made in get_all_encounters_for_patient_i and
-        # we bin it into the nearest self.time_res_in_days interval per encoutner
-        # adding that as an extra field. Then we create a column for each 
-        # dynamic measurement and for every encounter in the same bin we pull
-        # the values from the correct dataframe and insert them into the columns
-        # so we'll iterate over all the times in the discretization for each
-        # individual
-    ### Old comments for the get_all_encounters_patient_i function
-        # for every type of dynamic measurement, pull all the encounter csn's
-        # as well as the encounter times and return a df (with 3 columns)
-        # with the csn's, the times, and the file name the csn comes
-        # fromas the columns
 
-        ### o2 device used (nan/-1 if not measured, categorical for which type of
-        ###     device was used)
-        ### ICU status 0/1 as dynamic value - compute in per pat traj func
-        ### all dynamic measurements from ventilators if on ventilator (-1 if not on ventilator
-        ### temp
-        ### diagnoses at start of the study as a static variable from NRU preprocessed
-        ### demographics as static variables
-        ### blood pressure
-        ### all numeric lab tests
-        ### meds as dynamic categorical variable (same kind of processing as before)
-        ### any other dynamic values from the icu stay data
 if __name__ == '__main__':
     main()

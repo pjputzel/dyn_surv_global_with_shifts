@@ -8,11 +8,6 @@ NUM_CATEGORIES_DISC_STATIC = {
     0:2, 1:2
 }
 
-# TODO:
-#   1.1 Replace discrete dynamic covs with bit vectors DONE
-#   1.2 Check that the discretization is correct DONE
-#   2. Re-arrange dynamic covs to have the static dynamic covs occur last DONE
-#   3. Double check that the number of continuous dynamic covs is 8 (as stated in data_input.py -actually it's seven, updated DONE
 
 class PBC2DataLoader(DataLoaderBase):
 
@@ -25,18 +20,12 @@ class PBC2DataLoader(DataLoaderBase):
         # drop rows where the end of sequence is the same as the last day of
         # measurement
         df = df[~(df['times'] == df['tte'])] 
-#        print('ascites max', df['ascites'].max())
-#        print('hepatomegaly max', df['hepatomegaly'].max())
-#        print('spiders max', df['spiders'].max())
-#        print('edema max', df['edema'].max())
-#        print('histolofic max', df['histologic'].max(), 'min:', df['histologic'].min())
         # code later own assumes categories start from 0, and histologic starts
         # from one, so have to subtract one
         df['histologic'] = df['histologic'] - 1
-        means_by_ids = df.groupby('id').mean() #just taking the mean to collapse the groupby
+        means_by_ids = df.groupby('id').mean() 
         event_times = means_by_ids['tte'].values
         censoring_indicators = (~means_by_ids['label'].values.astype(bool)).astype(int)
-        # just including transplant as a censoring event for our model.
         censoring_indicators[means_by_ids['label'].values == 2] = 1
         static_covs = means_by_ids[['drug', 'sex', 'age']].values
         
@@ -78,11 +67,8 @@ class PBC2DataLoader(DataLoaderBase):
         missing_inds = [[[float(entry) for entry in m] for m in missingness_i] for missingness_i in missing_inds]
         replace_nans_with = -1
         
-#        norm = np.mean(event_times) #30
         norm = self.params['timescale']
-        print(np.array([0, 118, 219, 300, 376, 300, 150])/norm)
         rescale_func = lambda x: x/norm
-#        rescale_func = lambda x: np.log(x + 1)
         
         trajs = [
             [
@@ -137,7 +123,6 @@ class PBC2DataLoader(DataLoaderBase):
             0:2, 1:2, 2:2, 3:3, len(cov_trajs[0][0][1]) - 1 : 4
         }
         def one_hot_encode_single_cov_vector(entry, missing_inds):
-#            print(entry)
             time, entry = entry[0], entry[1]
             disc_vars = []
             for disc_var_idx in disc_vars_info.keys():

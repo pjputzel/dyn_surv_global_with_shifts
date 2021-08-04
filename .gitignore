@@ -7,6 +7,8 @@
 /data/PBC2/global*
 /output
 *.swp
+*.swm
+*.swo
 *.pyc
 *.png
 ../data/*.png

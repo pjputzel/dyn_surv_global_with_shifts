@@ -27,7 +27,6 @@ PATH_DICT = \
         'demographics': path_func('demographics'),
         'diagnosis': path_func('diagnosis'),
         'NYU_preprocessed': os.path.join(PATH_PRE, 'covid20200726.csv'),
-        #'severity': None
     }
 
 def main():
@@ -35,7 +34,7 @@ def main():
     include_after_hosp_data = True
     time_res_in_days = 1.
 
-    data_type = 'time_to_severe_outcome' #time_to_severe_outcome
+    data_type = 'time_to_severe_outcome' 
 
     if data_type == 'time_to_death':
         data_pre = COVID19DeathPreprocessor(
@@ -57,21 +56,6 @@ def main():
         with open('processed_covid_data_debug.pkl', 'wb') as f:
             pickle.dump(data_pre, f)
 
-#    savename = 'processed_covid_data' + '_debug=%s' %debug + '_afterhosp=%s' %include_after_hosp_data + '.pkl'
-#    with open(savename, 'wb') as f:
-#        pickle.dump(data_pre, f)
-
-### Variables I wish to use and put together into a single dataframe
-### o2 level (nan/-1 if not measured)
-### ICU status 0/1 as dynamic value 
-### all dynamic measurements from ventilators if on ventilator (-1 if not on ventilator
-### temp
-### diagnoses at start of the study as a static variable from NRU preprocessed
-### demographics as static variables
-### blood pressure
-### all numeric lab tests
-### meds as dynamic categorical variable (same kind of processing as before)
-### any other dynamic values from the icu stay data
 
 
 def convert_cat_vals_to_enumeration_multiple_columns(data_frame, column_names, replace_nans_with=-1):
@@ -107,17 +91,9 @@ def convert_categorical_values_to_enumeration(data_frame, column_name, replace_n
 
 
         
-#    data_pre.load_unlinked_dfs()
-#    data_pre.link_dfs_by_patient_id()
-#    data_pre.filter_data_by_hospitalization_status()
-#    data_pre.convert_categorical_covariates_to_enumeration()
-#    data_pre.combine_all_measurements_per_encounter()
-#    data_pre.align_times_by_hospitalization_event()
-#    data_pre.split_data()
 
 
 class COVID19Preprocessor:
-    #TODO: all shared default behaviors go here
     # defualt event type can be death
     # default start/end of sequence should be covid dx and event_time (death)
     def __init__(self, 
@@ -129,7 +105,6 @@ class COVID19Preprocessor:
         self.path_dict = PATH_DICT
         if path_dict:
             self.path_dict = path_dict
-#        self.event_type = event_type
         self.time_res_in_days = time_res_in_days
         self.labtest_missingness_thresh = labtest_missingness_thresh
         self.debug = debug
@@ -147,7 +122,6 @@ class COVID19Preprocessor:
         print('Processing dynamic covs...')
         self.compute_dynamic_covs_and_missingness()
         print('Dynamic covs processed!')
-#        self.synchronize_event_times_by_hospitalization()
         self.synch_times_to_event()
         self.compute_static_covs()
         print('All Done :)')
@@ -168,7 +142,6 @@ class COVID19Preprocessor:
     def compute_hosp_and_discharge_times(self):
         df = self.NYU_preprocessed_df
         hospdt_fmt = '%d%b%Y'
-        # may have to handle nan case
         convert_to_datetime = \
             lambda x: pd.to_datetime(x, format=hospdt_fmt).astype(np.datetime64)
         convert_to_timedelta = \
@@ -205,7 +178,6 @@ class COVID19Preprocessor:
 
     def compute_dynamic_covs_and_missingness(self):
         self.drop_labtests_with_high_missingness()
-        # just using the Thera Class for now
         print('Number of med types:' , self.meds_df['THERA_CLASS'].unique().shape)
         self.compute_enumeration_of_dynamic_categorical_covs()
         self.convert_measurement_times_to_datetimes()
@@ -220,9 +192,6 @@ class COVID19Preprocessor:
         )
         pats_to_delete = []
         for i, pat in iterate_over:
-            # This needs to be truncated at the time of event or censoring time
-            # just stop the time bin iteration at one step before the bin which
-            # time to event or censoring falls into
             dynamic_covs_i, missing_i, meas_times_i, start_i, end_i = \
                 self.preprocess_encounters_patient_i(i)
             if len(dynamic_covs_i) == 0:
@@ -266,41 +235,17 @@ class COVID19Preprocessor:
         ].reset_index()['COMPONENT_NAME'].unique()
 
         print('Keeping %d labtests' %len(labs_to_keep))
-#        self.labs_df = self.labs_df.drop(columns=labs_to_drop)       
         self.labs_df = self.labs_df[
             self.labs_df['COMPONENT_NAME'].isin(labs_to_keep)
         ]
 
-        # not going to work because the result dates and the discharge times have different lengths
-        # looks like I was trying to compute missingness of the labs after leaving?
-        # or maybe creating a field of labs_after_leaving?
-        #labs_after_leaving = self.labs_df[(self.labs_df['PAT_ID'].isin(self.pats_with_labs_after_leaving)) & (self.labs_df['RESULT_DATE'] > self.discharge_times)]
         
-
-    def drop_medications_with_high_missingness(self):
-        pass
-        #pivot_meds = self.meds_df.pivot_table(index='' 
     def compute_enumeration_of_dynamic_categorical_covs(self):
         ##### O2 #####
         self.o2_device_types_df, self.o2_enu_to_name = \
             self.replace_o2_device_names_with_enumeration()
         
 
-        ##### For now ignoring mech vent features  #####
-        ##### because there's a lot of missingness #####
-        
-        #### For diagnoses I'm thinking of just treating these as a static ####
-        #### variable for now-ie what diagnosis is present at covid startup. ####
-#        self.diagnosis_df, self.diagnosis_enu_to_name = \
-#            convert_categorical_values_to_enumeration(\
-#                self.diagnosis_df.set_index('pat_id')[
-#                    self.cohort_idxs
-#                ].reset_index(),
-#                'dx_name'
-#            )
-        
-        #### Note I had to delete a single line (855564) out of the medications ###
-        #### csv file that was corrupted somehow ####
         self.meds_enu_to_name = \
             convert_categorical_values_to_enumeration(
                 self.meds_df, 'THERA_CLASS' #instead of PHARM_CLASS
@@ -321,7 +266,6 @@ class COVID19Preprocessor:
             ['PAT_ID', 'RESULT_DATE', 'COMPONENT_NAME', 'ORD_VALUE', 'ORD_NUM_VALUE']
         ]
 
-        #self.ordered_dynamic_measurements = ordered_dynamic_measurements
         
 
     def replace_o2_device_names_with_enumeration(self):
@@ -343,9 +287,6 @@ class COVID19Preprocessor:
     def preprocess_encounters_patient_i(self, 
         i
     ):
-        # note at this point that the encounters should already be correctly 
-        # processed so that any 'categorical varibales' (read 'strings') are already
-        # filtered
         patient_idx = self.cohort_idxs[i]
         hosp_time = self.hosp_times[i]
         synch_time = self.synch_times[i]
@@ -462,28 +403,13 @@ class COVID19Preprocessor:
         self.icu_stay_df['DATE'] = pd.to_datetime(
             self.icu_stay_df['DATE'], format=FMT_STR2
         ).astype(np.datetime64)
-#        encs_o2 = self.o2_device_types_df[
-#            (self.o2_device_types_df['PAT_ID'] == patient_idx) &\
-#            (self.o2_device_types_df['RECORDED_TIME'].astype(np.datetime64) \
-#                <= hosp_time
-#            )
-#        ][['EPT_CSN', 'RECORDED_TIME']]
-#    
-#        encs_icu = self.icu_stay_df[
-#            self.icu_stay_df['PAT_ID'] == patient_idx
-#            (self.icu_stay_df['DATE'].astype(np.datetime64) \
-#                <= hosp_time
-#            )
-#        ][['PAT_ENC_CSN_ID', 'DATE']]
 
-    ### NOTE: using negative ones for missingness currently
     def collapse_all_measurements_for_patient_i(self, measurements_i, idx):
         obs_event_time = self.time_to_events[idx] 
         cens_ind = self.censoring_indicators[idx]   
         discharge_time = self.discharge_times[idx]
         hosp_time = self.hosp_times[idx]
 
-#        start_day = self.hosp_times[idx].astype(np.datetime64)
         start_day = self.synch_times[idx].astype(np.datetime64)
         time_res_in_hours = np.timedelta64(int(self.time_res_in_days * 24), 'h')
         timebinning = lambda x: (x - start_day)//time_res_in_hours
@@ -506,9 +432,6 @@ class COVID19Preprocessor:
         )
         end_day = self.get_end_date(measurements_i, idx)
         num_bins = timebinning(end_day) + 1
-        # TODO group rows by bins and collect into a matrix of num_bins by 
-        # num total dynamic measurements
-        # also create missingness indicators
         collapsed_measurements = []
         missing_indicators = []
         meas_times = []
@@ -569,24 +492,10 @@ class COVID19Preprocessor:
                 (~meds_df['START_DATE'].isna() & meds_df['END_DATE'].isna()) &\
                 (meds_df['START_DATE'] <= end_of_bin)
             
-            # pretty sure not needed                
-#            cond_both_missing = \ 
-#                (meds_df['START_DATE'],isna() & meds_df['END_DATE'].isna()) &\
-                
-            # old version without handling the edge cases               
-#            meds_at_time = meds_df[
-#                (meds_df['START_DATE'] <= end_of_bin) &
-#                (meds_df['END_DATE'] > start_of_bin)
-#            ]['THERA_CLASS'].unique().astype(str) #or PHARM_CLASS for more detail
-
             meds_at_time = meds_df[
                 cond_both_present | cond_start_missing | cond_end_missing
             ]['THERA_CLASS'].unique().astype(str)
 
-#            meds_missing_at_time = meds_df[
-#                ~meds_df['END_DATE'].isna() &\
-#                (meds_df['END_DATE'] > end_of_bin)
-#            ]
 
             meds_in_order = sorted(list(
                 np.array(list(self.meds_enu_to_name.keys())).astype(str)
@@ -596,31 +505,14 @@ class COVID19Preprocessor:
                 1 if (val in meds_at_time) else 0 
                 for val in meds_in_order if not pd.isna(self.meds_enu_to_name[int(val)])
             ]
-#            meds_list_at_time2 = [
-#                1 if (val in meds_at_time ) else 0 
-#                for val in sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str)))
-#            ]
             meds_missingness = [0 for _ in meds_in_order if not pd.isna(self.meds_enu_to_name[int(_)])]
-#            if len(meds_at_time) >=1 :
-#                print(meds_at_time, meds_list_at_time)
-#                print(sorted(list(np.array(list(self.meds_enu_to_name.values())).astype(str))))
-#                print(sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str))))
-            
             ### LABS ###
-#            labs_df = measurements_i['labs']
-#            labs_at_time = labs_df[labs_df['TIME_BIN'] == time_bin]
             # Handling edge case where there are no labtests at a given time
             labs_in_order = sorted(list(self.labs_enu_to_name.keys()))[1:]
             if time_bin in labs_df.index:
                 labs_at_time = labs_df.loc[time_bin]
 
-#                labs_at_time = labs_at_time.pivot_table(
-#                    index='TIME_BIN', columns='COMPONENT_NAME',
-#                    values='ORD_NUM_VALUE', aggfunc='mean'
-#                )
                 included_labs = labs_at_time.index
-#                included_labs = labs_at_time['COMPONENT_NAME'].unique()
-                # sliced from [1:] to exclude labtests with nan as their comp name
                 labs_list_at_time = [
                     labs_at_time[val] if val in included_labs else -1
                     for val in labs_in_order
@@ -636,7 +528,6 @@ class COVID19Preprocessor:
                     -1 for val in list(self.labs_enu_to_name.keys())[1:]
                 ]
                 labs_missingness =  [1 for key in list(self.labs_enu_to_name.keys())[1:]]
-            # TODO do the same for each of the other df's
             ### O2 ###
             o2 = measurements_i['o2']
             o2_at_time = o2[o2['TIME_BIN'] == time_bin]
@@ -646,7 +537,6 @@ class COVID19Preprocessor:
                 missing_o2 = [1]
             else:
                 o2_at_time = [o2_at_time['MEAS_VALUE'].value_counts().argmax()]
-#                print(o2_at_time)
                 missing_o2 = [0]
     
             ### ICU Times ###
@@ -667,12 +557,7 @@ class COVID19Preprocessor:
             else:
                 bp_vals_at_time = bp_at_time[['SYS_BP', 'DIA_BP']].values
                 bp_vals_at_time = np.nanmean(bp_vals_at_time, axis=0)
-#                if bp_vals_at_time.shape[0] > 1:
-#                    bp_vals_at_time = np.nanmean(bp_vals_at_time, axis=0)
-#                    print(bp_vals_at_time)
-#                print([bp for bp in bp_vals_at_time], bp_vals_at_time, np.nanmean(bp_vals_at_time, axis=0))
                 bp_at_time = [float(bp) for bp in bp_vals_at_time]
-#                bp_at_time = [float(np.nanmean(bp_vals_at_time))]
                 missing_bp = [0, 0]
             
             ### TEMP ###
@@ -682,7 +567,6 @@ class COVID19Preprocessor:
                 temp_at_time = [-1]
                 missing_temp = [1]
             else:
-                # may need to aggregate this
                 temps_at_time = list(temp_at_time['MEAS_VALUE'])
                 temp_at_time = [np.nanmean(temps_at_time)]
                 missing_temp = [0]
@@ -691,10 +575,10 @@ class COVID19Preprocessor:
             # combine and append
             meas_t = \
                     labs_list_at_time + bp_at_time + temp_at_time + in_hosp +\
-                    meds_list_at_time # + o2_at_time + icu_at_time 
+                    meds_list_at_time 
             missing_t =\
                     labs_missingness + missing_bp + missing_temp + in_hosp_missingness +\
-                    meds_missingness # + missing_o2 + missing_icu
+                    meds_missingness 
 
             if np.sum(labs_missingness + missing_bp + missing_temp) == len(labs_missingness + missing_bp + missing_temp):
                 # case where all measurements are missing, note that meds and hosp are considered fully
@@ -727,12 +611,6 @@ class COVID19Preprocessor:
             max_times.append(max_time)
         max_times = [pd.Timestamp(0) if pd.isnull(t) else t for t in max_times]
         max_date = np.datetime64(np.max(max_times))
-#        if not self.include_after_hosp_data:
-        ### Below is only for the case where we truncate at discharge time ###
-        ### Default behavior here is not to truncate ###
-#        end_of_stay = self.discharge_times[idx]
-#        if max_date > end_of_stay:
-#            return np.datetime64(end_of_stay)
         return max_date
     
     def remove_pats(self, pats_to_delete):
@@ -758,25 +636,20 @@ class COVID19Preprocessor:
             ~np.in1d(self.cohort_idxs, pats_to_delete)
         ]
 
-#    def synchronize_event_times_by_hospitalization(self):
     def synch_times_to_event(self):
         synched_times_to_event = []
         for p, pat in enumerate(tqdm.tqdm(self.cohort_idxs)):
             time = self.time_to_events[p]
             if np.isnat(time):
                 time = self.end_times[p]
-#            print(type(time), type(self.hosp_times[p]))
             time_relative_to_synch_event = \
                 (time - self.synch_times[p]).item()
             synched_times_to_event.append(time_relative_to_synch_event)
-#            self.time_to_events[p] = time_relative_to_hosp
         self.censored_event_times = synched_times_to_event
             
     
 
     def compute_static_covs(self):
-        # note: age will be a static covariate this time since people are only
-        # in the hospital for shorter periods of time
         column_names = [\
             'SEX', 'RACE', 'ETHNICITY', 'MARITAL_STATUS',  'TOBACCO_USER', 
             'SMOKING_TOB_USE', 'SMOKELESS_TOB_USE'
@@ -800,7 +673,6 @@ class COVID19Preprocessor:
         static_covs = []
         for p, pat in enumerate(self.cohort_idxs):
             demos_p = demos[demos['PAT_ID'] == pat]
-#            print(type(self.hosp_times[p]), demos_p['BIRTH_DATE'].values, 'meow')
             demos_p['AGE'] = (self.synch_times[p] - demos_p['BIRTH_DATE'].values[0]).item()/(10**9 * 3600 * 24 * 365)
             static_covs.append(demos_p[
                 [
@@ -816,7 +688,6 @@ class COVID19SevereOutcomePreprocessor(COVID19Preprocessor):
 
     def compute_time_to_events_and_censoring_over_cohort(self):
         df = self.NYU_preprocessed_df
-        # TODO: compute tte for severity following notes from NYU email
         df['stroke_post_dx'] = np.where(df.strokedt > df.dxdt, 1, 0)
         df['strokedt_post_dx'] = np.where(df.stroke_post_dx, df.strokedt, np.nan)
 
@@ -840,7 +711,6 @@ class COVID19SevereOutcomePreprocessor(COVID19Preprocessor):
         self.censoring_indicators = censoring_indicators
         
 
-### TODO: update to only change neeeded functions from the base class
 class COVID19DeathPreprocessor(COVID19Preprocessor):
 
     def __init__(self, 
@@ -848,7 +718,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         path_dict=None, 
         time_res_in_days=.25,
         labtest_missingness_thresh=.25,
-#        include_after_hosp_data=False,
         debug=False
     ):
         self.path_dict = PATH_DICT
@@ -860,19 +729,15 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
 
         self.time_res_in_days = time_res_in_days
         self.labtest_missingness_thresh = labtest_missingness_thresh
-#        self.include_after_hosp_data = include_after_hosp_data
         self.debug = debug
-        #self.load_unlinked_dfs()
 
 
     def preprocess_data(self):
         print('Loading CSVs')
         self.load_unlinked_dfs() #
         print('CSVs loaded!')
-        # for case of using data after leaving the hospital, just leaving this func the same for now
-        # may update later
-        self.compute_hospitalization_times_and_cohort() #potentially change the discharge times to the final time of censoring, and then everything should be same? Otherwise you could just not change the discharge times and add if else statements to handle the patients after leaving with a flag
-        self.compute_time_to_events_and_censoring_over_cohort() # death times for patients in the hospital is all that is computed for now I'm pretty sure, but we need to check this
+        self.compute_hospitalization_times_and_cohort() 
+        self.compute_time_to_events_and_censoring_over_cohort() 
         print('Cohort, time_to_events, and censoring computed!')
         print('Processing dynamic covs...')
         self.compute_dynamic_covs_and_missingness()
@@ -915,11 +780,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         self.hosp_times = hosp_times
         self.discharge_times = discharge_times
 
-        # check how much data we have after discharge
-        #labs_after_leaving = self.labs_df[
-        #    self.labs_df['PAT_ID'].isin(self.cohort_idxs) &\
-        #    (self.labs_df['RESULT_DATE'] > self.discharge_times)
-        #]
         self.labs_df['RESULT_DATE'] = pd.to_datetime(
             self.labs_df['RESULT_DATE'], format=FMT_STR
         ).astype(np.datetime64)
@@ -936,7 +796,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         print('Num Deaths after leaving hospital', len(deaths_after_leaving))
 
     def compute_time_to_events_and_censoring_over_cohort(self):
-#        if not self.include_after_hosp_data:
         df = self.NYU_preprocessed_df.set_index('PAT_ID')
         censoring_indicators = \
             ~df.loc[self.cohort_idxs]['death'].values.astype(bool)
@@ -945,13 +804,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         time_to_events = df.loc[self.cohort_idxs][
             'deathdt'
         ].astype(np.datetime64).values
-#        else:
-#            df = self.demographics_df.set_index('pat_id')
-#            censoring_indicators = \
-#                ~df.loc[self.cohort_idxs]['DEATH_DATE'].isna().astype(int)
-#            time_to_events = df.loc[self.cohort_idxs][
-#                'DEATH_DATE'
-#            ].astype(np.datetime64).values
 
         self.time_to_events = time_to_events
         self.censoring_indicators = censoring_indicators
@@ -960,8 +812,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
 
     def compute_dynamic_covs_and_missingness(self):
         self.drop_labtests_with_high_missingness()
-        # just using the Thera Class for now
-        #self.drop_rare_medications()
         print('Number of med types:' , self.meds_df['THERA_CLASS'].unique().shape)
         self.compute_enumeration_of_dynamic_categorical_covs()
         self.convert_measurement_times_to_datetimes()
@@ -977,9 +827,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         ))
         pats_to_delete = []
         for i, (pat, time) in iterate_over:
-            # This needs to be truncated at the time of event or censoring time
-            # just stop the time bin iteration at one step before the bin which
-            # time to event or censoring falls into
             dynamic_covs_i, missing_i, meas_times_i, start_i, end_i = \
                 self.preprocess_encounters_patient_i(i)
             if len(dynamic_covs_i) == 0:
@@ -991,10 +838,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
             meas_times.append(meas_times_i)
             start_times.append(start_i)
             end_times.append(end_i)
-#        np.delete(
-#            self.cohort_idxs,
-#            np.in1d(self.cohort_idxs, pats_to_delete)
-#        )
         self.remove_pats(pats_to_delete)
         self.dynamic_covs = dynamic_covs
         self.missing_indicators = missing_indicators
@@ -1026,74 +869,23 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         ].reset_index()['COMPONENT_NAME'].unique()
 
         print('Keeping %d labtests' %len(labs_to_keep))
-#        self.labs_df = self.labs_df.drop(columns=labs_to_drop)       
         self.labs_df = self.labs_df[
             self.labs_df['COMPONENT_NAME'].isin(labs_to_keep)
         ]
 
-        # not going to work because the result dates and the discharge times have different lengths
-        # looks like I was trying to compute missingness of the labs after leaving?
-        # or maybe creating a field of labs_after_leaving?
-        labs_after_leaving = self.labs_df[(self.labs_df['PAT_ID'].isin(self.pats_with_labs_after_leaving)) & (self.labs_df['RESULT_DATE'] > self.discharge_times)]
         
 
-    def drop_medications_with_high_missingness(self):
-        pass
-        #pivot_meds = self.meds_df.pivot_table(index='' 
     def compute_enumeration_of_dynamic_categorical_covs(self):
-        ### TODO: compute union of all dynamic covs and medications 
-        ### Note that categorical values are represented as a vector of
-        ### ones and zeros of length equal to the number of categories and
-        ### one representing the presence of that category at a given encounter
-        ### ordering is arbitrary, but needs to be fixed of course.
-
-        # get union of all desired dynamic covs
-        # these are as follows:
-        ### o2 device used (nan/-1 if not measured, categorical for which type of
-        ###     device was used)
-        ### ICU status 0/1 as dynamic value - compute in per pat traj func
-        ### all dynamic measurements from ventilators if on ventilator (-1 if not on ventilator
-        ### temp not categorical
-        ### diagnoses at start of the study as a static variable from NRU preprocessed handled in the staic cov function
-        ### demographics as static variables (handled in static covariate function)
-        ### blood pressure (handled in per pat traj func)
-        ### all numeric lab tests 
-        ### meds as dynamic categorical variable (same kind of processing as before)
-        ### any other dynamic values from the icu stay data
-         ### based on nyu preprocessed df:
-         ### before/after dialyis treatment
-         ### before/after stroke
-
-        ### Other stuff
-        ### 1. handle missingness for medications in the same way as before (in pat traj loop)
-        ### 2. before/after dialysis as a variable  (in pat traj loop)
-        ### 3. before/after stroke (in pat traj loop)
         ##### O2 #####
         self.o2_device_types_df, self.o2_enu_to_name = \
             self.replace_o2_device_names_with_enumeration()
         
 
-        ##### For now ignoring mech vent features  #####
-        ##### because there's a lot of missingness #####
-        
-        #### For diagnoses I'm thinking of just treating these as a static ####
-        #### variable for now-ie what diagnosis is present at covid startup. ####
-#        self.diagnosis_df, self.diagnosis_enu_to_name = \
-#            convert_categorical_values_to_enumeration(\
-#                self.diagnosis_df.set_index('PAT_ID')[
-#                    self.cohort_idxs
-#                ].reset_index(),
-#                'DX_NAME'
-#            )
-        
-        #### Note I had to delete a single line (855564) out of the medications ###
-        #### csv file that was corrupted somehow ####
         self.meds_enu_to_name = \
             convert_categorical_values_to_enumeration(
-                self.meds_df, 'THERA_CLASS' #instead of PHARM_CLASS
+                self.meds_df, 'THERA_CLASS' 
             )
         
-        # using thera class for now, can also try pharm_class
         self.meds_df = self.meds_df[
             ['PAT_ID', 'PAT_ENC_CSN_ID', 'THERA_CLASS', \
             'START_DATE', 'END_DATE']
@@ -1108,7 +900,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
             ['PAT_ID', 'RESULT_DATE', 'COMPONENT_NAME', 'ORD_VALUE', 'ORD_NUM_VALUE']
         ]
 
-        #self.ordered_dynamic_measurements = ordered_dynamic_measurements
         
 
     def replace_o2_device_names_with_enumeration(self):
@@ -1130,13 +921,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
     def preprocess_encounters_patient_i(self, 
         i
     ):
-        # to do this then get the csn's from the encounters file for an individual
-        # note the encounter file start_date is at the resolution of days
-        # while the actual hours/minutes for each different type of measurement
-        # will be correctly listed in a separate file for that measurement
-        # note at this point that the encounters should already be correctly 
-        # processed so that any 'categorical varibales' (read 'strings') are already
-        # filtered
         patient_idx = self.cohort_idxs[i]
         hosp_time = self.hosp_times[i]
         obs_event_time = self.time_to_events[i]
@@ -1250,21 +1034,7 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         self.icu_stay_df['DATE'] = pd.to_datetime(
             self.icu_stay_df['DATE'], format=FMT_STR2
         ).astype(np.datetime64)
-#        encs_o2 = self.o2_device_types_df[
-#            (self.o2_device_types_df['PAT_ID'] == patient_idx) &\
-#            (self.o2_device_types_df['RECORDED_TIME'].astype(np.datetime64) \
-#                <= hosp_time
-#            )
-#        ][['EPT_CSN', 'RECORDED_TIME']]
-#    
-#        encs_icu = self.icu_stay_df[
-#            self.icu_stay_df['PAT_ID'] == patient_idx
-#            (self.icu_stay_df['DATE'].astype(np.datetime64) \
-#                <= hosp_time
-#            )
-#        ][['PAT_ENC_CSN_ID', 'DATE']]
 
-    ### NOTE: using negative ones for missingness currently
     def collapse_all_measurements_for_patient_i(self, measurements_i, idx):
         obs_event_time = self.time_to_events[idx] 
         cens_ind = self.censoring_indicators[idx]   
@@ -1292,9 +1062,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         )
         end_day = self.get_end_date(measurements_i, idx)
         num_bins = timebinning(end_day) + 1
-        # TODO group rows by bins and collect into a matrix of num_bins by 
-        # num total dynamic measurements
-        # also create missingness indicators
         collapsed_measurements = []
         missing_indicators = []
         meas_times = []
@@ -1318,35 +1085,19 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
             meds_at_time = meds_df[
                 (meds_df['START_DATE'] <= end_of_bin) &
                 (meds_df['END_DATE'] > start_of_bin)
-            ]['THERA_CLASS'].unique().astype(str) #or PHARM_CLASS for more detail
+            ]['THERA_CLASS'].unique().astype(str) 
             meds_list_at_time = [
                 1 if (val in meds_at_time) else 0 
                 for val in sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str)), key=int)[1:] if not pd.isna(self.meds_enu_to_name[int(val)])
             ]
-#            meds_list_at_time2 = [
-#                1 if (val in meds_at_time ) else 0 
-#                for val in sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str)))
-#            ]
             meds_missingness = [0 for _ in sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str)), key=int)[1:]  if not pd.isna(self.meds_enu_to_name[int(_)])]
-#            if len(meds_at_time) >=1 :
-#                print(meds_at_time, meds_list_at_time)
-#                print(sorted(list(np.array(list(self.meds_enu_to_name.values())).astype(str))))
-#                print(sorted(list(np.array(list(self.meds_enu_to_name.keys())).astype(str))))
             
             ### LABS ###
-#            labs_df = measurements_i['labs']
-#            labs_at_time = labs_df[labs_df['TIME_BIN'] == time_bin]
             # Handling edge case where there are no labtests at a given time
             if time_bin in labs_df.index:
                 labs_at_time = labs_df.loc[time_bin]
 
-#                labs_at_time = labs_at_time.pivot_table(
-#                    index='TIME_BIN', columns='COMPONENT_NAME',
-#                    values='ORD_NUM_VALUE', aggfunc='mean'
-#                )
                 included_labs = labs_at_time.index
-#                included_labs = labs_at_time['COMPONENT_NAME'].unique()
-                # sliced from [1:] to exclude labtests with nan as their comp name
                 labs_list_at_time = [
                     labs_at_time[val] if val in included_labs else -1
                     for val in sorted(list(self.labs_enu_to_name.keys()))[1:]
@@ -1362,7 +1113,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
                     -1 for val in list(self.labs_enu_to_name.keys())[1:]
                 ]
                 labs_missingness =  [1 for key in list(self.labs_enu_to_name.keys())[1:]]
-            # TODO do the same for each of the other df's
             ### O2 ###
             o2 = measurements_i['o2']
             o2_at_time = o2[o2['TIME_BIN'] == time_bin]
@@ -1372,7 +1122,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
                 missing_o2 = [1]
             else:
                 o2_at_time = [o2_at_time['MEAS_VALUE'].value_counts().argmax()]
-#                print(o2_at_time)
                 missing_o2 = [0]
     
             ### ICU Times ###
@@ -1393,12 +1142,7 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
             else:
                 bp_vals_at_time = bp_at_time[['SYS_BP', 'DIA_BP']].values
                 bp_vals_at_time = np.nanmean(bp_vals_at_time, axis=0)
-#                if bp_vals_at_time.shape[0] > 1:
-#                    bp_vals_at_time = np.nanmean(bp_vals_at_time, axis=0)
-#                    print(bp_vals_at_time)
-#                print([bp for bp in bp_vals_at_time], bp_vals_at_time, np.nanmean(bp_vals_at_time, axis=0))
                 bp_at_time = [float(bp) for bp in bp_vals_at_time]
-#                bp_at_time = [float(np.nanmean(bp_vals_at_time))]
                 missing_bp = [0, 0]
             
             ### TEMP ###
@@ -1408,18 +1152,10 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
                 temp_at_time = [-1]
                 missing_temp = [1]
             else:
-                # may need to aggregate this
                 temps_at_time = list(temp_at_time['MEAS_VALUE'])
                 temp_at_time = [np.nanmean(temps_at_time)]
                 missing_temp = [0]
-
             
-#            ### Hospitalization ###
-#            hosp = 
-
-
-            # combine and append
-#            print(type(labs_list_at_time), type(meds_list_at_time), type(o2), type(icu_at_time), type(bp_at_time), type(temp_at_time))
             meas_t = \
                     labs_list_at_time + bp_at_time + temp_at_time + \
                     meds_list_at_time + o2_at_time + icu_at_time 
@@ -1445,7 +1181,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
             max_times.append(max_time)
         max_times = [pd.Timestamp(0) if pd.isnull(t) else t for t in max_times]
         max_date = np.datetime64(np.max(max_times))
-#        if not self.include_after_hosp_data:
         end_of_stay = self.discharge_times[idx]
         if max_date > end_of_stay:
             return np.datetime64(end_of_stay)
@@ -1475,18 +1210,14 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
             time = self.time_to_events[p]
             if np.isnat(time):
                 time = self.end_times[p]
-#            print(type(time), type(self.hosp_times[p]))
             time_relative_to_hosp = \
                 (time - self.hosp_times[p]).item()
             synched_time_to_events.append(time_relative_to_hosp)
-#            self.time_to_events[p] = time_relative_to_hosp
         self.censored_event_times = synched_time_to_events
             
     
 
     def compute_static_covs(self):
-        # note: age will be a static covariate this time since people are only
-        # in the hospital for shorter periods of time
         column_names = [\
             'SEX', 'RACE', 'ETHNICITY', 'MARITAL_STATUS',  'TOBACCO_USER', 
             'SMOKING_TOB_USE', 'SMOKELESS_TOB_USE'
@@ -1510,7 +1241,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
         static_covs = []
         for p, pat in enumerate(self.cohort_idxs):
             demos_p = demos[demos['PAT_ID'] == pat]
-#            print(type(self.hosp_times[p]), demos_p['BIRTH_DATE'].values, 'meow')
             demos_p['AGE'] = (self.hosp_times[p] - demos_p['BIRTH_DATE'].values[0]).item()/(10**9 * 3600 * 24 * 365)
             static_covs.append(demos_p[
                 [
@@ -1520,32 +1250,6 @@ class COVID19DeathPreprocessor(COVID19Preprocessor):
                 ]
             ].values)
         self.static_covs = static_covs
-#### Old Comments
-    ### Old comments for collapse function
-        # here we collapse with the time resolution we decide on 
-        # so we take the df made in get_all_encounters_for_patient_i and
-        # we bin it into the nearest self.time_res_in_days interval per encoutner
-        # adding that as an extra field. Then we create a column for each 
-        # dynamic measurement and for every encounter in the same bin we pull
-        # the values from the correct dataframe and insert them into the columns
-        # so we'll iterate over all the times in the discretization for each
-        # individual
-    ### Old comments for the get_all_encounters_patient_i function
-        # for every type of dynamic measurement, pull all the encounter csn's
-        # as well as the encounter times and return a df (with 3 columns)
-        # with the csn's, the times, and the file name the csn comes
-        # fromas the columns
 
-        ### o2 device used (nan/-1 if not measured, categorical for which type of
-        ###     device was used)
-        ### ICU status 0/1 as dynamic value - compute in per pat traj func
-        ### all dynamic measurements from ventilators if on ventilator (-1 if not on ventilator
-        ### temp
-        ### diagnoses at start of the study as a static variable from NRU preprocessed
-        ### demographics as static variables
-        ### blood pressure
-        ### all numeric lab tests
-        ### meds as dynamic categorical variable (same kind of processing as before)
-        ### any other dynamic values from the icu stay data
 if __name__ == '__main__':
     main()

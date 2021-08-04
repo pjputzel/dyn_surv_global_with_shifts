@@ -15,16 +15,13 @@ import pickle
 from copy import deepcopy
 
 DM_CVD_NUM_CONT_DYNAMIC_COVS = 124 
-# there should only be one data-input (don't subclass) but one dataloader per new dataset
-# DataInput is agnostic to tr/te split, but the made batches which are used by the rest of the model will use the corresponding training/testing idxs
-### DataInput loads the data, and prepares the data for input into different parts of the pipeline
 
 
 DEBUG = False
 if DEBUG:
-    COVID_NUM_CONT_DYNAMIC_COVS = 50 # old 114
+    COVID_NUM_CONT_DYNAMIC_COVS = 50 
 else:
-    COVID_NUM_CONT_DYNAMIC_COVS = 212 # old 114
+    COVID_NUM_CONT_DYNAMIC_COVS = 212 
 PBC2_NUM_CONT_DYNAMIC_COVS = 7
 
 class DataInput:
@@ -59,36 +56,13 @@ class DataInput:
 
         self.event_times, self.censoring_indicators, self.missing_indicators, self.covariate_trajectories, self.static_covs = dataloader.load_data()
         self.dynamic_covs_order = dataloader.dynamic_covs_order
-#        if self.params['debug']:
-#            idxs = torch.tensor(np.random.permutation(np.arange(len(self.event_times)))[0:50])
-#            self.event_times = [self.event_times[i] for i in idxs]
-#            self.censoring_indicators = [self.censoring_indicators[i] for i in idxs]
-#            self.missing_indicators = [self.missing_indicators[i] for i in idxs]
-#            self.covariate_trajectories = [self.covariate_trajectories[i] for i in idxs]
-#            self.static_covs = [self.static_covs[i] for i in idxs]
 
         self.format_data()
         self.normalize_data()
-#        print(torch.sum(torch.isnan(self.covariate_trajectories)), '----------------------')
-#        print('WITHOUT NORMALIZATION, DELETE data_input.pkl AFTER DONE')
-#        self.replace_missingness_with_zeros() # Not needed, handled in normalize
         self.split_data()
         self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
         print('data loaded!')
-#        print(self.cov_times[0:10, 0:30])
-        #raise RuntimeError('Preston stopped the code!!!')
-#        self.unshuffled_tr_idxs = torch.arange(len(self.event_times_tr))
-        #print(self.unshuffled_tr_idxs)
 
-#        icu_idx = 247
-#        eff_traj_len = 10
-#        for ind_idx in range(len(self.covariate_trajectories)):
-#            print([   meas[icu_idx] 
-#                for meas in self.covariate_trajectories[ind_idx][0:eff_traj_len]
-#            ])  
-#        print(torch.mean(self.traj_lens[self.censoring_indicators == 1]),
-#                torch.mean(self.traj_lens[self.censoring_indicators == 0])
-#        )
     def normalize_data(self):
         '''
             Normalizes continous covariates only.
@@ -113,48 +87,19 @@ class DataInput:
         cont_cov_trajs = cov_trajs[:, :, 1:self.num_cont_dynamic_covs + 1]
         
         mean_covs = np.nanmean(np.nanmean(cont_cov_trajs, axis=0), axis=0)
-        #std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]))
         std_covs = np.nanstd(cont_cov_trajs.reshape([cont_cov_trajs.shape[0] * cont_cov_trajs.shape[1], self.num_cont_dynamic_covs]), axis=0)
-        #print('Before:')
-        #print(mean_covs, std_covs)
         norm_covs = \
             (cont_cov_trajs - mean_covs)/std_covs
-        #mean_covs_2 = np.nanmean(np.nanmean(norm_covs, axis=0), axis=0)
-        #std_covs_2 = np.nanstd(norm_covs.reshape([norm_covs.shape[0] * norm_covs.shape[1], self.num_cont_dynamic_covs]), axis=0)
-        #print('After:')
-        #print(mean_covs_2, std_covs_2)
-        #raise RuntimeError('meow')
         
         # note that this makes any missingness placeholders 0
         norm_covs[np.isnan(norm_covs)] = 0
         self.covariate_trajectories[:, :, 1:self.num_cont_dynamic_covs + 1] = \
             torch.tensor(norm_covs, dtype=torch.float64)
-#        print(self.covariate_trajectories.shape)
 
-    def replace_missingness_with_zeros(self):
-        '''
-            Updates covariates to have zeros as a placeholder when missing 
-            indicators are one. Assumes covariate trajectories are already
-            concatenated with missingness.
-        '''
-        # at this point cov trajs are already concatenated with missingness
-        # first entry of each covariate trajectory is the time so add one as well
-        print('WARNING, THIS FUNCTION (replace_missingness_with_zeros in DataInput.py) HAS NOT BEEN UPDATED IN A LONG TIME')
-        end_of_covs = int((self.covariate_trajectories.shape[-1] - 1)/2) + 1
-        self.covariate_trajectories[:, :, 1:end_of_covs] = torch.where(
-            self.missing_indicators == 1,
-            torch.zeros(self.missing_indicators.shape),
-            self.covariate_trajectories[:, :, 1:end_of_covs]
-        )
-        
 
 
     def format_data(self):
         self.format_cov_trajs_and_event_times_time_rep()
-        # TODO: format the missing indicators and 
-        # any interpolation here
-        # self.format_cov_trajs_missingness()
-        # ended up doing this in preprocessing
 
         if self.params['dataset_name'] == 'pbc2':
             # in this case we have dynamic discrete covariates with more
@@ -164,14 +109,7 @@ class DataInput:
             self.pad_cov_trajs_with_zeros(self.params['missing_ind_dim'])
         else:
             self.pad_cov_trajs_with_zeros()
-        print('converting to tensors...')
         self.convert_data_to_tensors()
-        #print('example covs before normalization')
-        #print(self.covariate_trajectories[0][0:2])
-#        self.replace_missing_values_with_mean()
-        #print('after replacing vals with mean')
-        #print(self.covariate_trajectories[0][0:2])
-#        self.replace_missing_values_with_zero()
         print('concatenating with missingness..')
         self.concatenate_covs_with_missingness()
 
@@ -199,14 +137,7 @@ class DataInput:
         
 
         cov_time_rep = self.params['cov_time_representation']
-#        print([len(event) for event in self.covariate_trajectories[0]])
-##        print(self.covariate_trajectories[0])
-#        print(self.covariate_trajectories[0][0:2])
-#        print(self.covariate_trajectories[0][0])
-#        print(self.covariate_trajectories[-1][-1])
-#        print(type(self.covariate_trajectories), type(self.covariate_trajectories[0]), type(self.covariate_trajectories[0][0]))
         if cov_time_rep == 'delta':
-            # event[0] is still the time of the covariate measurement
             self.covariate_trajectories = [ 
                 [ 
                     [event[0] - self.cov_times[i][j - 1]] + event[1:]  if j > 0 else event
@@ -214,10 +145,6 @@ class DataInput:
                 ] 
                 for i, traj in enumerate(self.covariate_trajectories)
             ]
-            #for i, traj in enumerate(self.covariate_trajectories):
-            #    for j, cov_event in enumerate(traj):
-            #        if not j ==0:
-            #            self.covariate_trajectories[i][j][0] = self.cov_times[i][j] - self.cov_times[i][j - 1]
         elif cov_time_rep == 'absolute':
             # don't need to do anything in this case
             pass
@@ -255,12 +182,10 @@ class DataInput:
                 padding_indicators_traj.extend(
                     [1 for i in range(max_len_trajectory - len(traj))]
                 )
-#                print(len(self.cov_times[i]), len(traj))
                 padded_cov_time = self.cov_times[i] + \
                     [
                         0 for i in range(max_len_trajectory - len(traj))       
                     ]
-#                print(len(padded_cov_times), len(padded_trajectory), 'after')
             else:
                 padded_trajectory = traj
                 padded_missing_indicator = self.missing_indicators[i]
@@ -268,14 +193,8 @@ class DataInput:
             # note padding is zero here as well
             # so when checking for padding make sure
             # to consider that the first entry is zero as well
-            #padded_cov_times.append(
-            #    [
-            #        cov_event[0] for cov_event in padded_trajectory
-            #    ]
-            #)
             padding_indicators.append(padding_indicators_traj)
 
-            #print(len(padded_trajectory[0]), len(padded_missing_indicator[0]))
             padded_trajectories.append(padded_trajectory)
             padded_missing_indicators.append(padded_missing_indicator)
             padded_cov_times.append(padded_cov_time)
@@ -289,7 +208,6 @@ class DataInput:
    
  
     def convert_data_to_tensors(self):
-        # could make float64/32 an option in params
         self.covariate_trajectories = torch.tensor(self.covariate_trajectories, dtype=torch.float64)
         self.traj_lens = torch.tensor(self.traj_lens, dtype=torch.float64)
         self.event_times = torch.tensor(self.event_times, dtype=torch.float64)
@@ -313,8 +231,6 @@ class DataInput:
             raise ValueError('Replacing missingness must occur after converting to tensor')
         if not self.params['dataset_name'] == 'covid':
             raise NotImplementedError('replacing missing values with mean only implemented for covid data where the missing values are -1')
-#        print(self.covariate_trajectories.shape)
-#        print(self.covariate_trajectories[0][0])
         cov_traj = self.covariate_trajectories
         cov_traj = torch.where(
             self.padding_indicators.int().bool().unsqueeze(-1),
@@ -331,15 +247,11 @@ class DataInput:
             cov_traj
         )
         self.covariate_trajectories = cov_traj
-#        print(self.covariate_trajectories[0][0])
     def concatenate_covs_with_missingness(self):
         self.covariate_trajectories = torch.cat([self.covariate_trajectories, self.missing_indicators], dim=-1)
 
     def split_data(self):
         # just make *_tr and *_te based on a split
-        # if you want to do CV with disjoint sets each step then I'd make a separate function
-        # which returns an iterator over the CV splits return tr/te batches for each split
-        # accordingly, also this will of course be its own main
         if self.params['saved_tr_te_idxs']:
             if not self.params['debug']:
                 print('Loading saved tr/test idxs, not using te_percent to make a new split')
@@ -379,23 +291,9 @@ class DataInput:
         self.static_covs_te = self.static_covs[self.te_idxs]
 
     def make_randomized_tr_batches(self, batch_size):
-#        self.shuffle_tr_data()
         self.shuffle_tr_idxs()
         self.tr_batches = self.get_batch_generator(batch_size)      
         
-        
-#        batches = []
-##        num_individuals = self.covariate_trajectories.shape[0]
-#        num_individuals_tr = len(self.tr_idxs)
-#        if num_individuals_tr % batch_size == 0:
-#            num_batches = num_individuals_tr//batch_size
-#        else:
-#            num_batches = num_individuals_tr//batch_size + 1
-#        
-#        for batch_idx in range(num_batches):
-#            batch = Batch(*self.get_tr_batch_data(batch_idx, batch_size), int(self.max_len_trajectory))
-#            batches.append(batch) 
-#        self.tr_batches = batches
     
     def get_batch_generator(self, batch_size):
         num_individuals_tr = len(self.tr_idxs)
@@ -413,46 +311,6 @@ class DataInput:
         for i, idx in enumerate(self.shuffled_tr_idxs):
             self.unshuffled_tr_idxs[idx] = i
 
-#    def shuffle_tr_data(self):
-#        # to avoid being unable to unshuffle-> makes
-#        # sure they aren't two shuffles in a row
-#        # we want to be able to see original order for analysis
-#        self.unshuffle_tr_data()
-#        idxs = torch.randperm(len(self.covariate_trajectories_tr))
-#        self.covariate_trajectories_tr = self.covariate_trajectories_tr[idxs]
-#        self.missing_indicators_tr = self.missing_indicators_tr[idxs]
-#        self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
-#        self.event_times_tr = self.event_times_tr[idxs]
-#        self.traj_lens_tr = self.traj_lens_tr[idxs]
-#        self.cov_times_tr = self.cov_times_tr[idxs]
-#        self.padding_indicators_tr = self.padding_indicators_tr[idxs]
-#        self.static_covs_tr = self.static_covs_tr[idxs]
-##        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
-##        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
-##        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
-##        self.event_times = [self.event_times[idx] for idx in idxs]
-##        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
-#
-#        self.shuffled_tr_idxs = idxs
-#        for i, idx in enumerate(idxs):
-#            self.unshuffled_tr_idxs[idx] = i
-#        #print(self.shuffled_idxs, self.unshuffled_idxs)
-#
-#    def unshuffle_tr_data(self):
-#        idxs = self.unshuffled_tr_idxs
-#        self.covariate_trajectories_tr = self.covariate_trajectories_tr[idxs]
-#        self.missing_indicators_tr = self.missing_indicators_tr[idxs]
-#        self.censoring_indicators_tr = self.censoring_indicators_tr[idxs]
-#        self.event_times_tr = self.event_times_tr[idxs]
-#        self.traj_lens_tr = self.traj_lens_tr[idxs]
-#        self.cov_times_tr = self.cov_times_tr[idxs]
-#        self.padding_indicators_tr = self.padding_indicators_tr[idxs]
-#        self.static_covs_tr = self.static_covs_tr[idxs]
-##        self.covariate_trajectories = [self.covariate_trajectories[idx] for idx in idxs]
-##        self.missing_indicators = [self.missing_indicators[idx] for idx in idxs]
-##        self.censoring_indicators = [self.censoring_indicators[idx] for idx in idxs]
-##        self.event_times = [self.event_times[idx] for idx in idxs]
-##        self.traj_lens = [self.traj_lens[idx] for idx in idxs]
     
     def get_tr_batch_data(self, batch_idx, batch_size):
         batch_indices = self.shuffled_tr_idxs[batch_idx * batch_size : (batch_idx + 1) * batch_size]
@@ -624,7 +482,7 @@ class Batch:
         self.cov_times = batch_cov_times
         self.event_times = batch_event_times
         self.censoring_indicators = batch_censoring_indicators
-        self.traj_lens = batch_traj_lengths #torch.tensor(batch_traj_lengths, dtype=torch.float64)
+        self.traj_lens = batch_traj_lengths 
         self.static_covs = batch_static_covs
         self.unshuffled_idxs = batch_unshuffle_idxs
         self.shuffled_idxs = batch_shuffle_idxs

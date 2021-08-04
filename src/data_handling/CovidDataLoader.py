@@ -1,11 +1,6 @@
 import sys
 sys.path.append('/home/pj/Documents/Dynamic SA/DDGGD/DDGGD/src')
-#sys.path.append('../data/COVID-19/')
-#from preprocess_data import COVID19SevereOutcomePreprocessor
-#from data_handling.COVID19_Preprocessor import COVID19_Preprocessor
 from data_handling.DataLoaderBase import DataLoaderBase
-#from data_handling.COVIDSevereOutcomePreprocessor import COVID19SevereOutcomePreprocessor
-#from preprocess_data import COVID19SevereOutcomePreprocessor
 import numpy as np
 import pandas
 import pickle
@@ -101,11 +96,6 @@ class CovidDataLoader(DataLoaderBase):
         if self.params['one_hot_encode_static_vars']:
             static_vars =\
                 self.convert_static_vars_to_bit_strings_with_missingness(static_vars)
-
-#        print('Removing disc static covs to see what happens')
-#        static_vars = self.remove_disc_static_covs(static_vars)
-
-#        print('static vars example:', static_vars[0])
         
         print('Length of dynamic covs: %s, length of static covs: %s' %(len(dynamic_covs[0][0]), len(static_vars[0])))
         missing_indicators = [[[float(entry) for entry in m] for m in list(missingness_i)] for missingness_i in missing_indicators]
