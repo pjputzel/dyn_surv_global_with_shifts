@@ -1,7 +1,6 @@
 from data_handling.SyntheticDataLoader import SyntheticDataLoader
 from data_handling.SyntheticDataLoader import SimpleSyntheticDataLoader
 from data_handling.CovidDataLoader import CovidDataLoader
-from data_handling.MimicDataLoader import MimicDataLoader
 from data_handling.PBC2DataLoader import PBC2DataLoader
 from pandas import qcut
 from sklearn.model_selection import train_test_split
